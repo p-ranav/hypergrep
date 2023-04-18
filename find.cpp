@@ -47,7 +47,7 @@ int visit(const char *path) {
         }
         // Check if path is a regular file 
         else if (entry->d_type == DT_REG) {
-            hs_scan(database, filepath, total_len, 0, scratch, on_match, (void *)filepath);
+            hs_scan(database, filepath, strlen(filepath), 0, scratch, on_match, (void *)filepath);
         }
     }
 
