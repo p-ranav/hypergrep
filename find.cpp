@@ -1,7 +1,12 @@
-#include <iostream>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/stat.h>
 #include <hs/hs.h>
-#include <filesystem>
+
+hs_database_t *database = NULL;
+hs_scratch_t *scratch = NULL;
 
 static int on_match(unsigned int id, unsigned long long from,
                        unsigned long long to, unsigned int flags, void *ctx)
@@ -10,41 +15,68 @@ static int on_match(unsigned int id, unsigned long long from,
     return 0;
 }
 
-static void search_directory_recursive(const char* directory, hs_database_t* database, hs_scratch_t* scratch)
-{
-    for (const auto& entry : std::filesystem::recursive_directory_iterator(directory, std::filesystem::directory_options::skip_permission_denied))
-    {
-        hs_scan(database, entry.path().c_str(), strlen(entry.path().c_str()), 0, scratch, on_match, (void *)entry.path().c_str());
+int visit(const char *path) {
+    struct dirent **entries;
+    int num_entries = scandir(path, &entries, NULL, NULL);
+    if (num_entries == -1) {
+        perror("scandir");
+        return -1;
     }
+
+    for (int i = 0; i < num_entries; i++) {
+        struct dirent *entry = entries[i];
+        char filepath[1024];
+        snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+                continue;
+            }
+            if (visit(filepath) == -1) {
+                return -1;
+            }
+        } else if (entry->d_type == DT_REG) {
+            hs_scan(database, filepath, strlen(filepath), 0, scratch, on_match, (void *)filepath);
+        }
+
+        free(entry);
+    }
+
+    free(entries);
+    return 0;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char* argv[])
 {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <directory>\n", argv[0]);
+        return 1;
+    }
+
     const char *path = argv[1];
     const char *pattern = argv[2];
 
-    hs_database_t *database = nullptr;
-    hs_compile_error_t *compile_error = nullptr;
-    hs_error_t error_code = hs_compile(pattern, 0, HS_MODE_BLOCK, nullptr, &database, &compile_error);
+    hs_compile_error_t *compile_error = NULL;
+    hs_error_t error_code = hs_compile(pattern, 0, HS_MODE_BLOCK, NULL, &database, &compile_error);
     if (error_code != HS_SUCCESS)
     {
-        std::cerr << "Error compiling pattern: " << compile_error->message << "\n";
+        fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
         hs_free_compile_error(compile_error);
         return 1;
     }
 
     // Set up the scratch space
-    hs_scratch_t *scratch = nullptr;
     hs_error_t database_error = hs_alloc_scratch(database, &scratch);
     if (database_error != HS_SUCCESS)
     {
-        std::cerr << "Error allocating scratch space" << "\n";
+        fprintf(stderr, "Error allocating scratch space\n");
         hs_free_database(database);
         return 1;
     }
 
-    search_directory_recursive(path, database, scratch);
+    if (visit(path) == -1) {
+        return 1;
+    }
 
-    hs_free_scratch(scratch);
-    hs_free_database(database);
+    return 0;
 }
