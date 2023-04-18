@@ -7,7 +7,6 @@ static int on_match(unsigned int id, unsigned long long from,
                        unsigned long long to, unsigned int flags, void *ctx)
 {
     puts((const char*)ctx);
-    putc('\n', stdout);
     return 0;
 }
 
