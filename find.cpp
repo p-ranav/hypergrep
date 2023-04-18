@@ -16,33 +16,42 @@ static int on_match(unsigned int id, unsigned long long from,
 }
 
 int visit(const char *path) {
-    struct dirent **entries;
-    int num_entries = scandir(path, &entries, NULL, NULL);
-    if (num_entries == -1) {
-        perror("scandir");
+    DIR *dir = opendir(path);
+    if (dir == NULL) {
+        perror("opendir");
         return -1;
     }
 
-    for (int i = 0; i < num_entries; i++) {
-        struct dirent *entry = entries[i];
-        char filepath[1024];
-        snprintf(filepath, sizeof(filepath), "%s/%s", path, entry->d_name);
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
 
+        // Construct path
+        const size_t path_len = strlen(path);
+        const size_t name_len = strlen(entry->d_name);
+        const size_t total_len = path_len + 1 + name_len + 1;
+        char filepath[total_len];
+        memcpy(filepath, path, path_len);
+        filepath[path_len] = '/';
+        memcpy(filepath + path_len + 1, entry->d_name, name_len);
+        filepath[total_len - 1] = '\0';
+
+        // Check if path is a directory
         if (entry->d_type == DT_DIR) {
             if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
                 continue;
             }
             if (visit(filepath) == -1) {
+                closedir(dir);
                 return -1;
             }
-        } else if (entry->d_type == DT_REG) {
+        }
+        // Check if path is a regular file 
+        else if (entry->d_type == DT_REG) {
             hs_scan(database, filepath, strlen(filepath), 0, scratch, on_match, (void *)filepath);
         }
-
-        free(entry);
     }
 
-    free(entries);
+    closedir(dir);
     return 0;
 }
 
