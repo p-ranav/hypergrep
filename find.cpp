@@ -27,7 +27,7 @@ int visit(const char *path) {
 
         // Construct path
         const size_t path_len = strlen(path);
-        const size_t name_len = strlen(entry->d_name);
+        const size_t name_len = _D_EXACT_NAMLEN(entry);
         const size_t total_len = path_len + 1 + name_len + 1;
         char filepath[total_len];
         memcpy(filepath, path, path_len);
@@ -47,7 +47,7 @@ int visit(const char *path) {
         }
         // Check if path is a regular file 
         else if (entry->d_type == DT_REG) {
-            hs_scan(database, filepath, strlen(filepath), 0, scratch, on_match, (void *)filepath);
+            hs_scan(database, filepath, total_len, 0, scratch, on_match, (void *)filepath);
         }
     }
 
