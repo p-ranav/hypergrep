@@ -18,7 +18,7 @@ static int on_match(unsigned int id, unsigned long long from,
 int visit(const char *path) {
     DIR *dir = opendir(path);
     if (dir == NULL) {
-        perror("opendir");
+        // perror("opendir");
         return -1;
     }
 
