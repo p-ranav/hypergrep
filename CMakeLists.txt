@@ -7,3 +7,6 @@ add_compile_options(-march=native -O3)
 
 add_executable(find find.cpp)
 target_link_libraries(find PRIVATE hs)
+
+add_executable(search search.cpp)
+target_link_libraries(search PRIVATE hs pthread git2)
