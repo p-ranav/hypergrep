@@ -14,6 +14,11 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <filesystem>
+#include "concurrentqueue.h"
+moodycamel::ConcurrentQueue<std::string> queue;
+std::atomic<bool> running{true};
+std::atomic<std::size_t> n{0};
+std::atomic<std::size_t> n_consumed{0};
 
 #define START   auto start = std::chrono::high_resolution_clock::now();
 #define STOP   auto end = std::chrono::high_resolution_clock::now(); \
@@ -46,86 +51,153 @@ const std::streampos CHUNK_SIZE = 1024 * 1024;
 std::mutex cout_mutex;
 
 struct file_context {
-    const char* filename;
-    char* data;
+    std::string& lines;
+    const char* data;
     size_t size;
 };
 
-size_t file_num{0};
-size_t current_file_num{0};
+std::atomic<std::size_t> matches{0};
 
 static int on_match(unsigned int id, unsigned long long from,
                        unsigned long long to, unsigned int flags, void *ctx)
 {
-    // print line with match
-    auto* fctx = (file_context*)(ctx);
-    auto filename = fctx->filename;
-    auto data = fctx->data;
+  matches += 1;
+
+  // print line with match
+  auto* fctx = (file_context*)(ctx);
+  if (fctx)
+  {
+    auto& lines = fctx->lines;
     auto size = fctx->size;
-    auto start = from, end = to;
-    while (start > 0 && data[start] != '\n') {
-        start--;
-    }
-    while (end < size && data[end] != '\n') {
-        end++;
-    }
 
-    if (data[start] == '\n' && start + 1 < end) {
-        start += 1;
-    }
-
-    if (file_num > current_file_num)
+    if (fctx->data)
     {
-        // Print filename
-        const auto relative_path = std::filesystem::relative(filename, std::filesystem::current_path());
-        printf("\n%s\n", relative_path.c_str());
-        current_file_num = file_num;
-    }
+      auto data = std::string_view(fctx->data, size);
 
-    if (end > start) {
-      printf("%.*s", int(from - start), &data[start]);
-      printf("\033[31m%.*s\033[0m", int(to - from), &data[from]);
-      printf("\033[0m%.*s\n", int(end - to), &data[to]);
-    }
+      auto end = data.find_first_of('\n', to);
+      if (end == std::string_view::npos) {
+          end = size;
+      }
 
-    return 0;
+      auto start = data.find_last_of('\n', from);
+      if (start == std::string_view::npos) {
+          start = 0;
+      } else {
+          start += 1;
+      }
+
+      if (from > start && to > from && end > to && end > start) {
+        lines += std::string(&data[start], from - start);
+        lines += "\033[31m";
+        lines += std::string(&data[from], to - from);
+        lines += "\033[0m";
+        lines += std::string(&data[to], end - to);
+        lines += '\n';
+      } 
+    }
+  }
+
+  return 0;
 }
 
-void process_file(std::string_view filename, const std::streampos file_size) {
+// void process_file(std::string_view filename, const std::streampos file_size) {
+//   std::ifstream file(filename.data(), std::ios::binary);
+//   if (!file) {
+//     std::cerr << "Failed to open file: " << filename << std::endl;
+//     return;
+//   }
+
+//   const std::size_t first_chunk_size = 256; // read first 256 bytes to check if binary
+//   const std::size_t chunk_size = 1024 * 1024; // read in 1 MB chunks
+//   char* chunk_data = new char[chunk_size];
+
+//   // Read first chunk to check if binary
+//   file.read(chunk_data, first_chunk_size);
+//   bool is_binary = std::find(chunk_data, chunk_data + first_chunk_size, '\0') != chunk_data + first_chunk_size;
+
+//   if (is_binary) {
+//     delete[] chunk_data;
+//     return;
+//   }
+
+//   std::string lines;
+
+//   std::streampos bytes_read = first_chunk_size;
+//   while (bytes_read < file_size) {
+//     const std::streampos remaining_bytes = file_size - bytes_read;
+//     const std::size_t bytes_to_read = static_cast<std::size_t>(std::min<std::streampos>(remaining_bytes, chunk_size));
+
+//     file.read(chunk_data, bytes_to_read);
+
+//     // Process the chunk here
+//     file_context ctx { lines, chunk_data, bytes_to_read };
+//     hs_scan(database, chunk_data, bytes_to_read, 0, scratch, on_match, (void *)(&ctx));
+
+//     bytes_read += bytes_to_read;
+//   }
+
+//   if (!lines.empty())
+//   {
+//     std::lock_guard<std::mutex> lock{cout_mutex};
+//     std::cout << "\n" << filename << "\n";
+//     std::cout << lines;
+//   }
+
+//   delete[] chunk_data;
+// }
+
+std::streampos get_file_size_and_reset(std::ifstream& file)
+{
+    const std::streampos fileSize = file.tellg(); // get file size
+    file.seekg(0, std::ios::beg); // reset file pointer to the beginning
+    return fileSize;
+}
+
+bool process_file(std::string_view filename) {
   std::ifstream file(filename.data(), std::ios::binary);
   if (!file) {
     std::cerr << "Failed to open file: " << filename << std::endl;
-    return;
+    return false;
   }
 
-  const std::size_t first_chunk_size = 256; // read first 256 bytes to check if binary
-  const std::size_t chunk_size = 1024 * 1024; // read in 1 MB chunks
-  char* chunk_data = new char[chunk_size];
+  auto fsize = file.tellg();
+  file.seekg( 0, std::ios::end );
+  fsize = file.tellg() - fsize;
+  file.seekg(0, std::ios::beg);
+  const auto file_size = fsize;
 
-  // Read first chunk to check if binary
-  file.read(chunk_data, first_chunk_size);
-  bool is_binary = std::find(chunk_data, chunk_data + first_chunk_size, '\0') != chunk_data + first_chunk_size;
+  const std::size_t chunk_size = 1024; // read in 1 MB chunks
+  char* file_data = new char[file_size];
 
-  if (is_binary) {
-    delete[] chunk_data;
-    return;
+  // Read the entire file into a big buffer
+  file.read(file_data, file_size);
+
+  std::string lines{""};
+
+  // Set up the scratch space
+  hs_scratch_t *local_scratch = NULL;
+  hs_error_t database_error = hs_clone_scratch(scratch, &local_scratch);
+  if (database_error != HS_SUCCESS)
+  {
+      fprintf(stderr, "Error allocating scratch space\n");
+      hs_free_database(database);
+      return false;
   }
 
-  std::streampos bytes_read = first_chunk_size;
-  while (bytes_read < file_size) {
-    const std::streampos remaining_bytes = file_size - bytes_read;
-    const std::size_t bytes_to_read = static_cast<std::size_t>(std::min<std::streampos>(remaining_bytes, chunk_size));
+  // Process the entire buffer
+  file_context ctx { lines, file_data, file_size };
+  hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx));
 
-    file.read(chunk_data, bytes_to_read);
-
-    // Process the chunk here
-    file_context ctx { filename.data(), chunk_data, bytes_to_read };
-    hs_scan(database, chunk_data, bytes_to_read, 0, scratch, on_match, (void *)(&ctx));
-
-    bytes_read += bytes_to_read;
+  if (!lines.empty())
+  {
+    std::lock_guard<std::mutex> lock{cout_mutex};
+    std::cout << "\n" << filename << "\n";
+    std::cout << lines;
   }
 
-  delete[] chunk_data;
+  delete[] file_data;
+  hs_free_scratch(local_scratch);
+  return true;
 }
 
 static inline int visit(const char *path) {
@@ -134,8 +206,6 @@ static inline int visit(const char *path) {
         // perror("opendir");
         return -1;
     }
-
-    std::vector<std::thread> visit_threads;
 
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
@@ -161,34 +231,35 @@ static inline int visit(const char *path) {
             // std::cout << filename << " is a DIR\n";
             if (!is_ignored(filepath))
             {
-              visit_threads.push_back(std::thread([filename = std::string(filepath)]() {
-                visit(filename.data());
-              }));
+              visit(filename.data());
             }
         }
         // Check if path is a regular file 
         else if (entry->d_type == DT_REG) {
-          file_num++;
-          struct stat fileStat;
-          if (stat(filepath, &fileStat) == -1) {
-              perror("Error");
-              return 1;
-          }
-          const std::streampos file_size = fileStat.st_size;
-          process_file(filename, file_size);
+          queue.enqueue(std::string(filepath));
+          n += 1;
         }
-    }
-
-    for (auto& t : visit_threads) {
-      t.join();
     }
 
     closedir(dir);
     return 0;
 }
 
+bool visit_one()
+{
+  std::string filepath;
+  auto found = queue.try_dequeue(filepath);
+  if (found) {
+    process_file(filepath);
+    n_consumed += 1;
+    return true;
+  } else {
+    return false;
+  }
+}
+
 int main(int argc, char** argv) {
-  std::ios_base::sync_with_stdio(false);
+  // std::ios_base::sync_with_stdio(false);
 
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
@@ -219,20 +290,45 @@ int main(int argc, char** argv) {
       return 1;
   }
 
-  // Set up the scratch space
   hs_error_t database_error = hs_alloc_scratch(database, &scratch);
   if (database_error != HS_SUCCESS)
   {
-      fprintf(stderr, "Error allocating scratch space\n");
-      hs_free_database(database);
-      return 1;
+    fprintf(stderr, "Error allocating scratch space\n");
+    hs_free_database(database);
+    return 1;
+  }
+
+  std::vector<std::thread> consumer_threads{};
+  static constexpr std::size_t N = 8;
+
+  for (std::size_t i = 0; i < N; ++i)
+  {
+    consumer_threads.push_back(std::thread([]() {
+      while (true) {
+        visit_one();
+
+        if (!running && n_consumed == n) {
+          break;
+        }
+      }
+    }));
   }
 
   if (visit(resolved_path) == -1) {
-      return 1;
+    return 1;
+  }
+  running = false;
+
+  for (std::size_t i = 0; i < N; ++i)
+  {
+    consumer_threads[i].join();
   }
 
+  std::cout << "\n" << matches << " in " << n_consumed << " files\n";
+
   git_repository_free(repo);
+  hs_free_scratch(scratch);
+  hs_free_database(database);
 
   return 0;
 }
