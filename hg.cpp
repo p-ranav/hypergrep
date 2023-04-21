@@ -230,7 +230,7 @@ bool process_file(std::string_view filename)
     {
       std::lock_guard<std::mutex> lock{cout_mutex};
       std::cout << "\n"
-                << filename << "\n";
+                << std::filesystem::relative(filename).c_str() << "\n";
       std::cout << lines;
       num_files_contained_matches += 1;
     }
