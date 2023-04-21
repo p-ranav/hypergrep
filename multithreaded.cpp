@@ -101,14 +101,6 @@ bool process_file(std::string_view filename) {
   // Read the entire file into a big buffer
   file.read(file_data, file_size);
 
-  // Guess if the file is a binary file (search for NULL bytes)
-  const auto lookahead = std::min(std::size_t(256), static_cast<std::size_t>(file_size));
-  auto binary_file = std::find(file_data, file_data + lookahead, '\0') != file_data + lookahead;
-  if (binary_file) {
-    // exit early
-    return true;
-  }
-
   // Set up the scratch space
   hs_scratch_t *local_scratch = NULL;
   hs_error_t database_error = hs_clone_scratch(scratch, &local_scratch);
