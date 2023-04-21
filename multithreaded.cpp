@@ -3,33 +3,20 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h>
+#include <atomic>
+#include <filesystem>
 #include <git2.h>
 #include <hs/hs.h>
-#include <algorithm>
-#include <atomic>
-#include <sstream>
-#include <sys/stat.h>
-#include <filesystem>
 #include "concurrentqueue.h"
+
 moodycamel::ConcurrentQueue<std::string> queue;
 std::atomic<bool> running{true};
 std::atomic<std::size_t> n{0};
 std::atomic<std::size_t> n_consumed{0};
-
-#define START   auto start = std::chrono::high_resolution_clock::now();
-#define STOP   auto end = std::chrono::high_resolution_clock::now(); \
-  auto diff = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count(); \
-  if (diff > 0) { \
-    std::cout << diff << "\n"; \
-  }
-
 git_repository* repo = nullptr;
 hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
+std::mutex cout_mutex;
 
 // 200-400us
 bool is_ignored(const char* path)
@@ -46,14 +33,10 @@ bool is_ignored(const char* path)
     return (bool)(ignored);
 }
 
-const std::streampos CHUNK_SIZE = 1024 * 1024;
-
-std::mutex cout_mutex;
-
 struct file_context {
     std::string& lines;
     const char* data;
-    size_t size;
+    std::size_t size;
 };
 
 std::atomic<std::size_t> matches{0};
@@ -100,13 +83,6 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-std::streampos get_file_size_and_reset(std::ifstream& file)
-{
-    const std::streampos fileSize = file.tellg(); // get file size
-    file.seekg(0, std::ios::beg); // reset file pointer to the beginning
-    return fileSize;
-}
-
 bool process_file(std::string_view filename) {
   std::ifstream file(filename.data(), std::ios::binary);
   if (!file) {
@@ -120,13 +96,18 @@ bool process_file(std::string_view filename) {
   file.seekg(0, std::ios::beg);
   const auto file_size = fsize;
 
-  const std::size_t chunk_size = 1024; // read in 1 MB chunks
   char* file_data = new char[file_size];
 
   // Read the entire file into a big buffer
   file.read(file_data, file_size);
 
-  std::string lines{""};
+  // Guess if the file is a binary file (search for NULL bytes)
+  const auto lookahead = std::min(std::size_t(256), static_cast<std::size_t>(file_size));
+  auto binary_file = std::find(file_data, file_data + lookahead, '\0') != file_data + lookahead;
+  if (binary_file) {
+    // exit early
+    return true;
+  }
 
   // Set up the scratch space
   hs_scratch_t *local_scratch = NULL;
@@ -139,14 +120,16 @@ bool process_file(std::string_view filename) {
   }
 
   // Process the entire buffer
-  file_context ctx { lines, file_data, file_size };
-  hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx));
-
-  if (!lines.empty())
+  std::string lines{""};
+  file_context ctx { lines, file_data, static_cast<std::size_t>(file_size) };
+  if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
-    std::lock_guard<std::mutex> lock{cout_mutex};
-    std::cout << "\n" << filename << "\n";
-    std::cout << lines;
+    if (!lines.empty())
+    {
+      std::lock_guard<std::mutex> lock{cout_mutex};
+      std::cout << "\n" << filename << "\n";
+      std::cout << lines;
+    }
   }
 
   delete[] file_data;
@@ -154,54 +137,33 @@ bool process_file(std::string_view filename) {
   return true;
 }
 
-static inline int visit(const char *path) {
-    DIR *dir = opendir(path);
-    if (dir == NULL) {
-        // perror("opendir");
-        return -1;
-    }
-
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-
-        // Construct path // 8-10us
-        const size_t path_len = strlen(path);
-        const size_t name_len = _D_EXACT_NAMLEN(entry);
-        const size_t total_len = path_len + 1 + name_len + 1;
-        char filepath[total_len];
-        memcpy(filepath, path, path_len);
-        filepath[path_len] = '/';
-        memcpy(filepath + path_len + 1, entry->d_name, name_len);
-        filepath[total_len - 1] = '\0';
-
-        // Process the file in chunks, multithreaded
-        std::string_view filename = filepath;
+static inline int visit(const char* path) {
+    std::filesystem::directory_iterator iter(path);
+    for (const auto& entry : iter) {
+        std::string filepath = entry.path().string();
 
         // Check if path is a directory
-        if (entry->d_type == DT_DIR) {
-            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        if (entry.is_directory()) {
+            if (entry.path().filename() == "." || entry.path().filename() == "..") {
                 continue;
             }
-            // std::cout << filename << " is a DIR\n";
-            if (!is_ignored(filepath))
-            {
-              visit(filename.data());
+            if (!is_ignored(filepath.c_str())) {
+                visit(filepath.c_str());
             }
         }
         // Check if path is a regular file 
-        else if (entry->d_type == DT_REG) {
-          queue.enqueue(std::string(filepath));
-          n += 1;
+        else if (entry.is_regular_file()) {
+            queue.enqueue(std::move(filepath));
+            n += 1;
         }
     }
 
-    closedir(dir);
     return 0;
 }
 
 bool visit_one()
 {
-  std::string filepath;
+  std::string filepath{};
   auto found = queue.try_dequeue(filepath);
   if (found) {
     process_file(filepath);
@@ -232,7 +194,7 @@ int main(int argc, char** argv) {
 
   git_libgit2_init();
   if (git_repository_open(&repo, resolved_path) < 0) {
-      // failed to open repository
+    // failed to open repository
   }
 
   hs_compile_error_t *compile_error = NULL;
@@ -253,7 +215,7 @@ int main(int argc, char** argv) {
   }
 
   std::vector<std::thread> consumer_threads{};
-  static constexpr std::size_t N = 8;
+  const auto N = std::thread::hardware_concurrency();
 
   for (std::size_t i = 0; i < N; ++i)
   {
