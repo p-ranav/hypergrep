@@ -9,6 +9,14 @@
 #include <hs/hs.h>
 #include "concurrentqueue.h"
 
+#include <immintrin.h>
+
+#if defined(__AVX2__)
+#define HAS_AVX2_SUPPORT 1
+#else
+#define HAS_AVX2_SUPPORT 0
+#endif
+
 moodycamel::ConcurrentQueue<std::string> queue;
 std::atomic<bool> running{true};
 std::atomic<std::size_t> n{0};
@@ -34,12 +42,80 @@ bool is_ignored(const char* path)
 }
 
 struct file_context {
-    std::string& lines;
     const char* data;
     std::size_t size;
+    std::string& lines;
+    std::size_t& current_line_number;
+    const char** current_ptr;
 };
 
 std::atomic<std::size_t> matches{0};
+
+#include <immintrin.h> // required for AVX2
+
+#if 1 // HAS_AVX2_SUPPORT
+std::size_t count_newlines(const char* start, const char* end) {
+    const __m256i char_vector = _mm256_set1_epi8('\n');
+    const char *str_ptr = start;
+
+    if (end <= start) { return 0; }
+
+    const std::size_t str_size = end - start;
+    std::size_t i = 0;
+    std::size_t local_n = 0;
+    const std::size_t chunk_size = 64;
+
+    // Align str_ptr to 32-byte boundary
+    const std::size_t offset = (std::size_t)str_ptr % 32;
+    str_ptr += (offset != 0) ? (32 - offset) : 0;
+
+    // Prefetch the next cache line
+    __builtin_prefetch(str_ptr + chunk_size);
+
+    // Use aligned loads and prefetching
+    while (i + chunk_size <= str_size)
+    {
+        // Prefetch the next cache line
+        __builtin_prefetch(str_ptr + chunk_size * 2);
+
+        const __m256i str_vector1 = _mm256_load_si256((__m256i *)(str_ptr + i));
+        const __m256i str_vector2 = _mm256_load_si256((__m256i *)(str_ptr + i + 32));
+        const __m256i cmp_result1 = _mm256_cmpeq_epi8(str_vector1, char_vector);
+        const __m256i cmp_result2 = _mm256_cmpeq_epi8(str_vector2, char_vector);
+        const unsigned int mask1 = _mm256_movemask_epi8(cmp_result1);
+        const unsigned int mask2 = _mm256_movemask_epi8(cmp_result2);
+
+        if (mask1 || mask2)
+        {
+            // Use the POPCNT instruction to count the number of set bits in the mask
+            local_n += _mm_popcnt_u32(mask1) + _mm_popcnt_u32(mask2);
+        }
+
+        i += chunk_size;
+
+        // Prefetch the next cache line
+        __builtin_prefetch(str_ptr + i + chunk_size);
+    }
+
+    // Process remaining characters
+    for (; i < str_size; i++)
+    {
+        local_n += (str_ptr[i] == '\n');
+    }
+
+  return local_n;
+}
+#else
+std::size_t count_newlines(const char* start, const char* end) {
+  std::size_t newline_count = 0;
+  for (const char* p = start; p < end; p++) {
+      if (*p == '\n') {
+          newline_count++;
+      }
+  }
+  return newline_count;
+}
+#endif
 
 static int on_match(unsigned int id, unsigned long long from,
                        unsigned long long to, unsigned int flags, void *ctx)
@@ -52,6 +128,8 @@ static int on_match(unsigned int id, unsigned long long from,
   {
     auto& lines = fctx->lines;
     auto size = fctx->size;
+    std::size_t& current_line_number = fctx->current_line_number;
+    const char** current_ptr = fctx->current_ptr;
 
     if (fctx->data)
     {
@@ -69,14 +147,21 @@ static int on_match(unsigned int id, unsigned long long from,
           start += 1;
       }
 
+      current_line_number += count_newlines(*current_ptr, fctx->data + start);
+      *current_ptr = fctx->data + end;
+
       if (from > start && to > from && end > to && end > start) {
+        lines += "\033[32m";
+        lines += std::to_string(current_line_number);
+        lines += "\033[0m";
+        lines += ":";
         lines += std::string(&data[start], from - start);
         lines += "\033[31m";
         lines += std::string(&data[from], to - from);
         lines += "\033[0m";
         lines += std::string(&data[to], end - to);
         lines += '\n';
-      } 
+      }
     }
   }
 
@@ -112,8 +197,10 @@ bool process_file(std::string_view filename) {
   }
 
   // Process the entire buffer
+  std::size_t current_line_number{1};
+  const char* current_ptr{file_data};
   std::string lines{""};
-  file_context ctx { lines, file_data, static_cast<std::size_t>(file_size) };
+  file_context ctx { file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr };
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
