@@ -10,3 +10,6 @@ target_link_libraries(find PRIVATE hs)
 
 add_executable(search search.cpp)
 target_link_libraries(search PRIVATE hs pthread git2)
+
+add_executable(hg hg.cpp)
+target_link_libraries(hg PRIVATE hs pthread git2)
