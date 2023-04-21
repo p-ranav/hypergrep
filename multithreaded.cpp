@@ -18,6 +18,8 @@
 #endif
 
 moodycamel::ConcurrentQueue<std::string> queue;
+moodycamel::ProducerToken ptok(queue);
+
 std::atomic<bool> running{true};
 std::atomic<std::size_t> n{0};
 std::atomic<std::size_t> n_consumed{0};
@@ -232,7 +234,7 @@ static inline int visit(const char* path) {
         }
         // Check if path is a regular file 
         else if (entry.is_regular_file()) {
-            queue.enqueue(std::move(filepath));
+            queue.enqueue(ptok, std::move(filepath));
             n += 1;
         }
     }
@@ -243,7 +245,7 @@ static inline int visit(const char* path) {
 bool visit_one()
 {
   std::string filepath{};
-  auto found = queue.try_dequeue(filepath);
+  auto found = queue.try_dequeue_from_producer(ptok, filepath);
   if (found) {
     process_file(filepath);
     n_consumed += 1;
