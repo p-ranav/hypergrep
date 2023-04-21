@@ -50,6 +50,7 @@ struct file_context
   std::string &lines;
   std::size_t &current_line_number;
   const char **current_ptr;
+  hs_scratch* local_scratch;
 };
 
 std::size_t count_newlines(const char *start, const char *end)
@@ -62,6 +63,28 @@ std::size_t count_newlines(const char *start, const char *end)
   {
     return 0;
   }
+}
+
+struct line_context
+{
+  const char *data;
+  std::string &lines;
+  const char** current_ptr;
+};
+
+static int print_match_in_red_color(unsigned int id, unsigned long long from,
+  unsigned long long to, unsigned int flags, void *ctx)
+{
+  auto *fctx = (line_context *)(ctx);
+  const char* line_data = fctx->data;
+  auto &lines = fctx->lines;
+  const char* start = *(fctx->current_ptr);
+  lines += std::string(start, line_data + from - start);
+  lines += "\033[31m";
+  lines += std::string(&line_data[from], to - from);
+  lines += "\033[0m";
+  *(fctx->current_ptr) = line_data + to;
+  return 0;
 }
 
 static int on_match(unsigned int id, unsigned long long from,
@@ -104,8 +127,14 @@ static int on_match(unsigned int id, unsigned long long from,
         start += 1;
       }
 
-      current_line_number += count_newlines(*current_ptr, fctx->data + start);
+      const std::size_t previous_line_number = fctx->current_line_number;
+      const auto line_count = count_newlines(*current_ptr, fctx->data + start);
+      current_line_number += line_count;
       *current_ptr = fctx->data + end;
+
+      if (current_line_number == previous_line_number && previous_line_number > 0) {
+        return 0;
+      }
 
       if (from > start && to > from && end > to && end > start)
       {
@@ -113,12 +142,25 @@ static int on_match(unsigned int id, unsigned long long from,
         lines += std::to_string(current_line_number);
         lines += "\033[0m";
         lines += ":";
-        lines += std::string(&data[start], from - start);
-        lines += "\033[31m";
-        lines += std::string(&data[from], to - from);
-        lines += "\033[0m";
-        lines += std::string(&data[to], end - to);
+
+        std::string_view line(&data[start], end - start);
+        const char* line_ptr = line.data();
+        line_context nested_ctx{line_ptr, lines, &line_ptr};
+        if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
+        {
+          std::cout << "Shit\n";
+        }
+        // lines += std::string(&data[start], from - start);
+        // lines += "\033[31m";
+        // lines += std::string(&data[from], to - from);
+        // lines += "\033[0m";
+
+        if (line_ptr != (&data[start] + end - start)) {
+          // some left over 
+          lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
+        }
         lines += '\n';
+
       }
     }
   }
@@ -164,13 +206,24 @@ bool process_file(std::string_view filename)
     return false;
   }
 
+  // Set up the scratch space for handling multiple occurrences within a line
+  // hs_scan is used on the line to color code multiple matches within a line
+  hs_scratch_t *local_scratch_for_line = NULL;
+  database_error = hs_clone_scratch(local_scratch, &local_scratch_for_line);
+  if (database_error != HS_SUCCESS)
+  {
+    fprintf(stderr, "Error allocating scratch space\n");
+    hs_free_database(database);
+    return false;
+  }
+
   bool result{true};
 
   // Process the entire buffer
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr};
+  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
@@ -181,9 +234,6 @@ bool process_file(std::string_view filename)
       std::cout << lines;
       num_files_contained_matches += 1;
     }
-
-    delete[] file_data;
-    hs_free_scratch(local_scratch);
     result = true;
   }
   else
@@ -192,6 +242,10 @@ bool process_file(std::string_view filename)
     // by called is_ignored at the first match
     result = false;
   }
+
+  delete[] file_data;
+  hs_free_scratch(local_scratch_for_line);
+  hs_free_scratch(local_scratch);
 
   return result;
 }
