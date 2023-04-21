@@ -10,6 +10,7 @@
 #include <git2.h>
 #include <hs/hs.h>
 #include "concurrentqueue.h"
+#include <sys/stat.h>
 
 moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
@@ -50,7 +51,7 @@ struct file_context
   std::string &lines;
   std::size_t &current_line_number;
   const char **current_ptr;
-  hs_scratch* local_scratch;
+  hs_scratch *local_scratch;
 };
 
 std::size_t count_newlines(const char *start, const char *end)
@@ -69,16 +70,16 @@ struct line_context
 {
   const char *data;
   std::string &lines;
-  const char** current_ptr;
+  const char **current_ptr;
 };
 
 static int print_match_in_red_color(unsigned int id, unsigned long long from,
-  unsigned long long to, unsigned int flags, void *ctx)
+                                    unsigned long long to, unsigned int flags, void *ctx)
 {
   auto *fctx = (line_context *)(ctx);
-  const char* line_data = fctx->data;
+  const char *line_data = fctx->data;
   auto &lines = fctx->lines;
-  const char* start = *(fctx->current_ptr);
+  const char *start = *(fctx->current_ptr);
   lines += std::string(start, line_data + from - start);
   lines += "\033[31m";
   lines += std::string(&line_data[from], to - from);
@@ -132,7 +133,8 @@ static int on_match(unsigned int id, unsigned long long from,
       current_line_number += line_count;
       *current_ptr = fctx->data + end;
 
-      if (current_line_number == previous_line_number && previous_line_number > 0) {
+      if (current_line_number == previous_line_number && previous_line_number > 0)
+      {
         return 0;
       }
 
@@ -144,19 +146,19 @@ static int on_match(unsigned int id, unsigned long long from,
         lines += ":";
 
         std::string_view line(&data[start], end - start);
-        const char* line_ptr = line.data();
+        const char *line_ptr = line.data();
         line_context nested_ctx{line_ptr, lines, &line_ptr};
         if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
         {
           return 1;
         }
 
-        if (line_ptr != (&data[start] + end - start)) {
-          // some left over 
+        if (line_ptr != (&data[start] + end - start))
+        {
+          // some left over
           lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
         }
         lines += '\n';
-
       }
     }
   }
@@ -173,11 +175,12 @@ bool process_file(std::string_view filename)
     return false;
   }
 
-  auto fsize = file.tellg();
-  file.seekg(0, std::ios::end);
-  fsize = file.tellg() - fsize;
-  file.seekg(0, std::ios::beg);
-  const auto file_size = fsize;
+  // Find file size
+  std::size_t file_size = 0;
+  struct stat filestat;  
+  if (stat(filename.data(), &filestat) == 0) {
+    file_size = filestat.st_size;
+  }
 
   char *file_data = new char[file_size];
 
@@ -257,17 +260,17 @@ static inline int visit(const char *path)
       continue;
     }
 
-    const char *filename = entry.path().filename().c_str();
-    std::string_view filepath = entry.path().c_str();
+    const char* filename = entry.path().filename().c_str();
+    const char* filepath = entry.path().c_str();
 
     // Check if path is a directory
     if (entry.is_directory())
     {
       if (filename[0] != '.')
       {
-        if (!is_ignored(filepath.data()))
+        if (!is_ignored(filepath))
         {
-          visit(filepath.data());
+          visit(filepath);
         }
       }
     }
