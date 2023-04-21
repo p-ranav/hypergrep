@@ -100,52 +100,6 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-// void process_file(std::string_view filename, const std::streampos file_size) {
-//   std::ifstream file(filename.data(), std::ios::binary);
-//   if (!file) {
-//     std::cerr << "Failed to open file: " << filename << std::endl;
-//     return;
-//   }
-
-//   const std::size_t first_chunk_size = 256; // read first 256 bytes to check if binary
-//   const std::size_t chunk_size = 1024 * 1024; // read in 1 MB chunks
-//   char* chunk_data = new char[chunk_size];
-
-//   // Read first chunk to check if binary
-//   file.read(chunk_data, first_chunk_size);
-//   bool is_binary = std::find(chunk_data, chunk_data + first_chunk_size, '\0') != chunk_data + first_chunk_size;
-
-//   if (is_binary) {
-//     delete[] chunk_data;
-//     return;
-//   }
-
-//   std::string lines;
-
-//   std::streampos bytes_read = first_chunk_size;
-//   while (bytes_read < file_size) {
-//     const std::streampos remaining_bytes = file_size - bytes_read;
-//     const std::size_t bytes_to_read = static_cast<std::size_t>(std::min<std::streampos>(remaining_bytes, chunk_size));
-
-//     file.read(chunk_data, bytes_to_read);
-
-//     // Process the chunk here
-//     file_context ctx { lines, chunk_data, bytes_to_read };
-//     hs_scan(database, chunk_data, bytes_to_read, 0, scratch, on_match, (void *)(&ctx));
-
-//     bytes_read += bytes_to_read;
-//   }
-
-//   if (!lines.empty())
-//   {
-//     std::lock_guard<std::mutex> lock{cout_mutex};
-//     std::cout << "\n" << filename << "\n";
-//     std::cout << lines;
-//   }
-
-//   delete[] chunk_data;
-// }
-
 std::streampos get_file_size_and_reset(std::ifstream& file)
 {
     const std::streampos fileSize = file.tellg(); // get file size
@@ -259,7 +213,7 @@ bool visit_one()
 }
 
 int main(int argc, char** argv) {
-  // std::ios_base::sync_with_stdio(false);
+  std::ios_base::sync_with_stdio(false);
 
   if (argc < 2) {
     std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
