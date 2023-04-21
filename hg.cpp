@@ -148,12 +148,8 @@ static int on_match(unsigned int id, unsigned long long from,
         line_context nested_ctx{line_ptr, lines, &line_ptr};
         if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
         {
-          std::cout << "Shit\n";
+          return 1;
         }
-        // lines += std::string(&data[start], from - start);
-        // lines += "\033[31m";
-        // lines += std::string(&data[from], to - from);
-        // lines += "\033[0m";
 
         if (line_ptr != (&data[start] + end - start)) {
           // some left over 
