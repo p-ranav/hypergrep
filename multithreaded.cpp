@@ -13,6 +13,7 @@
 #include <atomic>
 #include <sstream>
 #include <sys/stat.h>
+#include <filesystem>
 
 #define START   auto start = std::chrono::high_resolution_clock::now();
 #define STOP   auto end = std::chrono::high_resolution_clock::now(); \
@@ -61,7 +62,7 @@ static int on_match(unsigned int id, unsigned long long from,
     auto filename = fctx->filename;
     auto data = fctx->data;
     auto size = fctx->size;
-    auto start = to, end = to;
+    auto start = from, end = to;
     while (start > 0 && data[start] != '\n') {
         start--;
     }
@@ -75,48 +76,20 @@ static int on_match(unsigned int id, unsigned long long from,
 
     if (file_num > current_file_num)
     {
-        // New file
         // Print filename
-        // std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cout << filename << "\n";
+        const auto relative_path = std::filesystem::relative(filename, std::filesystem::current_path());
+        printf("\n%s\n", relative_path.c_str());
         current_file_num = file_num;
     }
 
     if (end > start) {
-        std::string_view line(&data[start], end - start);
-        // std::lock_guard<std::mutex> lock(cout_mutex);
-        std::cout << line << "\n";
+      printf("%.*s", int(from - start), &data[start]);
+      printf("\033[31m%.*s\033[0m", int(to - from), &data[from]);
+      printf("\033[0m%.*s\n", int(end - to), &data[to]);
     }
 
     return 0;
 }
-
-// void process_file(std::string_view filename, const std::streampos file_size) {
-
-//   std::ifstream file(filename.data(), std::ios::binary);
-//   if (!file) {
-//     std::cerr << "Failed to open file: " << filename << std::endl;
-//     return;
-//   }
-
-//   const std::streampos start_pos = 0;
-//   const std::streampos end_pos = file_size;
-
-//   file.seekg(start_pos);
-//   const std::size_t chunk_size = static_cast<std::size_t>(end_pos - start_pos);
-//   std::vector<char> chunk_data(chunk_size);
-
-//   file.read(chunk_data.data(), chunk_size);
-
-//   // Check for any NULL byte in chunk
-//   // const char nullbyte = '\0';  
-//   // if (std::find(chunk_data.begin(), chunk_data.end(), nullbyte) == chunk_data.end()) {
-//     // Process the chunk here
-//     file_context ctx { filename.data(), chunk_data.data(), chunk_data.size() };
-//     hs_scan(database, chunk_data.data(), chunk_data.size(), 0, scratch, on_match, (void *)(&ctx));
-//   // }
-
-// }
 
 void process_file(std::string_view filename, const std::streampos file_size) {
   std::ifstream file(filename.data(), std::ios::binary);
@@ -155,8 +128,6 @@ void process_file(std::string_view filename, const std::streampos file_size) {
   delete[] chunk_data;
 }
 
-std::size_t n{0};
-
 static inline int visit(const char *path) {
     DIR *dir = opendir(path);
     if (dir == NULL) {
@@ -191,28 +162,20 @@ static inline int visit(const char *path) {
             if (!is_ignored(filepath))
             {
               visit_threads.push_back(std::thread([filename = std::string(filepath)]() {
-                // std::cout << filename << "\n";
                 visit(filename.data());
               }));
             }
         }
         // Check if path is a regular file 
         else if (entry->d_type == DT_REG) {
-
-            // if (!is_ignored(filepath))
-            // {
-              file_num += 1;
-
-              struct stat fileStat;
-              if (stat(filepath, &fileStat) == -1) {
-                  perror("Error");
-                  return 1;
-              }
-              const std::streampos file_size = fileStat.st_size;
-              process_file(filename, file_size);
-
-              n += 1;
-            // }
+          file_num++;
+          struct stat fileStat;
+          if (stat(filepath, &fileStat) == -1) {
+              perror("Error");
+              return 1;
+          }
+          const std::streampos file_size = fileStat.st_size;
+          process_file(filename, file_size);
         }
     }
 
@@ -232,8 +195,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const char *path = argv[1];
-  const char *pattern = argv[2];
+  const char *pattern = argv[1];
+  const char *path = argv[2];
 
   char resolved_path[PATH_MAX]; 
   char* ret = realpath(path, resolved_path); 
@@ -248,7 +211,7 @@ int main(int argc, char** argv) {
   }
 
   hs_compile_error_t *compile_error = NULL;
-  hs_error_t error_code = hs_compile(pattern, 0, HS_MODE_BLOCK, NULL, &database, &compile_error);
+  hs_error_t error_code = hs_compile(pattern, HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS)
   {
       fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
@@ -270,8 +233,6 @@ int main(int argc, char** argv) {
   }
 
   git_repository_free(repo);
-
-  std::cout << "\nSearched " << n << " files\n";
 
   return 0;
 }
