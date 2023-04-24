@@ -265,11 +265,8 @@ void visit(const char *path)
 {
   for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    if (entry.is_regular_file() && !entry.is_symlink())
-    {
-      queue.enqueue(ptok, entry.path().c_str());
-      num_files_enqueued += 1;
-    }
+    queue.enqueue(ptok, entry.path().c_str());
+    num_files_enqueued += 1;
   }
 }
 
