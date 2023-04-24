@@ -42,7 +42,7 @@ std::mutex cout_mutex;
 
 struct file_context
 {
-  const char *filename;
+  std::string &filename;
   const char *data;
   std::size_t size;
   std::string &lines;
@@ -137,10 +137,7 @@ static int on_match(unsigned int id, unsigned long long from,
         std::string_view line(&data[start], end - start);	
         if (is_stdout)
         {
-          lines += "\033[32m";
-          lines += std::to_string(current_line_number);
-          lines += "\033[0m";
-          lines += ":";
+          lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
 
           const char *line_ptr = line.data();
 
@@ -159,7 +156,7 @@ static int on_match(unsigned int id, unsigned long long from,
         }
         else
         {
-          lines += std::string(fctx->filename) + ":" + std::to_string(current_line_number) + ":" + std::string(line) + "\n";
+          lines += fctx->filename + ":" + std::string(line) + "\n";
         }
       }
     }
@@ -229,7 +226,7 @@ bool process_file(std::string&& filename, std::size_t file_size)
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
+  file_context ctx{filename, file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
