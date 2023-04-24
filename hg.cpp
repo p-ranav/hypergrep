@@ -20,7 +20,8 @@ std::size_t get_file_size(const char* filename) {
     return 0;
   }
 
-  if (S_ISLNK(st.st_mode))
+  // Symbolic link or directory is ignored
+  if (S_ISLNK(st.st_mode) || S_ISDIR(st.st_mode))
   {
     return 0;
   }
