@@ -41,6 +41,7 @@ std::mutex cout_mutex;
 // 200-400us
 bool is_ignored(const char *path)
 {
+  return false;
   if (!repo)
   {
     return false;
@@ -150,7 +151,7 @@ static int on_match(unsigned int id, unsigned long long from,
         return 0;
       }
 
-      if (from > start && to > from && end > to && end > start)
+      if (from >= start && to >= from && end >= to && end >= start)
       {
         lines += "\033[32m";
         lines += std::to_string(current_line_number);
@@ -296,22 +297,16 @@ static inline int visit(const char *path)
     // Check if path is a directory
     if (entry.is_directory())
     {
-      if (filename[0] != '.')
+      if (!is_ignored(filepath))
       {
-        if (!is_ignored(filepath))
-        {
-          visit(filepath);
-        }
+        visit(filepath);
       }
     }
     // Check if path is a regular file
     else if (entry.is_regular_file())
     {
-      if (filename[0] != '.')
-      {
-        queue.enqueue(ptok, std::string(filepath));
-        num_files_enqueued += 1;
-      }
+      queue.enqueue(ptok, std::string(filepath));
+      num_files_enqueued += 1;
     }
   }
 
