@@ -14,9 +14,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-std::size_t get_file_size(const char* filename) {
+std::size_t get_file_size(std::string& filename) {
   struct stat st;
-  if(lstat(filename, &st) != 0) {
+  if(lstat(filename.data(), &st) != 0) {
     return 0;
   }
 
@@ -164,7 +164,7 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-bool process_file(std::string_view filename, std::size_t file_size)
+bool process_file(std::string&& filename, std::size_t file_size)
 {
   constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
 
@@ -268,14 +268,12 @@ bool process_file(std::string_view filename, std::size_t file_size)
 
 void visit(const char *path)
 {
-  for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+  for (auto&& entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    const auto& path = entry.path();
-    if (path.filename().c_str()[0] != '.')
-    {
-      num_files_enqueued += 1;
-      queue.enqueue(ptok, path.c_str());
-    }
+    const auto& filename = entry.path().filename();
+    if (filename.c_str()[0] == '.') continue;
+    ++num_files_enqueued;
+    queue.enqueue(ptok, entry.path());
   }
 }
 
@@ -285,10 +283,10 @@ static inline bool visit_one()
   auto found = queue.try_dequeue_from_producer(ptok, entry);
   if (found)
   {
-    const auto file_size = get_file_size(entry.data());
+    const auto file_size = get_file_size(entry);
     if (file_size > 0)
     {
-      process_file(entry.data(), file_size);
+      process_file(std::move(entry), file_size);
     }
     num_files_dequeued += 1;
     return true;
