@@ -44,7 +44,7 @@ struct file_context
 {
   std::string &filename;
   const char *data;
-  std::size_t size;
+  std::size_t &size;
   std::string &lines;
   std::size_t &current_line_number;
   const char **current_ptr;
@@ -98,7 +98,7 @@ static int on_match(unsigned int id, unsigned long long from,
   if (fctx)
   {
     auto &lines = fctx->lines;
-    auto size = fctx->size;
+    auto &size = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
     const char **current_ptr = fctx->current_ptr;
 
@@ -226,7 +226,7 @@ bool process_file(std::string&& filename, std::size_t file_size)
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename, file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
+  file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_for_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
