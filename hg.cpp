@@ -11,6 +11,18 @@
 #include <hs/hs.h>
 #include "concurrentqueue.h"
 #include <sys/stat.h>
+#include "MemoryPool.h"
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+std::size_t get_file_size(const char* filename) {
+  struct stat st;
+  if(stat(filename, &st) != 0) {
+    return 0;
+  }
+  return st.st_size;
+}
 
 moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
@@ -166,33 +178,42 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-bool process_file(std::string_view filename)
+bool process_file(std::string_view filename, AppShift::Memory::MemoryPool& pool)
 {
-  std::ifstream file(filename.data(), std::ios::binary);
-  if (!file)
+  const auto file_size = get_file_size(filename.data());
+  constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
+
+  char *file_data;
+  int   fd = open(filename.data(), O_RDONLY, 0);
+  if (fd == -1)
   {
-    std::cerr << "Failed to open file: " << filename << std::endl;
-    return false;
+      std::lock_guard<std::mutex> lock{cout_mutex};
+      std::cout << "Error: Failed to open file: " << filename << std::endl;
+      return false;
   }
-
-  // Find file size
-  std::size_t file_size = 0;
-  struct stat filestat;  
-  if (stat(filename.data(), &filestat) == 0) {
-    file_size = filestat.st_size;
-  }
-
-  char *file_data = new char[file_size];
-
-  // Read the entire file into a big buffer
-  file.read(file_data, file_size);
-
-  const auto NL = std::min(static_cast<std::size_t>(file_size), std::size_t(256));
-  auto binary_file = std::find(file_data, file_data + NL, '\0') != file_data + NL;
-  if (binary_file)
+  if (file_size > MMAP_LOWER_THRESHOLD) // check if file size is larger than 1 MB
   {
-    // early exit
-    return false;
+      file_data = (char *)mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+      close(fd);
+      if (file_data == MAP_FAILED)
+      {
+          std::lock_guard<std::mutex> lock{cout_mutex};
+          std::cout << "Error: Failed to mmap file: " << filename << std::endl;
+          return false;
+      }
+  }
+  else
+  {
+      char *buffer = (char *)pool.allocate(file_size);
+      // char* buffer = new char[file_size];
+      auto ret = read(fd, buffer, file_size);
+      if (ret != file_size)
+      {
+          // failed to read the entire file
+          // handle error here
+      }
+      close(fd);
+      file_data = buffer;
   }
 
   // Set up the scratch space
@@ -242,7 +263,16 @@ bool process_file(std::string_view filename)
     result = false;
   }
 
-  delete[] file_data;
+  if (file_size > MMAP_LOWER_THRESHOLD)
+  {
+      munmap((void *)file_data, file_size);
+  }
+  else
+  {
+      pool.free((void *)file_data);
+      // delete[] file_data;
+  }  
+  
   hs_free_scratch(local_scratch_for_line);
   hs_free_scratch(local_scratch);
 
@@ -288,14 +318,14 @@ static inline int visit(const char *path)
   return 0;
 }
 
-bool visit_one()
+bool visit_one(AppShift::Memory::MemoryPool& pool)
 {
   std::string filepath{};
   auto found = queue.try_dequeue_from_producer(ptok, filepath);
   if (found)
   {
     num_files_dequeued += 1;
-    if (process_file(filepath))
+    if (process_file(filepath, pool))
     {
       num_files_searched += 1;
     }
@@ -317,8 +347,13 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  const char *pattern = argv[1];
-  const char *path = argv[2];
+  // const char *pattern = argv[1];
+  auto* pattern = argv[1];
+  const char* path = ".";
+  if (argc > 2)
+  {
+    path = argv[2];
+  }
 
   char resolved_path[PATH_MAX];
   char *ret = realpath(path, resolved_path);
@@ -358,8 +393,9 @@ int main(int argc, char **argv)
   {
     consumer_threads.push_back(std::thread([]()
                                            {
+      AppShift::Memory::MemoryPool pool(100 * 1024);
       while (true) {
-        visit_one();
+        visit_one(pool);
 
         if (!running && num_files_dequeued == num_files_enqueued) {
           break;
