@@ -7,11 +7,9 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
-#include <git2.h>
 #include <hs/hs.h>
 #include "concurrentqueue.h"
 #include <sys/stat.h>
-#include "MemoryPool.h"
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -33,27 +31,9 @@ std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 std::atomic<std::size_t> num_files_searched{0};
 std::atomic<std::size_t> num_files_contained_matches{0};
-git_repository *repo = nullptr;
 hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
 std::mutex cout_mutex;
-
-// 200-400us
-bool is_ignored(const char *path)
-{
-  if (!repo)
-  {
-    return false;
-  }
-  int ignored = 0; // 0 -> not ignored, 1 -> ignored
-  if (git_ignore_path_is_ignored(&ignored, repo, path) < 0)
-  {
-    // failed to check if path is ignored
-    return false;
-  }
-
-  return (bool)(ignored);
-}
 
 struct file_context
 {
@@ -105,11 +85,6 @@ static int on_match(unsigned int id, unsigned long long from,
 {
   // print line with match
   auto *fctx = (file_context *)(ctx);
-
-  if (is_ignored(fctx->filename))
-  {
-    return 1;
-  }
 
   matches += 1;
 
@@ -178,7 +153,7 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-bool process_file(std::string_view filename, std::size_t file_size, AppShift::Memory::MemoryPool& pool)
+bool process_file(std::string_view filename, std::size_t file_size)
 {
   constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
 
@@ -203,8 +178,7 @@ bool process_file(std::string_view filename, std::size_t file_size, AppShift::Me
   }
   else
   {
-      char *buffer = (char *)pool.allocate(file_size);
-      // char* buffer = new char[file_size];
+      char* buffer = new char[file_size];
       auto ret = read(fd, buffer, file_size);
       if (ret != file_size)
       {
@@ -268,8 +242,7 @@ bool process_file(std::string_view filename, std::size_t file_size, AppShift::Me
   }
   else
   {
-      pool.free((void *)file_data);
-      // delete[] file_data;
+      delete[] file_data;
   }  
   
   hs_free_scratch(local_scratch_for_line);
@@ -305,7 +278,7 @@ static inline int visit(const char *path)
   return 0;
 }
 
-bool visit_one(AppShift::Memory::MemoryPool& pool)
+bool visit_one()
 {
   std::filesystem::directory_entry entry;
   auto found = queue.try_dequeue_from_producer(ptok, entry);
@@ -314,7 +287,7 @@ bool visit_one(AppShift::Memory::MemoryPool& pool)
     num_files_dequeued += 1;
 
     const auto path = entry.path().c_str();
-    if (process_file(path, entry.file_size(), pool))
+    if (process_file(path, entry.file_size()))
     {
       num_files_searched += 1;
     }
@@ -352,12 +325,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  git_libgit2_init();
-  if (git_repository_open(&repo, resolved_path) < 0)
-  {
-    // failed to open repository
-  }
-
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code = hs_compile(pattern, HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS)
@@ -382,9 +349,8 @@ int main(int argc, char **argv)
   {
     consumer_threads.push_back(std::thread([]()
                                            {
-      AppShift::Memory::MemoryPool pool(100 * 1024);
       while (true) {
-        visit_one(pool);
+        visit_one();
 
         if (!running && num_files_dequeued == num_files_enqueued) {
           break;
@@ -411,7 +377,6 @@ int main(int argc, char **argv)
   std::cout << num_files_searched << " files searched\n";
   std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f) << " seconds spent searching\n";
 
-  git_repository_free(repo);
   hs_free_scratch(scratch);
   hs_free_database(database);
 

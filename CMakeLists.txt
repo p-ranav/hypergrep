@@ -12,4 +12,4 @@ add_executable(search search.cpp)
 target_link_libraries(search PRIVATE hs pthread git2)
 
 add_executable(hg hg.cpp MemoryPool.cpp)
-target_link_libraries(hg PRIVATE hs pthread git2)
+target_link_libraries(hg PRIVATE hs pthread)
