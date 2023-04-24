@@ -22,7 +22,7 @@ std::size_t get_file_size(const char* filename) {
   return st.st_size;
 }
 
-moodycamel::ConcurrentQueue<std::filesystem::directory_entry> queue;
+moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
 
 std::atomic<bool> running{true};
@@ -251,43 +251,27 @@ bool process_file(std::string_view filename, std::size_t file_size)
   return result;
 }
 
-static inline int visit(const char *path)
+void visit(const char *path)
 {
-  std::filesystem::directory_iterator iter(path, std::filesystem::directory_options::skip_permission_denied);
-  for (const auto &entry : iter)
+  for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    if (entry.is_symlink())
+    if (entry.is_regular_file() && !entry.is_symlink())
     {
-      continue;
-    }
-
-    // Check if path is a directory
-    if (entry.is_directory())
-    {
-      const char* filepath = entry.path().c_str();
-      visit(filepath);
-    }
-    // Check if path is a regular file
-    else if (entry.is_regular_file())
-    {
-      queue.enqueue(ptok, entry);
+      queue.enqueue(ptok, entry.path().c_str());
       num_files_enqueued += 1;
     }
   }
-
-  return 0;
 }
 
 bool visit_one()
 {
-  std::filesystem::directory_entry entry;
+  std::string entry;
   auto found = queue.try_dequeue_from_producer(ptok, entry);
   if (found)
   {
     num_files_dequeued += 1;
 
-    const auto path = entry.path().c_str();
-    if (process_file(path, entry.file_size()))
+    if (process_file(entry.data(), get_file_size(entry.data())))
     {
       num_files_searched += 1;
     }
@@ -351,10 +335,7 @@ int main(int argc, char **argv)
   }
 
   auto start = std::chrono::high_resolution_clock::now();
-  if (visit(path) == -1)
-  {
-    return 1;
-  }
+  visit(path);
   running = false;
 
   for (std::size_t i = 0; i < N; ++i)
