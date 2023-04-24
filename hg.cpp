@@ -223,7 +223,7 @@ bool process_file(std::string_view filename, std::size_t file_size)
     {
       std::lock_guard<std::mutex> lock{cout_mutex};
       std::cout << "\n"
-                << std::filesystem::relative(filename).c_str() << "\n";
+                << filename << "\n";
       std::cout << lines;
       num_files_contained_matches += 1;
     }
@@ -317,14 +317,6 @@ int main(int argc, char **argv)
     path = argv[2];
   }
 
-  char resolved_path[PATH_MAX];
-  char *ret = realpath(path, resolved_path);
-  if (ret == NULL)
-  {
-    std::cerr << "Error with realpath\n";
-    return 1;
-  }
-
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code = hs_compile(pattern, HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS)
@@ -359,7 +351,7 @@ int main(int argc, char **argv)
   }
 
   auto start = std::chrono::high_resolution_clock::now();
-  if (visit(resolved_path) == -1)
+  if (visit(path) == -1)
   {
     return 1;
   }
