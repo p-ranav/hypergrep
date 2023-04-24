@@ -16,9 +16,15 @@
 
 std::size_t get_file_size(const char* filename) {
   struct stat st;
-  if(stat(filename, &st) != 0) {
+  if(lstat(filename, &st) != 0) {
     return 0;
   }
+
+  if (S_ISLNK(st.st_mode))
+  {
+    return 0;
+  }
+
   return st.st_size;
 }
 
@@ -173,22 +179,22 @@ bool process_file(std::string_view filename, std::size_t file_size)
       close(fd);
       if (file_data == MAP_FAILED)
       {
-          std::lock_guard<std::mutex> lock{cout_mutex};
-          std::cout << "Error: Failed to mmap file: " << filename << std::endl;
-          return false;
+        return false;
       }
   }
   else
   {
       char* buffer = new char[file_size];
       auto ret = read(fd, buffer, file_size);
+      close(fd);
       if (ret != file_size)
       {
-          // failed to read the entire file
-          // handle error here
+        return false;
       }
-      close(fd);
-      file_data = buffer;
+      else
+      {
+        file_data = buffer;
+      }
   }
 
   // Set up the scratch space
@@ -223,25 +229,16 @@ bool process_file(std::string_view filename, std::size_t file_size)
   {
     if (!lines.empty())
     {
-      if (lines.find('\0') != std::string::npos)
+      std::lock_guard<std::mutex> lock{cout_mutex};
+      if (is_stdout)
       {
-        // line has NULL bytes
-        // File was probably a binary file
-        result = false;
+        std::cout << "\n"
+                  << filename << "\n";
+        std::cout << lines;
       }
       else
       {
-        std::lock_guard<std::mutex> lock{cout_mutex};
-        if (is_stdout)
-        {
-          std::cout << "\n"
-                    << filename << "\n";
-          std::cout << lines;
-        }
-        else
-        {
-          std::cout << lines;
-        }
+        std::cout << lines;
       }
     }
     result = true;
@@ -272,8 +269,8 @@ void visit(const char *path)
 {
   for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    queue.enqueue(ptok, entry.path().c_str());
     num_files_enqueued += 1;
+    queue.enqueue(ptok, entry.path().c_str());
   }
 }
 
@@ -283,8 +280,12 @@ static inline bool visit_one()
   auto found = queue.try_dequeue_from_producer(ptok, entry);
   if (found)
   {
+    const auto file_size = get_file_size(entry.data());
+    if (file_size > 0)
+    {
+      process_file(entry.data(), file_size);
+    }
     num_files_dequeued += 1;
-    process_file(entry.data(), get_file_size(entry.data()));
     return true;
   }
   else
@@ -305,7 +306,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  // const char *pattern = argv[1];
   auto* pattern = argv[1];
   const char* path = ".";
   if (argc > 2)
@@ -338,10 +338,11 @@ int main(int argc, char **argv)
     consumer_threads.push_back(std::thread([]()
                                            {
       while (true) {
-        visit_one();
-
-        if (!running && num_files_dequeued == num_files_enqueued) {
-          break;
+        if (!visit_one())
+        {
+          if (!running && num_files_dequeued == num_files_enqueued) {
+            break;
+          }
         }
       } }));
   }
