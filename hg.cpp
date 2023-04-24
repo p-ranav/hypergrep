@@ -132,18 +132,17 @@ static int on_match(unsigned int id, unsigned long long from,
         lines += "\033[0m";
         lines += ":";
 
-        std::string_view line(&data[start], end - start);
-        const char *line_ptr = line.data();
+        const char *line_ptr = &data[start];
         line_context nested_ctx{line_ptr, lines, &line_ptr};
         if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
         {
           return 1;
         }
 
-        if (line_ptr != (&data[start] + end - start))
+        if (line_ptr != (line_ptr + end - start))
         {
           // some left over
-          lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
+          lines += std::string(line_ptr, end - start);
         }
         lines += '\n';
       }
