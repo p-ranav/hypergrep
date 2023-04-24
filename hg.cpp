@@ -270,8 +270,12 @@ void visit(const char *path)
 {
   for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    num_files_enqueued += 1;
-    queue.enqueue(ptok, entry.path().c_str());
+    const auto& path = entry.path();
+    if (path.filename().c_str()[0] != '.')
+    {
+      num_files_enqueued += 1;
+      queue.enqueue(ptok, path.c_str());
+    }
   }
 }
 
