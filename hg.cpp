@@ -263,7 +263,7 @@ void visit(const char *path)
   }
 }
 
-bool visit_one()
+static inline bool visit_one()
 {
   std::string entry;
   auto found = queue.try_dequeue_from_producer(ptok, entry);
