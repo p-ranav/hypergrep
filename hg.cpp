@@ -71,17 +71,21 @@ struct line_context
 };
 
 static int print_match_in_red_color(unsigned int id, unsigned long long from,
-                                    unsigned long long to, unsigned int flags, void *ctx)
+unsigned long long to, unsigned int flags, void *ctx)
 {
-  auto *fctx = (line_context *)(ctx);
+  auto* fctx = static_cast<line_context*>(ctx);
   const char *line_data = fctx->data;
   auto &lines = fctx->lines;
   const char *start = *(fctx->current_ptr);
-  lines += std::string(start, line_data + from - start);
-  lines += "\033[31m";
-  lines += std::string(&line_data[from], to - from);
-  lines += "\033[0m";
+  const size_t len = to - from;
+
+  lines.reserve(lines.size() + len + 9);
+  lines.append(start, line_data + from);
+  lines.append("\033[31m", 5);
+  lines.append(&line_data[from], len);
+  lines.append("\033[0m", 4);
   *(fctx->current_ptr) = line_data + to;
+
   return 0;
 }
 
