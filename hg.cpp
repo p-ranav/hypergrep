@@ -24,7 +24,7 @@ std::size_t get_file_size(const char* filename) {
   return st.st_size;
 }
 
-moodycamel::ConcurrentQueue<std::string> queue;
+moodycamel::ConcurrentQueue<std::filesystem::directory_entry> queue;
 moodycamel::ProducerToken ptok(queue);
 
 std::atomic<bool> running{true};
@@ -41,7 +41,6 @@ std::mutex cout_mutex;
 // 200-400us
 bool is_ignored(const char *path)
 {
-  return false;
   if (!repo)
   {
     return false;
@@ -179,9 +178,8 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-bool process_file(std::string_view filename, AppShift::Memory::MemoryPool& pool)
+bool process_file(std::string_view filename, std::size_t file_size, AppShift::Memory::MemoryPool& pool)
 {
-  const auto file_size = get_file_size(filename.data());
   constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
 
   char *file_data;
@@ -260,7 +258,7 @@ bool process_file(std::string_view filename, AppShift::Memory::MemoryPool& pool)
   else
   {
     // file was ignored inside hs_scan
-    // by called is_ignored at the first match
+    // by checking is_ignored() at the first match
     result = false;
   }
 
@@ -285,27 +283,21 @@ static inline int visit(const char *path)
   std::filesystem::directory_iterator iter(path, std::filesystem::directory_options::skip_permission_denied);
   for (const auto &entry : iter)
   {
-
     if (entry.is_symlink())
     {
       continue;
     }
 
-    const char* filename = entry.path().filename().c_str();
-    const char* filepath = entry.path().c_str();
-
     // Check if path is a directory
     if (entry.is_directory())
     {
-      if (!is_ignored(filepath))
-      {
-        visit(filepath);
-      }
+      const char* filepath = entry.path().c_str();
+      visit(filepath);
     }
     // Check if path is a regular file
     else if (entry.is_regular_file())
     {
-      queue.enqueue(ptok, std::string(filepath));
+      queue.enqueue(ptok, entry);
       num_files_enqueued += 1;
     }
   }
@@ -315,12 +307,14 @@ static inline int visit(const char *path)
 
 bool visit_one(AppShift::Memory::MemoryPool& pool)
 {
-  std::string filepath{};
-  auto found = queue.try_dequeue_from_producer(ptok, filepath);
+  std::filesystem::directory_entry entry;
+  auto found = queue.try_dequeue_from_producer(ptok, entry);
   if (found)
   {
     num_files_dequeued += 1;
-    if (process_file(filepath, pool))
+
+    const auto path = entry.path().c_str();
+    if (process_file(path, entry.file_size(), pool))
     {
       num_files_searched += 1;
     }
