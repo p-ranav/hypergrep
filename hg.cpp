@@ -27,11 +27,8 @@ moodycamel::ProducerToken ptok(queue);
 
 bool is_stdout{true};
 std::atomic<bool> running{true};
-std::atomic<std::size_t> matches{0};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
-std::atomic<std::size_t> num_files_searched{0};
-std::atomic<std::size_t> num_files_contained_matches{0};
 hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
 std::mutex cout_mutex;
@@ -42,7 +39,6 @@ struct file_context
   const char *data;
   std::size_t size;
   std::string &lines;
-  std::size_t &matches;
   std::size_t &current_line_number;
   const char **current_ptr;
   hs_scratch *local_scratch;
@@ -94,7 +90,6 @@ static int on_match(unsigned int id, unsigned long long from,
     auto size = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
     const char **current_ptr = fctx->current_ptr;
-    fctx->matches += 1;
 
     if (fctx->data)
     {
@@ -223,8 +218,7 @@ bool process_file(std::string_view filename, std::size_t file_size)
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  std::size_t local_matches{0};
-  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, local_matches, current_line_number, &current_ptr, local_scratch_for_line};
+  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
@@ -237,8 +231,6 @@ bool process_file(std::string_view filename, std::size_t file_size)
       }
       else
       {
-        matches += local_matches;
-        num_files_contained_matches += 1;
         std::lock_guard<std::mutex> lock{cout_mutex};
         if (is_stdout)
         {
@@ -280,8 +272,11 @@ void visit(const char *path)
 {
   for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    queue.enqueue(ptok, entry.path().c_str());
-    num_files_enqueued += 1;
+    if (std::filesystem::is_regular_file(path) && !std::filesystem::is_symlink(path))
+    {
+      queue.enqueue(ptok, entry.path().c_str());
+      num_files_enqueued += 1;
+    }
   }
 }
 
@@ -292,11 +287,7 @@ static inline bool visit_one()
   if (found)
   {
     num_files_dequeued += 1;
-
-    if (process_file(entry.data(), get_file_size(entry.data())))
-    {
-      num_files_searched += 1;
-    }
+    process_file(entry.data(), get_file_size(entry.data()));
     return true;
   }
   else
@@ -358,7 +349,6 @@ int main(int argc, char **argv)
       } }));
   }
 
-  auto start = std::chrono::high_resolution_clock::now();
   visit(path);
   running = false;
 
@@ -366,13 +356,6 @@ int main(int argc, char **argv)
   {
     consumer_threads[i].join();
   }
-  auto end = std::chrono::high_resolution_clock::now();
-
-  std::cout << "\n"
-            << matches << " matches\n";
-  std::cout << num_files_contained_matches << " files contained matches\n";
-  std::cout << num_files_searched << " files searched\n";
-  std::cout << (std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f) << " seconds spent searching\n";
 
   hs_free_scratch(scratch);
   hs_free_database(database);
