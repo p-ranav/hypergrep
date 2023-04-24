@@ -25,6 +25,7 @@ std::size_t get_file_size(const char* filename) {
 moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
 
+bool is_stdout{true};
 std::atomic<bool> running{true};
 std::atomic<std::size_t> matches{0};
 std::atomic<std::size_t> num_files_enqueued{0};
@@ -127,26 +128,33 @@ static int on_match(unsigned int id, unsigned long long from,
 
       if (from >= start && to >= from && end >= to && end >= start)
       {
-        lines += "\033[32m";
-        lines += std::to_string(current_line_number);
-        lines += "\033[0m";
-        lines += ":";
-
-        std::string_view line(&data[start], end - start);	
-        const char *line_ptr = line.data();
-
-        line_context nested_ctx{line_ptr, lines, &line_ptr};
-        if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
+        if (is_stdout)
         {
-          return 1;
-        }
+          lines += "\033[32m";
+          lines += std::to_string(current_line_number);
+          lines += "\033[0m";
+          lines += ":";
 
-        if (line_ptr != (&data[start] + end - start))
-        {
-          // some left over
-          lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
+          std::string_view line(&data[start], end - start);	
+          const char *line_ptr = line.data();
+
+          line_context nested_ctx{line_ptr, lines, &line_ptr};
+          if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
+          {
+            return 1;
+          }
+
+          if (line_ptr != (&data[start] + end - start))
+          {
+            // some left over
+            lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
+          }
+          lines += '\n';
         }
-        lines += '\n';
+        else
+        {
+          lines += std::string(fctx->filename) + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
+        }
       }
     }
   }
@@ -232,9 +240,16 @@ bool process_file(std::string_view filename, std::size_t file_size)
         matches += local_matches;
         num_files_contained_matches += 1;
         std::lock_guard<std::mutex> lock{cout_mutex};
-        std::cout << "\n"
-                  << filename << "\n";
-        std::cout << lines;
+        if (is_stdout)
+        {
+          std::cout << "\n"
+                    << filename << "\n";
+          std::cout << lines;
+        }
+        else
+        {
+          std::cout << lines;
+        }
       }
     }
     result = true;
@@ -292,7 +307,9 @@ static inline bool visit_one()
 
 int main(int argc, char **argv)
 {
+  is_stdout = isatty(STDOUT_FILENO) == 1;
   std::ios_base::sync_with_stdio(false);
+  std::cin.tie(NULL);
 
   if (argc < 2)
   {
