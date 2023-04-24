@@ -41,6 +41,7 @@ struct file_context
   const char *data;
   std::size_t size;
   std::string &lines;
+  std::size_t &matches;
   std::size_t &current_line_number;
   const char **current_ptr;
   hs_scratch *local_scratch;
@@ -86,14 +87,13 @@ static int on_match(unsigned int id, unsigned long long from,
   // print line with match
   auto *fctx = (file_context *)(ctx);
 
-  matches += 1;
-
   if (fctx)
   {
     auto &lines = fctx->lines;
     auto size = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
     const char **current_ptr = fctx->current_ptr;
+    fctx->matches += 1;
 
     if (fctx->data)
     {
@@ -162,9 +162,7 @@ bool process_file(std::string_view filename, std::size_t file_size)
   int   fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1)
   {
-      std::lock_guard<std::mutex> lock{cout_mutex};
-      std::cout << "Error: Failed to open file: " << filename << std::endl;
-      return false;
+    return false;
   }
   if (file_size > MMAP_LOWER_THRESHOLD) // check if file size is larger than 1 MB
   {
@@ -217,16 +215,27 @@ bool process_file(std::string_view filename, std::size_t file_size)
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, current_line_number, &current_ptr, local_scratch_for_line};
+  std::size_t local_matches{0};
+  file_context ctx{filename.data(), file_data, static_cast<std::size_t>(file_size), lines, local_matches, current_line_number, &current_ptr, local_scratch_for_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
     {
-      std::lock_guard<std::mutex> lock{cout_mutex};
-      std::cout << "\n"
-                << filename << "\n";
-      std::cout << lines;
-      num_files_contained_matches += 1;
+      if (lines.find('\0') != std::string::npos)
+      {
+        // line has NULL bytes
+        // File was probably a binary file
+        result = false;
+      }
+      else
+      {
+        matches += local_matches;
+        num_files_contained_matches += 1;
+        std::lock_guard<std::mutex> lock{cout_mutex};
+        std::cout << "\n"
+                  << filename << "\n";
+        std::cout << lines;
+      }
     }
     result = true;
   }
