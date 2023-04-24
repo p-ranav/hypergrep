@@ -123,6 +123,7 @@ static int on_match(unsigned int id, unsigned long long from,
 
       if (from >= start && to >= from && end >= to && end >= start)
       {
+        std::string_view line(&data[start], end - start);	
         if (is_stdout)
         {
           lines += "\033[32m";
@@ -130,7 +131,6 @@ static int on_match(unsigned int id, unsigned long long from,
           lines += "\033[0m";
           lines += ":";
 
-          std::string_view line(&data[start], end - start);	
           const char *line_ptr = line.data();
 
           line_context nested_ctx{line_ptr, lines, &line_ptr};
@@ -148,7 +148,7 @@ static int on_match(unsigned int id, unsigned long long from,
         }
         else
         {
-          lines += std::string(fctx->filename) + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
+          lines += std::string(fctx->filename) + ":" + std::to_string(current_line_number) + ":" + std::string(line) + "\n";
         }
       }
     }
@@ -272,11 +272,8 @@ void visit(const char *path)
 {
   for (const auto &entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    if (std::filesystem::is_regular_file(path) && !std::filesystem::is_symlink(path))
-    {
-      queue.enqueue(ptok, entry.path().c_str());
-      num_files_enqueued += 1;
-    }
+    queue.enqueue(ptok, entry.path().c_str());
+    num_files_enqueued += 1;
   }
 }
 
