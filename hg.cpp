@@ -134,9 +134,9 @@ static int on_match(unsigned int id, unsigned long long from,
 
       if (from >= start && to >= from && end >= to && end >= start)
       {
-        std::string_view line(&data[start], end - start);	
         if (is_stdout)
         {
+          std::string_view line(&data[start], end - start);	
           lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
 
           const char *line_ptr = line.data();
@@ -156,7 +156,7 @@ static int on_match(unsigned int id, unsigned long long from,
         }
         else
         {
-          lines += fctx->filename + ":" + std::string(line) + "\n";
+          lines += fctx->filename + ":" + std::string(&data[start], end - start) + "\n";
         }
       }
     }
