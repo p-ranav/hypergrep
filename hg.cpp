@@ -275,6 +275,8 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
 
   std::size_t iterations{0};
 
+  std::string remainder_from_previous_chunk{}; // the final bytes in the chunk after the last newline
+
   while (bytes_read < file_size) {
     // Read the next chunk
     auto bytes_to_read = std::min(file_size - bytes_read, CHUNK_SIZE);
@@ -302,11 +304,49 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
       }
     }
 
-    // Process the current chunk
-    file_context ctx{filename, buffer, bytes_to_read, lines, current_line_number, nullptr, local_scratch_per_line};
-    if (hs_scan(database, buffer, bytes_to_read, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
-      result = false;
-      break;
+    // Find the position of the last newline in the buffer
+    // In order to catch matches between chunks, need to amend the buffer
+    // and make sure it stops at a new line boundary
+    char* last_newline = (char*)memrchr(buffer, '\n', bytes_to_read);
+    std::size_t search_size = bytes_to_read;
+    if (last_newline)
+    {
+      search_size = last_newline - buffer;
+    }
+
+    if (remainder_from_previous_chunk.empty())
+    {
+      // Process the current chunk
+      file_context ctx{filename, buffer, search_size, lines, current_line_number, nullptr, local_scratch_per_line};
+      if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
+        result = false;
+        break;
+      }
+
+      if (last_newline)
+      {
+        remainder_from_previous_chunk.append(last_newline, bytes_to_read - search_size);
+      }
+    }
+    else
+    {
+      // If remaining bytes from previous chunk, prepend to the search buffer
+      std::string search_buffer{};
+      std::swap(search_buffer, remainder_from_previous_chunk);
+      search_buffer.append(buffer, search_size);
+      search_size = search_buffer.size();
+
+      // Process the current chunk along with the leftover from the previous chunk
+      file_context ctx{filename, search_buffer.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
+      if (hs_scan(database, search_buffer.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
+        result = false;
+        break;
+      }
+
+      if (last_newline)
+      {
+        remainder_from_previous_chunk.append(last_newline, bytes_to_read - (last_newline - buffer));
+      }
     }
 
     bytes_read += bytes_to_read;
