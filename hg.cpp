@@ -156,7 +156,7 @@ static int on_match(unsigned int id, unsigned long long from,
         }
         else
         {
-          lines += fctx->filename + ":" + std::string(&data[start], end - start) + "\n";
+          lines += fctx->filename + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
         }
       }
     }
