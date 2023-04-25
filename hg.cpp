@@ -252,7 +252,7 @@ static int on_match(unsigned int id, unsigned long long from,
 //   return result;
 // }
 
-bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
+bool process_file(std::string&& filename, std::size_t file_size, std::size_t i, std::string& search_string, std::string& remainder_from_previous_chunk)
 {
   char *file_data;
   int   fd = open(filename.data(), O_RDONLY, 0);
@@ -274,8 +274,6 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
   std::string lines{""};
 
   std::size_t iterations{0};
-
-  std::string remainder_from_previous_chunk{}; // the final bytes in the chunk after the last newline
 
   while (bytes_read < file_size) {
     // Read the next chunk
@@ -331,14 +329,14 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
     else
     {
       // If remaining bytes from previous chunk, prepend to the search buffer
-      std::string search_buffer{};
-      std::swap(search_buffer, remainder_from_previous_chunk);
-      search_buffer.append(buffer, search_size);
-      search_size = search_buffer.size();
+      search_string = remainder_from_previous_chunk;
+      search_string.append(buffer, search_size);
+      search_size = search_string.size();
+      remainder_from_previous_chunk.clear();
 
       // Process the current chunk along with the leftover from the previous chunk
-      file_context ctx{filename, search_buffer.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
-      if (hs_scan(database, search_buffer.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
+      file_context ctx{filename, search_string.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
+      if (hs_scan(database, search_string.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
         result = false;
         break;
       }
@@ -392,7 +390,7 @@ void visit(const char *path)
   }
 }
 
-static inline bool visit_one(const std::size_t i)
+static inline bool visit_one(const std::size_t i, std::string& search_string, std::string& remaining_from_previous_chunk)
 {
   std::string entry;
   auto found = queue.try_dequeue_from_producer(ptok, entry);
@@ -401,7 +399,7 @@ static inline bool visit_one(const std::size_t i)
     const auto file_size = get_file_size(entry);
     if (file_size > 0)
     {
-      process_file(std::move(entry), file_size, i);
+      process_file(std::move(entry), file_size, i, search_string, remaining_from_previous_chunk);
     }
     num_files_dequeued += 1;
     return true;
@@ -481,8 +479,12 @@ int main(int argc, char **argv)
 
     consumer_threads.push_back(std::thread([i = i]()
                                            {
+
+      std::string search_string{};
+      std::string remaining_from_previous_chunk{};
+
       while (true) {
-        if (!visit_one(i))
+        if (!visit_one(i, search_string, remaining_from_previous_chunk))
         {
           if (!running && num_files_dequeued == num_files_enqueued) {
             break;
