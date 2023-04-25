@@ -399,7 +399,6 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  auto start = std::chrono::high_resolution_clock::now();
   std::vector<std::thread> consumer_threads{};
   const auto N = std::thread::hardware_concurrency();
 
@@ -450,8 +449,6 @@ int main(int argc, char **argv)
   {
     consumer_threads[i].join();
   }
-  auto end = std::chrono::high_resolution_clock::now();
-  fmt::print("{} secs\n", (std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f));
 
   hs_free_scratch(scratch);
   hs_free_database(database);
