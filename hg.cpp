@@ -219,7 +219,7 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
   {
     if (!lines.empty())
     {
-      std::lock_guard<std::mutex> lock{cout_mutex};
+      // std::lock_guard<std::mutex> lock{cout_mutex};
       if (is_stdout)
       {
         std::cout << "\n"
