@@ -196,65 +196,6 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     return 0;
 }
 
-// bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
-// {
-//   char *file_data;
-//   int   fd = open(filename.data(), O_RDONLY, 0);
-//   if (fd == -1)
-//   {
-//     return false;
-//   }
-//   char* buffer = new char[file_size];
-//   auto ret = read(fd, buffer, file_size);
-//   close(fd);
-//   if (ret != file_size)
-//   {
-//     return false;
-//   }
-//   else
-//   {
-//     file_data = buffer;
-//   }
-
-//   // Set up the scratch space
-//   hs_scratch_t *local_scratch = thread_local_scratch[i];
-//   hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
-
-//   bool result{true};
-
-//   // Process the entire buffer
-//   std::size_t current_line_number{1};
-//   const char *current_ptr{file_data};
-//   std::string lines{""};
-//   file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_per_line};
-//   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
-//   {
-//     if (!lines.empty())
-//     {
-//       // std::lock_guard<std::mutex> lock{cout_mutex};
-//       if (is_stdout)
-//       {
-//         fmt::print("\n{}\n{}", filename, lines);
-//       }
-//       else
-//       {
-//         fmt::print("{}", lines);
-//       }
-//     }
-//     result = true;
-//   }
-//   else
-//   {
-//     // file was ignored inside hs_scan
-//     // by checking is_ignored() at the first match
-//     result = false;
-//   }
-
-//   delete[] file_data;
-
-//   return result;
-// }
-
 bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, std::string &search_string, std::string &remainder_from_previous_chunk)
 {
     char *file_data;
@@ -456,31 +397,30 @@ int main(int argc, char **argv)
 
     if (std::filesystem::is_regular_file(path))
     {
+        // Set up the scratch space
+        hs_scratch_t *local_scratch  = NULL;
+        hs_error_t    database_error = hs_alloc_scratch(database, &local_scratch);
+        if (database_error != HS_SUCCESS)
+        {
+            fprintf(stderr, "Error allocating scratch space\n");
+            hs_free_database(database);
+            return false;
+        }
+        thread_local_scratch.push_back(local_scratch);
 
-            // Set up the scratch space
-            hs_scratch_t *local_scratch  = NULL;
-            hs_error_t    database_error = hs_alloc_scratch(database, &local_scratch);
-            if (database_error != HS_SUCCESS)
-            {
-                fprintf(stderr, "Error allocating scratch space\n");
-                hs_free_database(database);
-                return false;
-            }
-            thread_local_scratch.push_back(local_scratch);
-
-            // Set up the scratch space per line
-            hs_scratch_t *scratch_per_line = NULL;
-            database_error                 = hs_alloc_scratch(database, &scratch_per_line);
-            if (database_error != HS_SUCCESS)
-            {
-                fprintf(stderr, "Error allocating scratch space\n");
-                hs_free_database(database);
-                return false;
-            }
-            thread_local_scratch_per_line.push_back(scratch_per_line);
+        // Set up the scratch space per line
+        hs_scratch_t *scratch_per_line = NULL;
+        database_error                 = hs_alloc_scratch(database, &scratch_per_line);
+        if (database_error != HS_SUCCESS)
+        {
+            fprintf(stderr, "Error allocating scratch space\n");
+            hs_free_database(database);
+            return false;
+        }
+        thread_local_scratch_per_line.push_back(scratch_per_line);
 
         std::string path_string(path);
-        const auto size = get_file_size(path_string);
+        const auto  size = get_file_size(path_string);
         std::string search_string{};
         std::string remaining_bytes_per_chunk{};
         process_file(std::move(path_string), size, 0, search_string, remaining_bytes_per_chunk);
