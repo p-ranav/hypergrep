@@ -291,6 +291,15 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
         result = false;
         break;
       }
+
+      if (memchr((void*)buffer, '\0', bytes_to_read) != NULL)
+      {
+        // NULL bytes found
+        // Ignore file
+        // Could be a .exe, .gz, .bin etc.
+        result = false;
+        break;
+      }
     }
 
     // Process the current chunk
