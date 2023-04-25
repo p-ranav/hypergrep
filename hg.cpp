@@ -15,6 +15,31 @@
 #include <unistd.h>
 #include <fmt/format.h>
 
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
+#include <stdbool.h>
+#include <stdint.h>
+
+bool is_elf_header(const char* buffer) {
+    uint32_t magic = *(uint32_t*)buffer;
+
+    // Check for ELF magic number
+    return (magic == 0x7F454C46);
+}
+
+bool is_archive_header(const char* buffer) {
+    const char* archive_magic = "!<arch>\n";
+    size_t magic_len = strlen(archive_magic);
+
+    // Compare first few bytes to archive magic string
+    return (strncmp(buffer, archive_magic, magic_len) == 0);
+}
+
 std::size_t get_file_size(std::string& filename) {
   struct stat st;
   if(lstat(filename.data(), &st) != 0) {
@@ -104,7 +129,7 @@ static int on_match(unsigned int id, unsigned long long from,
     auto &lines = fctx->lines;
     auto &size = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
-    const char **current_ptr = fctx->current_ptr;
+    // const char **current_ptr = fctx->current_ptr;
 
     if (fctx->data)
     {
@@ -127,9 +152,9 @@ static int on_match(unsigned int id, unsigned long long from,
       }
 
       const std::size_t previous_line_number = fctx->current_line_number;
-      const auto line_count = count_newlines(*current_ptr, fctx->data + start);
+      const auto line_count = count_newlines(fctx->data, fctx->data + start);
       current_line_number += line_count;
-      *current_ptr = fctx->data + end;
+      // *current_ptr = fctx->data + end;
 
       if (current_line_number == previous_line_number && previous_line_number > 0)
       {
@@ -170,98 +195,157 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
+// bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
+// {
+//   char *file_data;
+//   int   fd = open(filename.data(), O_RDONLY, 0);
+//   if (fd == -1)
+//   {
+//     return false;
+//   }
+//   char* buffer = new char[file_size];
+//   auto ret = read(fd, buffer, file_size);
+//   close(fd);
+//   if (ret != file_size)
+//   {
+//     return false;
+//   }
+//   else
+//   {
+//     file_data = buffer;
+//   }
+
+//   // Set up the scratch space
+//   hs_scratch_t *local_scratch = thread_local_scratch[i];
+//   hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
+
+//   bool result{true};
+
+//   // Process the entire buffer
+//   std::size_t current_line_number{1};
+//   const char *current_ptr{file_data};
+//   std::string lines{""};
+//   file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_per_line};
+//   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
+//   {
+//     if (!lines.empty())
+//     {
+//       // std::lock_guard<std::mutex> lock{cout_mutex};
+//       if (is_stdout)
+//       {
+//         fmt::print("\n{}\n{}", filename, lines);
+//       }
+//       else
+//       {
+//         fmt::print("{}", lines);
+//       }
+//     }
+//     result = true;
+//   }
+//   else
+//   {
+//     // file was ignored inside hs_scan
+//     // by checking is_ignored() at the first match
+//     result = false;
+//   }
+
+//   delete[] file_data;  
+  
+//   return result;
+// }
+
 bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
 {
-  constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
-
   char *file_data;
   int   fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1)
   {
     return false;
   }
-  if (file_size > MMAP_LOWER_THRESHOLD) // check if file size is larger than 1 MB
-  {
-      file_data = (char *)mmap(nullptr, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
-      close(fd);
-      if (file_data == MAP_FAILED)
-      {
-        return false;
-      }
-  }
-  else
-  {
-      char* buffer = new char[file_size];
-      auto ret = read(fd, buffer, file_size);
-      close(fd);
-      if (ret != file_size)
-      {
-        return false;
-      }
-      else
-      {
-        file_data = buffer;
-      }
-  }
+  bool result{true};
 
   // Set up the scratch space
   hs_scratch_t *local_scratch = thread_local_scratch[i];
   hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
-  bool result{true};
-
-  // Process the entire buffer
+  // Process the file in chunks
+  const std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
+  char buffer[CHUNK_SIZE];
+  std::size_t bytes_read = 0;
   std::size_t current_line_number{1};
-  const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_per_line};
-  if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
-  {
-    if (!lines.empty())
+  file_context ctx{filename, nullptr, file_size, lines, current_line_number, nullptr, local_scratch_per_line};
+
+  std::size_t iterations{0};
+
+  while (bytes_read < file_size) {
+    // std::cout << bytes_read << " " << file_size << "\n";
+    // Read the next chunk
+    auto bytes_to_read = std::min(file_size - bytes_read, CHUNK_SIZE);
+    auto ret = read(fd, buffer, bytes_to_read);
+    if (ret != bytes_to_read) {
+      result = false;
+      break;
+    }
+
+    // Update the context with the current chunk
+    ctx.data = buffer;
+
+    if (iterations == 0)
     {
-      // std::lock_guard<std::mutex> lock{cout_mutex};
-      if (is_stdout)
+      if (is_elf_header(buffer) || is_archive_header(buffer))
       {
-        fmt::print("\n{}\n{}", filename, lines);
-        // std::cout << "\n"
-        //           << filename << "\n";
-        // std::cout << lines;
-      }
-      else
-      {
-        fmt::print("{}", lines);
-        // std::cout << lines;
+        result = false;
+        break;
       }
     }
-    result = true;
-  }
-  else
-  {
-    // file was ignored inside hs_scan
-    // by checking is_ignored() at the first match
-    result = false;
+
+    // Process the current chunk
+    if (hs_scan(database, buffer, bytes_to_read, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
+      result = false;
+      break;
+    }
+
+    bytes_read += bytes_to_read;
+    iterations += 1;
   }
 
-  if (file_size > MMAP_LOWER_THRESHOLD)
+  close(fd);
+
+  if (result && !lines.empty())
   {
-      munmap((void *)file_data, file_size);
+    // std::lock_guard<std::mutex> lock{cout_mutex};
+    if (is_stdout)
+    {
+      fmt::print("\n{}\n{}", filename, lines);
+    }
+    else
+    {
+      fmt::print("{}", lines);
+    }
   }
-  else
-  {
-    delete[] file_data;
-  }  
-  
+
   return result;
 }
 
 void visit(const char *path)
 {
-  for (auto&& entry : std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+  for (auto&& entry : std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
   {
-    const auto& filename = entry.path().filename();
+    const auto& path = entry.path();
+    const auto& filename = path.filename();
+    const char* pathstring = path.c_str();
     if (filename.c_str()[0] == '.') continue;
-    ++num_files_enqueued;
-    queue.enqueue(ptok, entry.path());
+
+    if (entry.is_directory())
+    {
+      visit(pathstring);
+    }
+    else if (entry.is_regular_file())
+    {
+      ++num_files_enqueued;
+      queue.enqueue(ptok, path.c_str());
+    }
   }
 }
 
