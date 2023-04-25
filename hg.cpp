@@ -405,7 +405,7 @@ int main(int argc, char **argv)
     }
 
     hs_compile_error_t *compile_error = NULL;
-    hs_error_t          error_code    = hs_compile(pattern, HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
+    hs_error_t          error_code    = hs_compile(pattern, HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
     if (error_code != HS_SUCCESS)
     {
         fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
