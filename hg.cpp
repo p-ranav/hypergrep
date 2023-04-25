@@ -26,14 +26,15 @@
 #include <stdint.h>
 
 bool is_elf_header(const char* buffer) {
-    uint32_t magic = *(uint32_t*)buffer;
+    const char* elf_magic = "\x7f""ELF";
+    size_t magic_len = strlen(elf_magic);
 
-    // Check for ELF magic number
-    return (magic == 0x7F454C46);
+    // Compare first few bytes to archive magic string
+    return (strncmp(buffer, elf_magic, magic_len) == 0);
 }
 
 bool is_archive_header(const char* buffer) {
-    const char* archive_magic = "!<arch>\n";
+    const char* archive_magic = "!<arch>";
     size_t magic_len = strlen(archive_magic);
 
     // Compare first few bytes to archive magic string
@@ -129,7 +130,6 @@ static int on_match(unsigned int id, unsigned long long from,
     auto &lines = fctx->lines;
     auto &size = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
-    // const char **current_ptr = fctx->current_ptr;
 
     if (fctx->data)
     {
@@ -154,7 +154,6 @@ static int on_match(unsigned int id, unsigned long long from,
       const std::size_t previous_line_number = fctx->current_line_number;
       const auto line_count = count_newlines(fctx->data, fctx->data + start);
       current_line_number += line_count;
-      // *current_ptr = fctx->data + end;
 
       if (current_line_number == previous_line_number && previous_line_number > 0)
       {
@@ -186,7 +185,6 @@ static int on_match(unsigned int id, unsigned long long from,
         else
         {
           lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
-          // lines += fctx->filename + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
         }
       }
     }
@@ -274,12 +272,10 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
   std::size_t bytes_read = 0;
   std::size_t current_line_number{1};
   std::string lines{""};
-  file_context ctx{filename, nullptr, file_size, lines, current_line_number, nullptr, local_scratch_per_line};
 
   std::size_t iterations{0};
 
   while (bytes_read < file_size) {
-    // std::cout << bytes_read << " " << file_size << "\n";
     // Read the next chunk
     auto bytes_to_read = std::min(file_size - bytes_read, CHUNK_SIZE);
     auto ret = read(fd, buffer, bytes_to_read);
@@ -288,12 +284,9 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
       break;
     }
 
-    // Update the context with the current chunk
-    ctx.data = buffer;
-
     if (iterations == 0)
     {
-      if (is_elf_header(buffer) || is_archive_header(buffer))
+      if (bytes_to_read >= 4 && (is_elf_header(buffer) || is_archive_header(buffer)))
       {
         result = false;
         break;
@@ -301,6 +294,7 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
     }
 
     // Process the current chunk
+    file_context ctx{filename, buffer, bytes_to_read, lines, current_line_number, nullptr, local_scratch_per_line};
     if (hs_scan(database, buffer, bytes_to_read, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS) {
       result = false;
       break;
