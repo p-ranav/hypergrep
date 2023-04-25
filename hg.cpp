@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <fmt/format.h>
 
 std::size_t get_file_size(std::string& filename) {
   struct stat st;
@@ -159,7 +160,8 @@ static int on_match(unsigned int id, unsigned long long from,
         }
         else
         {
-          lines += fctx->filename + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
+          lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
+          // lines += fctx->filename + ":" + std::to_string(current_line_number) + ":" + std::string(&data[start], end - start) + "\n";
         }
       }
     }
@@ -226,7 +228,7 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
       }
       else
       {
-        std::cout << lines;
+        fmt::print("{}", lines);
       }
     }
     result = true;
@@ -244,7 +246,7 @@ bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
   }
   else
   {
-      delete[] file_data;
+    delete[] file_data;
   }  
   
   return result;
