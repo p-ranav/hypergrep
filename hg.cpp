@@ -75,6 +75,8 @@ std::mutex               cout_mutex;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
+bool option_show_line_numbers{false};
+
 struct file_context
 {
     std::string &filename;
@@ -168,7 +170,10 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
                 if (is_stdout)
                 {
                     std::string_view line(&data[start], end - start);
-                    lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
+                    if (option_show_line_numbers)
+                    {
+                      lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
+                    }
 
                     const char *line_ptr = line.data();
 
@@ -187,7 +192,14 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
                 }
                 else
                 {
-                    lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
+                    if (option_show_line_numbers)
+                    {
+                      lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
+                    }
+                    else
+                    {
+                      lines += fmt::format("{}:{}\n", fctx->filename, std::string_view(&data[start], end - start));
+                    }
                 }
             }
         }
@@ -361,6 +373,27 @@ static inline bool visit_one(const std::size_t i, std::string &search_string, st
 
 int main(int argc, char **argv)
 {
+  int opt;
+    while ((opt = getopt(argc, argv, "ni")) != -1) {
+        switch (opt) {
+        case 'n':
+            option_show_line_numbers = true;
+            break;
+        case 'i':
+            // option_ignore_case = true;
+            break;
+        default:
+            fprintf(stderr, "Usage: %s [-n] [-i] filename [pattern]\n", argv[0]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    const char * pattern = argv[optind];
+    const char * path = ".";
+    if (optind + 1 < argc) {
+      path = argv[optind + 1];
+    }
+
     is_stdout = isatty(STDOUT_FILENO) == 1;
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(NULL);
@@ -369,13 +402,6 @@ int main(int argc, char **argv)
     {
         std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
         return 1;
-    }
-
-    auto *      pattern = argv[1];
-    const char *path    = ".";
-    if (argc > 2)
-    {
-        path = argv[2];
     }
 
     hs_compile_error_t *compile_error = NULL;
