@@ -40,6 +40,9 @@ hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
 std::mutex cout_mutex;
 
+std::vector<hs_scratch*> thread_local_scratch;
+std::vector<hs_scratch*> thread_local_scratch_per_line;
+
 struct file_context
 {
   std::string &filename;
@@ -165,7 +168,7 @@ static int on_match(unsigned int id, unsigned long long from,
   return 0;
 }
 
-bool process_file(std::string&& filename, std::size_t file_size)
+bool process_file(std::string&& filename, std::size_t file_size, std::size_t i)
 {
   constexpr std::size_t MMAP_LOWER_THRESHOLD = 2 * 1024 * 1024;
 
@@ -200,25 +203,8 @@ bool process_file(std::string&& filename, std::size_t file_size)
   }
 
   // Set up the scratch space
-  hs_scratch_t *local_scratch = NULL;
-  hs_error_t database_error = hs_clone_scratch(scratch, &local_scratch);
-  if (database_error != HS_SUCCESS)
-  {
-    fprintf(stderr, "Error allocating scratch space\n");
-    hs_free_database(database);
-    return false;
-  }
-
-  // Set up the scratch space for handling multiple occurrences within a line
-  // hs_scan is used on the line to color code multiple matches within a line
-  hs_scratch_t *local_scratch_for_line = NULL;
-  database_error = hs_clone_scratch(local_scratch, &local_scratch_for_line);
-  if (database_error != HS_SUCCESS)
-  {
-    fprintf(stderr, "Error allocating scratch space\n");
-    hs_free_database(database);
-    return false;
-  }
+  hs_scratch_t *local_scratch = thread_local_scratch[i];
+  hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
   bool result{true};
 
@@ -226,7 +212,7 @@ bool process_file(std::string&& filename, std::size_t file_size)
   std::size_t current_line_number{1};
   const char *current_ptr{file_data};
   std::string lines{""};
-  file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_for_line};
+  file_context ctx{filename, file_data, file_size, lines, current_line_number, &current_ptr, local_scratch_per_line};
   if (hs_scan(database, file_data, file_size, 0, local_scratch, on_match, (void *)(&ctx)) == HS_SUCCESS)
   {
     if (!lines.empty())
@@ -261,9 +247,6 @@ bool process_file(std::string&& filename, std::size_t file_size)
       delete[] file_data;
   }  
   
-  hs_free_scratch(local_scratch_for_line);
-  hs_free_scratch(local_scratch);
-
   return result;
 }
 
@@ -278,7 +261,7 @@ void visit(const char *path)
   }
 }
 
-static inline bool visit_one()
+static inline bool visit_one(const std::size_t i)
 {
   std::string entry;
   auto found = queue.try_dequeue_from_producer(ptok, entry);
@@ -287,7 +270,7 @@ static inline bool visit_one()
     const auto file_size = get_file_size(entry);
     if (file_size > 0)
     {
-      process_file(std::move(entry), file_size);
+      process_file(std::move(entry), file_size, i);
     }
     num_files_dequeued += 1;
     return true;
@@ -337,12 +320,38 @@ int main(int argc, char **argv)
   std::vector<std::thread> consumer_threads{};
   const auto N = std::thread::hardware_concurrency();
 
+  thread_local_scratch.reserve(N);
+  thread_local_scratch_per_line.reserve(N);
+
   for (std::size_t i = 0; i < N; ++i)
   {
-    consumer_threads.push_back(std::thread([]()
+
+    // Set up the scratch space
+    hs_scratch_t *local_scratch = NULL;
+    hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
+    if (database_error != HS_SUCCESS)
+    {
+      fprintf(stderr, "Error allocating scratch space\n");
+      hs_free_database(database);
+      return false;
+    }
+    thread_local_scratch.push_back(local_scratch);
+
+    // Set up the scratch space per line
+    hs_scratch_t *scratch_per_line = NULL;
+    database_error = hs_alloc_scratch(database, &scratch_per_line);
+    if (database_error != HS_SUCCESS)
+    {
+      fprintf(stderr, "Error allocating scratch space\n");
+      hs_free_database(database);
+      return false;
+    }
+    thread_local_scratch_per_line.push_back(scratch_per_line);
+
+    consumer_threads.push_back(std::thread([i = i]()
                                            {
       while (true) {
-        if (!visit_one())
+        if (!visit_one(i))
         {
           if (!running && num_files_dequeued == num_files_enqueued) {
             break;
