@@ -76,6 +76,7 @@ std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
 bool option_show_line_numbers{false};
+bool option_ignore_case{false};
 
 struct file_context
 {
@@ -380,7 +381,7 @@ int main(int argc, char **argv)
             option_show_line_numbers = true;
             break;
         case 'i':
-            // option_ignore_case = true;
+            option_ignore_case = true;
             break;
         default:
             fprintf(stderr, "Usage: %s [-n] [-i] filename [pattern]\n", argv[0]);
@@ -405,7 +406,7 @@ int main(int argc, char **argv)
     }
 
     hs_compile_error_t *compile_error = NULL;
-    hs_error_t          error_code    = hs_compile(pattern, HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
+    hs_error_t          error_code    = hs_compile(pattern, (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
     if (error_code != HS_SUCCESS)
     {
         fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
