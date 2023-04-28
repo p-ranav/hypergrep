@@ -230,7 +230,7 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     std::size_t       current_line_number{1};
     std::string       lines{""};
 
-    std::size_t iterations{0};
+    bool first{true};
 
     while (bytes_read < file_size)
     {
@@ -243,8 +243,9 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
             break;
         }
 
-        if (iterations == 0)
+        if (first)
         {
+          first = false;
             if (bytes_to_read >= 4 && (is_elf_header(buffer) || is_archive_header(buffer)))
             {
                 result = false;
@@ -309,7 +310,6 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
         }
 
         bytes_read += bytes_to_read;
-        iterations += 1;
     }
 
     close(fd);
@@ -384,7 +384,7 @@ int main(int argc, char **argv)
             option_ignore_case = true;
             break;
         default:
-            fprintf(stderr, "Usage: %s [-n] [-i] filename [pattern]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-n] [-i] pattern [filename]\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
