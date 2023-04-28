@@ -70,7 +70,6 @@ std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 hs_database_t *          database = NULL;
 hs_scratch_t *           scratch  = NULL;
-std::mutex               cout_mutex;
 
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
@@ -131,77 +130,75 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     // print line with match
     auto *fctx = (file_context *)(ctx);
 
-    if (fctx)
+    auto &       lines               = fctx->lines;
+    auto &       size                = fctx->size;
+    std::size_t &current_line_number = fctx->current_line_number;
+
+    auto data = std::string_view(fctx->data, size);
+
+    auto end = data.find_first_of('\n', to);
+    if (end == std::string_view::npos)
     {
-        auto &       lines               = fctx->lines;
-        auto &       size                = fctx->size;
-        std::size_t &current_line_number = fctx->current_line_number;
+        end = size;
+    }
 
-        if (fctx->data)
+    auto start = data.find_last_of('\n', from);
+    if (start == std::string_view::npos)
+    {
+        start = 0;
+    }
+    else
+    {
+        start += 1;
+    }
+
+    auto line_count = 0;
+    if (option_show_line_numbers)
+    {
+        const std::size_t previous_line_number = fctx->current_line_number;
+        line_count                             = count_newlines(fctx->data, fctx->data + start);
+        current_line_number += line_count;
+
+        if (current_line_number == previous_line_number && previous_line_number > 0)
         {
-            auto data = std::string_view(fctx->data, size);
+            return 0;
+        }
+    }
 
-            auto end = data.find_first_of('\n', to);
-            if (end == std::string_view::npos)
+    if (from >= start && to >= from && end >= to && end >= start)
+    {
+        if (is_stdout)
+        {
+            std::string_view line(&data[start], end - start);
+            if (option_show_line_numbers)
             {
-                end = size;
+                lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
             }
 
-            auto start = data.find_last_of('\n', from);
-            if (start == std::string_view::npos)
+            const char *line_ptr = line.data();
+
+            line_context nested_ctx{line_ptr, lines, &line_ptr};
+            if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
             {
-                start = 0;
+                return 1;
+            }
+
+            if (line_ptr != (&data[start] + end - start))
+            {
+                // some left over
+                lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
+            }
+            lines += '\n';
+        }
+        else
+        {
+            if (option_show_line_numbers)
+            {
+                lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
             }
             else
             {
-                start += 1;
-            }
-
-            const std::size_t previous_line_number = fctx->current_line_number;
-            const auto        line_count           = count_newlines(fctx->data, fctx->data + start);
-            current_line_number += line_count;
-
-            if (current_line_number == previous_line_number && previous_line_number > 0)
-            {
-                return 0;
-            }
-
-            if (from >= start && to >= from && end >= to && end >= start)
-            {
-                if (is_stdout)
-                {
-                    std::string_view line(&data[start], end - start);
-                    if (option_show_line_numbers)
-                    {
-                      lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
-                    }
-
-                    const char *line_ptr = line.data();
-
-                    line_context nested_ctx{line_ptr, lines, &line_ptr};
-                    if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
-                    {
-                        return 1;
-                    }
-
-                    if (line_ptr != (&data[start] + end - start))
-                    {
-                        // some left over
-                        lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
-                    }
-                    lines += '\n';
-                }
-                else
-                {
-                    if (option_show_line_numbers)
-                    {
-                      lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
-                    }
-                    else
-                    {
-                      lines += fmt::format("{}:{}\n", fctx->filename, std::string_view(&data[start], end - start));
-                    }
-                }
+                lines += fmt::format("{}:{}\n", fctx->filename, std::string_view(&data[start], end - start));
             }
         }
     }
@@ -245,7 +242,7 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
         if (first)
         {
-          first = false;
+            first = false;
             if (bytes_to_read >= 4 && (is_elf_header(buffer) || is_archive_header(buffer)))
             {
                 result = false;
@@ -316,7 +313,6 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
     if (result && !lines.empty())
     {
-        // std::lock_guard<std::mutex> lock{cout_mutex};
         if (is_stdout)
         {
             fmt::print("\n{}\n{}", filename, lines);
@@ -330,24 +326,24 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     return result;
 }
 
-void visit(const char *path)
+void visit(std::string path)
 {
     for (auto &&entry: std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path       = entry.path();
         const auto &filename   = path.filename();
-        const char *pathstring = path.c_str();
+        const auto  pathstring = path.string();
         if (filename.c_str()[0] == '.')
             continue;
 
         if (entry.is_directory())
         {
-            visit(pathstring);
+            visit(std::move(pathstring));
         }
         else if (entry.is_regular_file())
         {
             ++num_files_enqueued;
-            queue.enqueue(ptok, path.c_str());
+            queue.enqueue(ptok, std::move(pathstring));
         }
     }
 }
@@ -374,9 +370,11 @@ static inline bool visit_one(const std::size_t i, std::string &search_string, st
 
 int main(int argc, char **argv)
 {
-  int opt;
-    while ((opt = getopt(argc, argv, "ni")) != -1) {
-        switch (opt) {
+    int opt;
+    while ((opt = getopt(argc, argv, "ni")) != -1)
+    {
+        switch (opt)
+        {
         case 'n':
             option_show_line_numbers = true;
             break;
@@ -389,10 +387,11 @@ int main(int argc, char **argv)
         }
     }
 
-    const char * pattern = argv[optind];
-    const char * path = ".";
-    if (optind + 1 < argc) {
-      path = argv[optind + 1];
+    const char *pattern = argv[optind];
+    const char *path    = ".";
+    if (optind + 1 < argc)
+    {
+        path = argv[optind + 1];
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
