@@ -1,12 +1,14 @@
-#include "concurrentqueue.h"
 #include "blockingconcurrentqueue.h"
+#include "concurrentqueue.h"
 #include <atomic>
 #include <chrono>
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <fmt/color.h>
 #include <fmt/format.h>
 #include <fstream>
+#include <ftw.h>
 #include <hs/hs.h>
 #include <iostream>
 #include <mutex>
@@ -15,7 +17,6 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
-#include <ftw.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -30,7 +31,7 @@
 inline bool is_elf_header(const char *buffer)
 {
     static constexpr std::string_view elf_magic = "\x7f"
-                            "ELF";
+                                                  "ELF";
     return (strncmp(buffer, elf_magic.data(), elf_magic.size()) == 0);
 }
 
@@ -60,14 +61,16 @@ std::size_t get_file_size(std::string &filename)
 moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken                ptok(queue);
 
-bool                     is_stdout{true};
+bool is_stdout{true};
 
 std::atomic<bool>        running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 
-hs_database_t *          database = NULL;
-hs_scratch_t *           scratch  = NULL;
+constexpr std::size_t FILE_CHUNK_SIZE = 10 * 4096;
+
+hs_database_t *           database = NULL;
+hs_scratch_t *            scratch  = NULL;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
@@ -114,9 +117,7 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from, un
 
     lines.reserve(lines.size() + len + 9);
     lines.append(start, line_data + from);
-    lines.append("\033[31m", 5);
-    lines.append(&line_data[from], len);
-    lines.append("\033[0m", 4);
+    lines += fmt::format(fg(fmt::color::red), "{}", std::string_view(&line_data[from], len));
     *(fctx->current_ptr) = line_data + to;
 
     return 0;
@@ -130,6 +131,14 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     auto &       lines               = fctx->lines;
     auto &       size                = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
+
+    if (memchr((void *)fctx->data, '\0', size) != NULL)
+    {
+        // NULL bytes found
+        // Ignore file
+        // Could be a .exe, .gz, .bin etc.
+        return 1;
+    }
 
     auto data = std::string_view(fctx->data, size);
 
@@ -169,7 +178,7 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
             std::string_view line(&data[start], end - start);
             if (option_show_line_numbers)
             {
-                lines += "\033[32m" + std::to_string(current_line_number) + "\033[0m" + ":";
+                lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
             }
 
             const char *line_ptr = line.data();
@@ -203,7 +212,8 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     return 0;
 }
 
-bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, char* buffer, std::size_t CHUNK_SIZE, std::string &search_string, std::string &remainder_from_previous_chunk)
+template<std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
+bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, char *buffer, std::string &search_string, std::string &remainder_from_previous_chunk)
 {
     char *file_data;
     int   fd = open(filename.data(), O_RDONLY, 0);
@@ -218,10 +228,11 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
     // Process the file in chunks
-    std::size_t       bytes_read = 0;
-    std::size_t       current_line_number{1};
-    std::string       lines{""};
+    std::size_t bytes_read = 0;
+    std::size_t current_line_number{1};
+    std::string lines{""};
 
+    // Read the file in chunks and perform search
     bool first{true};
     while (bytes_read < file_size)
     {
@@ -309,20 +320,20 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     {
         if (is_stdout)
         {
-          fmt::print("\n{}\n{}", filename, lines);
+            fmt::print("\n{}\n{}", filename, lines);
         }
         else
         {
-          fmt::print("{}", lines);
+            fmt::print("{}", lines);
         }
     }
 
     return result;
 }
 
-bool ends_with(const char* str, const char* suffix)
+bool ends_with(const char *str, const char *suffix)
 {
-    size_t str_len = std::strlen(str);
+    size_t str_len    = std::strlen(str);
     size_t suffix_len = std::strlen(suffix);
     if (str_len >= suffix_len)
     {
@@ -334,31 +345,31 @@ bool ends_with(const char* str, const char* suffix)
     }
 }
 
-bool is_blacklisted(const char* ptr)
+bool is_blacklisted(const char *ptr)
 {
-  static constexpr std::array<const char*, 13> extensions{
-    ".a",
-    ".o",
-    ".so",
-    ".pdf",
-    ".gif",
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".webm",
-    ".tar",
-    ".gz",
-    ".bz2",
-    ".zip"
-  };
+    static constexpr std::array<const char *, 13> extensions{
+        ".a",
+        ".o",
+        ".so",
+        ".pdf",
+        ".gif",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webm",
+        ".tar",
+        ".gz",
+        ".bz2",
+        ".zip"};
 
-  for (const auto& e: extensions) {
-    if (ends_with(ptr, e))
+    for (const auto &e: extensions)
     {
-      return true;
+        if (ends_with(ptr, e))
+        {
+            return true;
+        }
     }
-  }
-  return false;
+    return false;
 }
 
 #define ENABLE_BULK_ENQUEUE 0
@@ -366,46 +377,45 @@ bool is_blacklisted(const char* ptr)
 void visit(std::string path)
 {
 #if ENABLE_BULK_ENQUEUE
-    constexpr std::size_t buffer_size = 64;
-    std::size_t i = 0;
+    constexpr std::size_t                buffer_size = 64;
+    std::size_t                          i           = 0;
     std::array<std::string, buffer_size> buffer;
 #endif
 
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
-        const auto &path       = entry.path();
-        const auto &filename   = path.filename();
-        const auto filename_cstr = filename.c_str();
-        const auto  pathstring = path.string();
+        const auto &path          = entry.path();
+        const auto &filename      = path.filename();
+        const auto  filename_cstr = filename.c_str();
+        const auto  pathstring    = path.string();
         if (filename_cstr[0] == '.' || is_blacklisted(filename_cstr))
             continue;
 
 #if ENABLE_BULK_ENQUEUE
-      buffer[i % buffer_size] = std::move(pathstring);
-      ++i;
-      if (i % buffer_size == 0)
-      {
-        queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
-        num_files_enqueued += buffer_size;
-      }
+        buffer[i % buffer_size] = std::move(pathstring);
+        ++i;
+        if (i % buffer_size == 0)
+        {
+            queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
+            num_files_enqueued += buffer_size;
+        }
 #else
-      queue.enqueue(ptok, std::move(pathstring));
-      num_files_enqueued += 1;
+        queue.enqueue(ptok, std::move(pathstring));
+        num_files_enqueued += 1;
 #endif
-  }
+    }
 
 #if ENABLE_BULK_ENQUEUE
     const auto remainder = i % buffer_size;
     if (remainder > 0)
     {
-      queue.enqueue_bulk(ptok, buffer.data(), remainder);
-      num_files_enqueued += remainder;
+        queue.enqueue_bulk(ptok, buffer.data(), remainder);
+        num_files_enqueued += remainder;
     }
 #endif
-
 }
 
-static inline bool visit_one(const std::size_t i, char* buffer, std::size_t CHUNK_SIZE, std::string &search_string, std::string &remaining_from_previous_chunk)
+static inline bool visit_one(const std::size_t i, char *buffer, std::string &search_string, std::string &remaining_from_previous_chunk)
 {
     std::string entry;
     auto        found = queue.try_dequeue_from_producer(ptok, entry);
@@ -415,7 +425,7 @@ static inline bool visit_one(const std::size_t i, char* buffer, std::size_t CHUN
         if (file_size > 0)
         {
             // fmt::print("Processing {}[{}]\n", entry, file_size);
-            process_file(std::move(entry), file_size, i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk);
+            process_file(std::move(entry), file_size, i, buffer, search_string, remaining_from_previous_chunk);
         }
         num_files_dequeued += 1;
         return true;
@@ -505,11 +515,10 @@ int main(int argc, char **argv)
 
         std::string path_string(path);
         const auto  size = get_file_size(path_string);
-        constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
-        char              buffer[CHUNK_SIZE];
+        char        buffer[FILE_CHUNK_SIZE];
         std::string search_string{};
         std::string remaining_bytes_per_chunk{};
-        process_file(std::move(path_string), size, 0, buffer, CHUNK_SIZE, search_string, remaining_bytes_per_chunk);
+        process_file(std::move(path_string), size, 0, buffer, search_string, remaining_bytes_per_chunk);
     }
     else
     {
@@ -544,21 +553,20 @@ int main(int argc, char **argv)
             thread_local_scratch_per_line.push_back(scratch_per_line);
 
             consumer_threads[i] = std::thread([i = i]() {
-                constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
-                char              buffer[CHUNK_SIZE];
+                char        buffer[FILE_CHUNK_SIZE];
                 std::string search_string{};
                 std::string remaining_from_previous_chunk{};
 
                 while (true)
                 {
-                  if (num_files_enqueued > 0)
-                  {
-                    visit_one(i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk);
-                    if (!running && num_files_dequeued == num_files_enqueued)
+                    if (num_files_enqueued > 0)
                     {
-                        break;
+                        visit_one(i, buffer, search_string, remaining_from_previous_chunk);
+                        if (!running && num_files_dequeued == num_files_enqueued)
+                        {
+                            break;
+                        }
                     }
-                  }
                 }
             });
         }
@@ -571,6 +579,8 @@ int main(int argc, char **argv)
             consumer_threads[i].join();
         }
     }
+
+    fmt::print("\nSearched {} files\n", num_files_enqueued);
 
     hs_free_scratch(scratch);
     hs_free_database(database);
