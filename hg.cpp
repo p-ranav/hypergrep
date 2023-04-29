@@ -306,12 +306,15 @@ void visit(std::string path)
 
 static inline bool visit_one(const std::size_t i, char *buffer, std::string &search_string, std::string &remaining_from_previous_chunk)
 {
-    std::string entry;
-    auto        found = queue.try_dequeue_from_producer(ptok, entry);
-    if (found)
+    std::string entries[32];
+    auto        count = queue.try_dequeue_bulk_from_producer(ptok, entries, 32);
+    if (count > 0)
     {
-        process_file(std::move(entry), i, buffer, search_string, remaining_from_previous_chunk);
+      for (std::size_t j = 0; j < count; ++j)
+      {
+        process_file(std::move(entries[j]), i, buffer, search_string, remaining_from_previous_chunk);
         num_files_dequeued += 1;
+      }
         return true;
     }
     else
