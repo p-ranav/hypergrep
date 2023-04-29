@@ -306,8 +306,11 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit(std::string path)
 {
-    const int max_vector_size = 1000;
-    std::vector<std::string> paths_to_enqueue;
+    constexpr int max_array_size = 32;
+    std::array<std::string, max_array_size> paths_to_enqueue;
+
+    std::size_t index{0};
+
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path          = entry.path();
@@ -319,19 +322,19 @@ void visit(std::string path)
 
         if (entry.is_regular_file())
         {
-            paths_to_enqueue.push_back(std::move(pathstring));
+            paths_to_enqueue[index++] = std::move(pathstring);
             num_files_enqueued += 1;
 
-            if (paths_to_enqueue.size() >= max_vector_size)
+            if (index == max_array_size)
             {
-                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), max_vector_size);
-                paths_to_enqueue.clear();
+                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), max_array_size);
+                index = 0;
             }
         }
     }
-    if (!paths_to_enqueue.empty())
+    if (index > 0)
     {
-        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), paths_to_enqueue.size());
+        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
     }
 }
 
