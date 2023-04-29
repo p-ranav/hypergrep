@@ -323,9 +323,9 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
 void visit(std::string path)
 {
-    constexpr std::size_t buffer_size = 512;
-    std::size_t i = 0;
-    std::array<std::string, buffer_size> buffer;
+    // constexpr std::size_t buffer_size = 512;
+    // std::size_t i = 0;
+    // std::array<std::string, buffer_size> buffer;
 
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
@@ -335,21 +335,25 @@ void visit(std::string path)
         if (filename.c_str()[0] == '.')
             continue;
 
-      buffer[i % buffer_size] = std::move(pathstring);
-      ++i;
-      if (i % buffer_size == 0)
-      {
-        queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
-        num_files_enqueued += buffer_size;
-      }
+        queue.enqueue(ptok, std::move(pathstring));
+        num_files_enqueued += 1;
     }
 
-    const auto remainder = i % buffer_size;
-    if (remainder > 0)
-    {
-      queue.enqueue_bulk(ptok, buffer.data(), remainder);
-      num_files_enqueued += remainder;
-    }
+    //   buffer[i % buffer_size] = std::move(pathstring);
+    //   ++i;
+    //   if (i % buffer_size == 0)
+    //   {
+    //     queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
+    //     num_files_enqueued += buffer_size;
+    //   }
+    // }
+
+    // const auto remainder = i % buffer_size;
+    // if (remainder > 0)
+    // {
+    //   queue.enqueue_bulk(ptok, buffer.data(), remainder);
+    //   num_files_enqueued += remainder;
+    // }
 }
 
 static inline bool visit_one(const std::size_t i, std::string &search_string, std::string &remaining_from_previous_chunk)
