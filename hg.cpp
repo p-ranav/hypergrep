@@ -202,7 +202,7 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     return 0;
 }
 
-bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, std::string &search_string, std::string &remainder_from_previous_chunk)
+bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, char* buffer, std::size_t CHUNK_SIZE, std::string &search_string, std::string &remainder_from_previous_chunk)
 {
     char *file_data;
     int   fd = open(filename.data(), O_RDONLY, 0);
@@ -217,8 +217,6 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
     // Process the file in chunks
-    constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
-    char              buffer[CHUNK_SIZE];
     std::size_t       bytes_read = 0;
     std::size_t       current_line_number{1};
     std::string       lines{""};
@@ -404,7 +402,7 @@ void visit(std::string path)
 #endif
 }
 
-static inline bool visit_one(const std::size_t i, std::string &search_string, std::string &remaining_from_previous_chunk)
+static inline bool visit_one(const std::size_t i, char* buffer, std::size_t CHUNK_SIZE, std::string &search_string, std::string &remaining_from_previous_chunk)
 {
     std::string entry;
     auto        found = queue.try_dequeue_from_producer(ptok, entry);
@@ -414,7 +412,7 @@ static inline bool visit_one(const std::size_t i, std::string &search_string, st
         if (file_size > 0)
         {
             // fmt::print("Processing {}[{}]\n", entry, file_size);
-            process_file(std::move(entry), file_size, i, search_string, remaining_from_previous_chunk);
+            process_file(std::move(entry), file_size, i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk);
         }
         num_files_dequeued += 1;
         return true;
@@ -504,9 +502,11 @@ int main(int argc, char **argv)
 
         std::string path_string(path);
         const auto  size = get_file_size(path_string);
+        constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
+        char              buffer[CHUNK_SIZE];
         std::string search_string{};
         std::string remaining_bytes_per_chunk{};
-        process_file(std::move(path_string), size, 0, search_string, remaining_bytes_per_chunk);
+        process_file(std::move(path_string), size, 0, buffer, CHUNK_SIZE, search_string, remaining_bytes_per_chunk);
     }
     else
     {
@@ -541,12 +541,14 @@ int main(int argc, char **argv)
             thread_local_scratch_per_line.push_back(scratch_per_line);
 
             consumer_threads[i] = std::thread([i = i]() {
+                constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
+                char              buffer[CHUNK_SIZE];
                 std::string search_string{};
                 std::string remaining_from_previous_chunk{};
 
                 while (true)
                 {
-                    if (!visit_one(i, search_string, remaining_from_previous_chunk))
+                    if (!visit_one(i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk))
                     {
                         if (!running && num_files_dequeued == num_files_enqueued)
                         {
