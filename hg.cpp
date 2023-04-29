@@ -69,8 +69,8 @@ std::atomic<std::size_t> num_files_dequeued{0};
 
 constexpr std::size_t FILE_CHUNK_SIZE = 10 * 4096;
 
-hs_database_t *           database = NULL;
-hs_scratch_t *            scratch  = NULL;
+hs_database_t            *database = NULL;
+hs_scratch_t             *scratch  = NULL;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
@@ -80,12 +80,12 @@ bool option_ignore_case{false};
 struct file_context
 {
     std::string &filename;
-    const char * data;
+    const char  *data;
     std::size_t &size;
     std::string &lines;
     std::size_t &current_line_number;
     const char **current_ptr;
-    hs_scratch * local_scratch;
+    hs_scratch  *local_scratch;
 };
 
 std::size_t count_newlines(const char *start, const char *end)
@@ -102,17 +102,17 @@ std::size_t count_newlines(const char *start, const char *end)
 
 struct line_context
 {
-    const char * data;
+    const char  *data;
     std::string &lines;
     const char **current_ptr;
 };
 
 static int print_match_in_red_color(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *ctx)
 {
-    auto *       fctx      = static_cast<line_context *>(ctx);
-    const char * line_data = fctx->data;
-    auto &       lines     = fctx->lines;
-    const char * start     = *(fctx->current_ptr);
+    auto        *fctx      = static_cast<line_context *>(ctx);
+    const char  *line_data = fctx->data;
+    auto        &lines     = fctx->lines;
+    const char  *start     = *(fctx->current_ptr);
     const size_t len       = to - from;
 
     lines.reserve(lines.size() + len + 9);
@@ -128,8 +128,8 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     // print line with match
     auto *fctx = (file_context *)(ctx);
 
-    auto &       lines               = fctx->lines;
-    auto &       size                = fctx->size;
+    auto        &lines               = fctx->lines;
+    auto        &size                = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
 
     if (memchr((void *)fctx->data, '\0', size) != NULL)
@@ -267,7 +267,7 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
         // Find the position of the last newline in the buffer
         // In order to catch matches between chunks, need to amend the buffer
         // and make sure it stops at a new line boundary
-        char *      last_newline = (char *)memrchr(buffer, '\n', bytes_to_read);
+        char       *last_newline = (char *)memrchr(buffer, '\n', bytes_to_read);
         std::size_t search_size  = bytes_to_read;
         if (last_newline)
         {
@@ -347,22 +347,70 @@ bool ends_with(const char *str, const char *suffix)
 
 bool is_blacklisted(const char *ptr)
 {
-    static constexpr std::array<const char *, 13> extensions{
-        ".a",
-        ".o",
-        ".so",
-        ".pdf",
-        ".gif",
-        ".jpg",
-        ".jpeg",
-        ".png",
-        ".webm",
-        ".tar",
-        ".gz",
+#include <array>
+
+    constexpr std::array<const char *, 58> excluded_extensions = {
+        ".ai",
+        ".arrow",
+        ".br",
         ".bz2",
+        ".class",
+        ".cpio",
+        ".crx",
+        ".dat",
+        ".db",
+        ".dcm",
+        ".deb",
+        ".dll",
+        ".dmg",
+        ".doc",
+        ".docx",
+        ".ear",
+        ".exe",
+        ".flac",
+        ".gif",
+        ".gz",
+        ".hdf",
+        ".ico",
+        ".img",
+        ".iso",
+        ".jar",
+        ".jpeg",
+        ".jpg",
+        ".lz",
+        ".lz4",
+        ".lzma",
+        ".mp3",
+        ".mp4",
+        ".msi",
+        ".nc",
+        ".o",
+        ".ogg",
+        ".pdf",
+        ".png",
+        ".ppt",
+        ".pptx",
+        ".psd",
+        ".pyc",
+        ".rar",
+        ".rpm",
+        ".so",
+        ".tar",
+        ".tbz",
+        ".tbz2",
+        ".tgz",
+        ".tlz",
+        ".war",
+        ".webp",
+        ".whl",
+        ".wmv",
+        ".wv",
+        ".xz",
+        ".ym"
+        ".yml",
         ".zip"};
 
-    for (const auto &e: extensions)
+    for (const auto &e: excluded_extensions)
     {
         if (ends_with(ptr, e))
         {
@@ -388,7 +436,7 @@ void visit(std::string path)
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
         const auto  pathstring    = path.string();
-        if (filename_cstr[0] == '.' || is_blacklisted(filename_cstr))
+        if (filename_cstr[0] == '.') //  || is_blacklisted(filename_cstr))
             continue;
 
 #if ENABLE_BULK_ENQUEUE
