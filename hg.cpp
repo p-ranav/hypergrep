@@ -1,4 +1,5 @@
 #include "concurrentqueue.h"
+#include "blockingconcurrentqueue.h"
 #include <atomic>
 #include <chrono>
 #include <cstring>
@@ -550,13 +551,14 @@ int main(int argc, char **argv)
 
                 while (true)
                 {
-                    if (!visit_one(i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk))
+                  if (num_files_enqueued > 0)
+                  {
+                    visit_one(i, buffer, CHUNK_SIZE, search_string, remaining_from_previous_chunk);
+                    if (!running && num_files_dequeued == num_files_enqueued)
                     {
-                        if (!running && num_files_dequeued == num_files_enqueued)
-                        {
-                            break;
-                        }
+                        break;
                     }
+                  }
                 }
             });
         }
