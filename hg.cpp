@@ -328,7 +328,7 @@ void visit(std::string path)
 
             if (index == BULK_ENQUEUE_SIZE)
             {
-                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), BULK_ENQUEUE_SIZE);
+                queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
                 index = 0;
             }
         }
