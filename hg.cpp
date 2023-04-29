@@ -330,20 +330,6 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     return result;
 }
 
-bool ends_with(const char *str, const char *suffix)
-{
-    size_t str_len    = std::strlen(str);
-    size_t suffix_len = std::strlen(suffix);
-    if (str_len >= suffix_len)
-    {
-        return (0 == std::strncmp(str + str_len - suffix_len, suffix, suffix_len));
-    }
-    else
-    {
-        return false;
-    }
-}
-
 void visit(std::string path)
 {
 #if ENABLE_BULK_ENQUEUE
