@@ -317,12 +317,12 @@ void visit(std::string path)
         const auto &path          = entry.path();
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
-        const auto  pathstring    = path.string();
         if (filename_cstr[0] == '.')
             continue;
 
         if (entry.is_regular_file())
         {
+            const auto pathstring = path.string();
             paths_to_enqueue[index++] = std::move(pathstring);
             num_files_enqueued += 1;
 
