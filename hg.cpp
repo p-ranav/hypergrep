@@ -216,16 +216,13 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
     // Process the file in chunks
-    std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
+    constexpr std::size_t CHUNK_SIZE = 10 * 4096; // 1MB chunk size
     char              buffer[CHUNK_SIZE];
     std::size_t       bytes_read = 0;
     std::size_t       current_line_number{1};
     std::string       lines{""};
 
     bool first{true};
-
-    file_context ctx{filename, buffer, CHUNK_SIZE, lines, current_line_number, nullptr, local_scratch_per_line};
-
     while (bytes_read < file_size)
     {
         // Read the next chunk
@@ -269,7 +266,7 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
         if (remainder_from_previous_chunk.empty())
         {
             // Process the current chunk
-            ctx.size = search_size;
+            file_context ctx{filename, buffer, search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
                 result = false;
@@ -290,8 +287,6 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
             remainder_from_previous_chunk.clear();
 
             // Process the current chunk along with the leftover from the previous chunk
-            ctx.data = search_string.data();
-            ctx.size = search_size;
             file_context ctx{filename, search_string.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, search_string.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
