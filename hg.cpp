@@ -212,9 +212,8 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
 }
 
 template<std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
-bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, char *buffer, std::string &search_string, std::string &remainder_from_previous_chunk)
+bool process_file(std::string &&filename, std::size_t i, char *buffer, std::string &search_string, std::string &remainder_from_previous_chunk)
 {
-    char *file_data;
     int   fd = open(filename.data(), O_RDONLY, 0);
     if (fd == -1)
     {
@@ -233,27 +232,17 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
     // Read the file in chunks and perform search
     bool first{true};
-    while (bytes_read < file_size)
-    {
-        // Read the next chunk
-        auto bytes_to_read = std::min(file_size - bytes_read, CHUNK_SIZE);
-        auto ret           = read(fd, buffer, bytes_to_read);
-        if (ret != bytes_to_read)
-        {
-            result = false;
-            break;
-        }
-
+    while ((bytes_read = read(fd, buffer, CHUNK_SIZE)) > 0) {
         if (first)
         {
             first = false;
-            if (bytes_to_read >= 4 && (is_elf_header(buffer) || is_archive_header(buffer)))
+            if (bytes_read >= 4 && (is_elf_header(buffer) || is_archive_header(buffer)))
             {
                 result = false;
                 break;
             }
 
-            if (memchr((void *)buffer, '\0', bytes_to_read) != NULL)
+            if (memchr((void *)buffer, '\0', bytes_read) != NULL)
             {
                 // NULL bytes found
                 // Ignore file
@@ -266,8 +255,8 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
         // Find the position of the last newline in the buffer
         // In order to catch matches between chunks, need to amend the buffer
         // and make sure it stops at a new line boundary
-        char       *last_newline = (char *)memrchr(buffer, '\n', bytes_to_read);
-        std::size_t search_size  = bytes_to_read;
+        char       *last_newline = (char *)memrchr(buffer, '\n', bytes_read);
+        std::size_t search_size  = bytes_read;
         if (last_newline)
         {
             search_size = last_newline - buffer;
@@ -285,7 +274,7 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
             if (last_newline)
             {
-                remainder_from_previous_chunk.append(last_newline, bytes_to_read - search_size);
+                remainder_from_previous_chunk.append(last_newline, bytes_read - search_size);
             }
         }
         else
@@ -306,11 +295,9 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
 
             if (last_newline)
             {
-                remainder_from_previous_chunk.append(last_newline, bytes_to_read - (last_newline - buffer));
+                remainder_from_previous_chunk.append(last_newline, bytes_read - (last_newline - buffer));
             }
         }
-
-        bytes_read += bytes_to_read;
     }
 
     close(fd);
@@ -356,8 +343,12 @@ void visit(std::string path)
             num_files_enqueued += buffer_size;
         }
 #else
-        queue.enqueue(ptok, std::move(pathstring));
-        num_files_enqueued += 1;
+    if (entry.is_regular_file())
+    {
+      queue.enqueue(ptok, std::move(pathstring));
+      num_files_enqueued += 1;
+    }
+
 #endif
     }
 
@@ -377,12 +368,7 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
     auto        found = queue.try_dequeue_from_producer(ptok, entry);
     if (found)
     {
-        const auto file_size = get_file_size(entry);
-        if (file_size > 0)
-        {
-            // fmt::print("Processing {}[{}]\n", entry, file_size);
-            process_file(std::move(entry), file_size, i, buffer, search_string, remaining_from_previous_chunk);
-        }
+        process_file(std::move(entry), i, buffer, search_string, remaining_from_previous_chunk);
         num_files_dequeued += 1;
         return true;
     }
@@ -470,11 +456,10 @@ int main(int argc, char **argv)
         thread_local_scratch_per_line.push_back(scratch_per_line);
 
         std::string path_string(path);
-        const auto  size = get_file_size(path_string);
         char        buffer[FILE_CHUNK_SIZE];
         std::string search_string{};
         std::string remaining_bytes_per_chunk{};
-        process_file(std::move(path_string), size, 0, buffer, search_string, remaining_bytes_per_chunk);
+        process_file(std::move(path_string), 0, buffer, search_string, remaining_bytes_per_chunk);
     }
     else
     {
@@ -535,8 +520,6 @@ int main(int argc, char **argv)
             consumer_threads[i].join();
         }
     }
-
-    fmt::print("\nSearched {} files\n", num_files_enqueued);
 
     hs_free_scratch(scratch);
     hs_free_database(database);
