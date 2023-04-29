@@ -321,39 +321,87 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     return result;
 }
 
+bool ends_with(const char* str, const char* suffix)
+{
+    size_t str_len = std::strlen(str);
+    size_t suffix_len = std::strlen(suffix);
+    if (str_len >= suffix_len)
+    {
+        return (0 == std::strncmp(str + str_len - suffix_len, suffix, suffix_len));
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool is_blacklisted(const char* ptr)
+{
+  static constexpr std::array<const char*, 13> extensions{
+    ".a",
+    ".o",
+    ".so",
+    ".pdf",
+    ".gif",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webm",
+    ".tar",
+    ".gz",
+    ".bz2",
+    ".zip"
+  };
+
+  for (const auto& e: extensions) {
+    if (ends_with(ptr, e))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+#define ENABLE_BULK_ENQUEUE 0
+
 void visit(std::string path)
 {
-    // constexpr std::size_t buffer_size = 512;
-    // std::size_t i = 0;
-    // std::array<std::string, buffer_size> buffer;
+#ifdef ENABLE_BULK_ENQUEUE
+    constexpr std::size_t buffer_size = 64;
+    std::size_t i = 0;
+    std::array<std::string, buffer_size> buffer;
+#endif
 
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path       = entry.path();
         const auto &filename   = path.filename();
+        const auto filename_cstr = filename.c_str();
         const auto  pathstring = path.string();
-        if (filename.c_str()[0] == '.')
+        if (filename_cstr[0] == '.' || is_blacklisted(filename_cstr))
             continue;
 
-        queue.enqueue(ptok, std::move(pathstring));
-        num_files_enqueued += 1;
+#ifdef ENABLE_BULK_ENQUEUE
+      buffer[i % buffer_size] = std::move(pathstring);
+      ++i;
+      if (i % buffer_size == 0)
+      {
+        queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
+        num_files_enqueued += buffer_size;
+      }
     }
 
-    //   buffer[i % buffer_size] = std::move(pathstring);
-    //   ++i;
-    //   if (i % buffer_size == 0)
-    //   {
-    //     queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
-    //     num_files_enqueued += buffer_size;
-    //   }
-    // }
-
-    // const auto remainder = i % buffer_size;
-    // if (remainder > 0)
-    // {
-    //   queue.enqueue_bulk(ptok, buffer.data(), remainder);
-    //   num_files_enqueued += remainder;
-    // }
+    const auto remainder = i % buffer_size;
+    if (remainder > 0)
+    {
+      queue.enqueue_bulk(ptok, buffer.data(), remainder);
+      num_files_enqueued += remainder;
+    }
+#else
+      queue.enqueue(ptok, std::move(pathstring));
+      num_files_enqueued += 1;
+  }
+#endif
 }
 
 static inline bool visit_one(const std::size_t i, std::string &search_string, std::string &remaining_from_previous_chunk)
