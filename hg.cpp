@@ -2,15 +2,15 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
+#include <fstream>
 #include <hs/hs.h>
 #include <thread>
-#include <vector>
 #include <unistd.h>
-#include <fstream>
-#include <fcntl.h>
+#include <vector>
 
 inline bool is_elf_header(const char *buffer)
 {
@@ -36,8 +36,8 @@ std::atomic<std::size_t> num_files_dequeued{0};
 
 constexpr std::size_t FILE_CHUNK_SIZE = 10 * 4096;
 
-hs_database_t            *database = NULL;
-hs_scratch_t             *scratch  = NULL;
+hs_database_t *           database = NULL;
+hs_scratch_t *            scratch  = NULL;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
@@ -47,12 +47,12 @@ bool option_ignore_case{false};
 struct file_context
 {
     std::string &filename;
-    const char  *data;
+    const char * data;
     std::size_t &size;
     std::string &lines;
     std::size_t &current_line_number;
     const char **current_ptr;
-    hs_scratch  *local_scratch;
+    hs_scratch * local_scratch;
 };
 
 std::size_t count_newlines(const char *start, const char *end)
@@ -69,17 +69,17 @@ std::size_t count_newlines(const char *start, const char *end)
 
 struct line_context
 {
-    const char  *data;
+    const char * data;
     std::string &lines;
     const char **current_ptr;
 };
 
 static int print_match_in_red_color(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *ctx)
 {
-    auto        *fctx      = static_cast<line_context *>(ctx);
-    const char  *line_data = fctx->data;
-    auto        &lines     = fctx->lines;
-    const char  *start     = *(fctx->current_ptr);
+    auto *       fctx      = static_cast<line_context *>(ctx);
+    const char * line_data = fctx->data;
+    auto &       lines     = fctx->lines;
+    const char * start     = *(fctx->current_ptr);
     const size_t len       = to - from;
 
     lines.reserve(lines.size() + len + 9);
@@ -95,8 +95,8 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     // print line with match
     auto *fctx = (file_context *)(ctx);
 
-    auto        &lines               = fctx->lines;
-    auto        &size                = fctx->size;
+    auto &       lines               = fctx->lines;
+    auto &       size                = fctx->size;
     std::size_t &current_line_number = fctx->current_line_number;
 
     if (memchr((void *)fctx->data, '\0', size) != NULL)
@@ -182,7 +182,7 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
 template<std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
 bool process_file(std::string &&filename, std::size_t i, char *buffer, std::string &search_string, std::string &remainder_from_previous_chunk)
 {
-    int   fd = open(filename.data(), O_RDONLY, 0);
+    int fd = open(filename.data(), O_RDONLY, 0);
     if (fd == -1)
     {
         return false;
@@ -200,7 +200,8 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     // Read the file in chunks and perform search
     bool first{true};
-    while ((bytes_read = read(fd, buffer, CHUNK_SIZE)) > 0) {
+    while ((bytes_read = read(fd, buffer, CHUNK_SIZE)) > 0)
+    {
         if (first)
         {
             first = false;
@@ -223,7 +224,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
         // Find the position of the last newline in the buffer
         // In order to catch matches between chunks, need to amend the buffer
         // and make sure it stops at a new line boundary
-        char       *last_newline = (char *)memrchr(buffer, '\n', bytes_read);
+        char *      last_newline = (char *)memrchr(buffer, '\n', bytes_read);
         std::size_t search_size  = bytes_read;
         if (last_newline)
         {
@@ -306,8 +307,8 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit(std::string path)
 {
-    constexpr int max_array_size = 32;
-    std::array<std::string, max_array_size> paths_to_enqueue;
+    constexpr int                              BULK_ENQUEUE_SIZE = 32;
+    std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
 
     std::size_t index{0};
 
@@ -325,9 +326,9 @@ void visit(std::string path)
             paths_to_enqueue[index++] = std::move(pathstring);
             num_files_enqueued += 1;
 
-            if (index == max_array_size)
+            if (index == BULK_ENQUEUE_SIZE)
             {
-                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), max_array_size);
+                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), BULK_ENQUEUE_SIZE);
                 index = 0;
             }
         }
@@ -340,22 +341,20 @@ void visit(std::string path)
 
 static inline bool visit_one(const std::size_t i, char *buffer, std::string &search_string, std::string &remaining_from_previous_chunk)
 {
-  constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
-    std::string entries[BULK_DEQUEUE_SIZE];
-    auto        count = queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
+    constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
+    std::string           entries[BULK_DEQUEUE_SIZE];
+    auto                  count = queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
     if (count > 0)
     {
-      for (std::size_t j = 0; j < count; ++j)
-      {
-        process_file(std::move(entries[j]), i, buffer, search_string, remaining_from_previous_chunk);
-        num_files_dequeued += 1;
-      }
+        for (std::size_t j = 0; j < count; ++j)
+        {
+            process_file(std::move(entries[j]), i, buffer, search_string, remaining_from_previous_chunk);
+        }
+        num_files_dequeued += count;
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 int main(int argc, char **argv)
