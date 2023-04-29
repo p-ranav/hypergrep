@@ -364,7 +364,7 @@ bool is_blacklisted(const char* ptr)
 
 void visit(std::string path)
 {
-#ifdef ENABLE_BULK_ENQUEUE
+#if ENABLE_BULK_ENQUEUE
     constexpr std::size_t buffer_size = 64;
     std::size_t i = 0;
     std::array<std::string, buffer_size> buffer;
@@ -379,7 +379,7 @@ void visit(std::string path)
         if (filename_cstr[0] == '.' || is_blacklisted(filename_cstr))
             continue;
 
-#ifdef ENABLE_BULK_ENQUEUE
+#if ENABLE_BULK_ENQUEUE
       buffer[i % buffer_size] = std::move(pathstring);
       ++i;
       if (i % buffer_size == 0)
@@ -387,19 +387,21 @@ void visit(std::string path)
         queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
         num_files_enqueued += buffer_size;
       }
-    }
+#else
+      queue.enqueue(ptok, std::move(pathstring));
+      num_files_enqueued += 1;
+#endif
+  }
 
+#if ENABLE_BULK_ENQUEUE
     const auto remainder = i % buffer_size;
     if (remainder > 0)
     {
       queue.enqueue_bulk(ptok, buffer.data(), remainder);
       num_files_enqueued += remainder;
     }
-#else
-      queue.enqueue(ptok, std::move(pathstring));
-      num_files_enqueued += 1;
-  }
 #endif
+
 }
 
 static inline bool visit_one(const std::size_t i, char* buffer, std::size_t CHUNK_SIZE, std::string &search_string, std::string &remaining_from_previous_chunk)
