@@ -1,4 +1,3 @@
-#include "blockingconcurrentqueue.h"
 #include "concurrentqueue.h"
 #include <atomic>
 #include <chrono>
@@ -345,83 +344,6 @@ bool ends_with(const char *str, const char *suffix)
     }
 }
 
-bool is_blacklisted(const char *ptr)
-{
-#include <array>
-
-    constexpr std::array<const char *, 58> excluded_extensions = {
-        ".ai",
-        ".arrow",
-        ".br",
-        ".bz2",
-        ".class",
-        ".cpio",
-        ".crx",
-        ".dat",
-        ".db",
-        ".dcm",
-        ".deb",
-        ".dll",
-        ".dmg",
-        ".doc",
-        ".docx",
-        ".ear",
-        ".exe",
-        ".flac",
-        ".gif",
-        ".gz",
-        ".hdf",
-        ".ico",
-        ".img",
-        ".iso",
-        ".jar",
-        ".jpeg",
-        ".jpg",
-        ".lz",
-        ".lz4",
-        ".lzma",
-        ".mp3",
-        ".mp4",
-        ".msi",
-        ".nc",
-        ".o",
-        ".ogg",
-        ".pdf",
-        ".png",
-        ".ppt",
-        ".pptx",
-        ".psd",
-        ".pyc",
-        ".rar",
-        ".rpm",
-        ".so",
-        ".tar",
-        ".tbz",
-        ".tbz2",
-        ".tgz",
-        ".tlz",
-        ".war",
-        ".webp",
-        ".whl",
-        ".wmv",
-        ".wv",
-        ".xz",
-        ".ym"
-        ".yml",
-        ".zip"};
-
-    for (const auto &e: excluded_extensions)
-    {
-        if (ends_with(ptr, e))
-        {
-            return true;
-        }
-    }
-    return false;
-}
-
-#define ENABLE_BULK_ENQUEUE 0
-
 void visit(std::string path)
 {
 #if ENABLE_BULK_ENQUEUE
@@ -436,7 +358,7 @@ void visit(std::string path)
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
         const auto  pathstring    = path.string();
-        if (filename_cstr[0] == '.') //  || is_blacklisted(filename_cstr))
+        if (filename_cstr[0] == '.')
             continue;
 
 #if ENABLE_BULK_ENQUEUE
