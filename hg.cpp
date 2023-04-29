@@ -65,7 +65,7 @@ std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 hs_database_t *          database = NULL;
 hs_scratch_t *           scratch  = NULL;
-
+std::mutex cout_mutex;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
@@ -314,16 +314,20 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     {
         if (is_stdout)
         {
-            fmt::print("\n{}\n{}", filename, lines);
+          std::lock_guard<std::mutex> lock{cout_mutex};
+          std::cout << "\n" << filename << "\n" << lines;
         }
         else
         {
-            fmt::print("{}", lines);
+          std::lock_guard<std::mutex> lock{cout_mutex};
+          std::cout << lines;
         }
     }
 
     return result;
 }
+
+#include <omp.h>
 
 void visit(std::string path)
 {
@@ -341,8 +345,8 @@ void visit(std::string path)
         }
         else if (entry.is_regular_file())
         {
-            ++num_files_enqueued;
-            queue.enqueue(ptok, std::move(pathstring));
+          ++num_files_enqueued;
+          queue.enqueue(ptok, std::move(pathstring));
         }
     }
 }
@@ -452,8 +456,8 @@ int main(int argc, char **argv)
     }
     else
     {
-        std::vector<std::thread> consumer_threads{};
         const auto               N = std::thread::hardware_concurrency();
+        std::vector<std::thread> consumer_threads(N);
 
         thread_local_scratch.reserve(N);
         thread_local_scratch_per_line.reserve(N);
@@ -482,7 +486,7 @@ int main(int argc, char **argv)
             }
             thread_local_scratch_per_line.push_back(scratch_per_line);
 
-            consumer_threads.push_back(std::thread([i = i]() {
+            consumer_threads[i] = std::thread([i = i]() {
                 std::string search_string{};
                 std::string remaining_from_previous_chunk{};
 
@@ -496,7 +500,7 @@ int main(int argc, char **argv)
                         }
                     }
                 }
-            }));
+            });
         }
 
         visit(path);

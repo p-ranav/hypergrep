@@ -3,7 +3,7 @@ project(find)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-march=native -O3)
+add_compile_options(-march=native -O3 -fopenmp)
 
 include(FetchContent)
 
@@ -28,6 +28,12 @@ if(NOT fmt_POPULATED)
   FetchContent_Populate(fmt)
 endif()
 
+# Find OpenMP
+find_package(OpenMP REQUIRED)
+
+# Add the OpenMP flag to the compiler command line
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+
 add_executable(hg hg.cpp)
 target_include_directories(hg PRIVATE ${fmt_SOURCE_DIR}/include)
-target_link_libraries(hg PRIVATE hs pthread fmt::fmt)
+target_link_libraries(hg PRIVATE hs pthread fmt::fmt OpenMP::OpenMP_CXX)
