@@ -2,30 +2,15 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
-#include <fcntl.h>
 #include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
-#include <fstream>
-#include <ftw.h>
 #include <hs/hs.h>
-#include <iostream>
-#include <mutex>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
-
-#include <stdbool.h>
-#include <stdint.h>
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-
-#include <stdbool.h>
-#include <stdint.h>
+#include <unistd.h>
+#include <fstream>
+#include <fcntl.h>
 
 inline bool is_elf_header(const char *buffer)
 {
@@ -38,23 +23,6 @@ inline bool is_archive_header(const char *buffer)
 {
     static constexpr std::string_view archive_magic = "!<arch>";
     return (strncmp(buffer, archive_magic.data(), archive_magic.size()) == 0);
-}
-
-std::size_t get_file_size(std::string &filename)
-{
-    struct stat st;
-    if (lstat(filename.data(), &st) != 0)
-    {
-        return 0;
-    }
-
-    // Symbolic link or directory is ignored
-    if (S_ISLNK(st.st_mode) || S_ISDIR(st.st_mode))
-    {
-        return 0;
-    }
-
-    return st.st_size;
 }
 
 moodycamel::ConcurrentQueue<std::string> queue;
@@ -319,12 +287,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit(std::string path)
 {
-#if ENABLE_BULK_ENQUEUE
-    constexpr std::size_t                buffer_size = 64;
-    std::size_t                          i           = 0;
-    std::array<std::string, buffer_size> buffer;
-#endif
-
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path          = entry.path();
@@ -334,32 +296,12 @@ void visit(std::string path)
         if (filename_cstr[0] == '.')
             continue;
 
-#if ENABLE_BULK_ENQUEUE
-        buffer[i % buffer_size] = std::move(pathstring);
-        ++i;
-        if (i % buffer_size == 0)
+        if (entry.is_regular_file())
         {
-            queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
-            num_files_enqueued += buffer_size;
+          queue.enqueue(ptok, std::move(pathstring));
+          num_files_enqueued += 1;
         }
-#else
-    if (entry.is_regular_file())
-    {
-      queue.enqueue(ptok, std::move(pathstring));
-      num_files_enqueued += 1;
     }
-
-#endif
-    }
-
-#if ENABLE_BULK_ENQUEUE
-    const auto remainder = i % buffer_size;
-    if (remainder > 0)
-    {
-        queue.enqueue_bulk(ptok, buffer.data(), remainder);
-        num_files_enqueued += remainder;
-    }
-#endif
 }
 
 static inline bool visit_one(const std::size_t i, char *buffer, std::string &search_string, std::string &remaining_from_previous_chunk)
@@ -405,14 +347,6 @@ int main(int argc, char **argv)
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
-    std::ios_base::sync_with_stdio(false);
-    std::cin.tie(NULL);
-
-    if (argc < 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
-        return 1;
-    }
 
     hs_compile_error_t *compile_error = NULL;
     hs_error_t          error_code    = hs_compile(pattern, (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST, HS_MODE_BLOCK, NULL, &database, &compile_error);
