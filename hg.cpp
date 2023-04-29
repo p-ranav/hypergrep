@@ -60,12 +60,13 @@ moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken                ptok(queue);
 
 bool                     is_stdout{true};
+
 std::atomic<bool>        running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
+
 hs_database_t *          database = NULL;
 hs_scratch_t *           scratch  = NULL;
-std::mutex cout_mutex;
 std::vector<hs_scratch *> thread_local_scratch;
 std::vector<hs_scratch *> thread_local_scratch_per_line;
 
@@ -309,24 +310,24 @@ bool process_file(std::string &&filename, std::size_t file_size, std::size_t i, 
     {
         if (is_stdout)
         {
-          std::lock_guard<std::mutex> lock{cout_mutex};
-          std::cout << "\n" << filename << "\n" << lines;
+          fmt::print("\n{}\n{}", filename, lines);
         }
         else
         {
-          std::lock_guard<std::mutex> lock{cout_mutex};
-          std::cout << lines;
+          fmt::print("{}", lines);
         }
     }
 
     return result;
 }
 
-#include <omp.h>
-
 void visit(std::string path)
 {
-    for (auto &&entry: std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+    constexpr std::size_t buffer_size = 512;
+    std::size_t i = 0;
+    std::array<std::string, buffer_size> buffer;
+
+    for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path       = entry.path();
         const auto &filename   = path.filename();
@@ -334,15 +335,20 @@ void visit(std::string path)
         if (filename.c_str()[0] == '.')
             continue;
 
-        if (entry.is_directory())
-        {
-            visit(std::move(pathstring));
-        }
-        else if (entry.is_regular_file())
-        {
-          ++num_files_enqueued;
-          queue.enqueue(ptok, std::move(pathstring));
-        }
+      buffer[i % buffer_size] = std::move(pathstring);
+      ++i;
+      if (i % buffer_size == 0)
+      {
+        queue.enqueue_bulk(ptok, buffer.data(), buffer_size);
+        num_files_enqueued += buffer_size;
+      }
+    }
+
+    const auto remainder = i % buffer_size;
+    if (remainder > 0)
+    {
+      queue.enqueue_bulk(ptok, buffer.data(), remainder);
+      num_files_enqueued += remainder;
     }
 }
 
@@ -355,6 +361,7 @@ static inline bool visit_one(const std::size_t i, std::string &search_string, st
         const auto file_size = get_file_size(entry);
         if (file_size > 0)
         {
+            // fmt::print("Processing {}[{}]\n", entry, file_size);
             process_file(std::move(entry), file_size, i, search_string, remaining_from_previous_chunk);
         }
         num_files_dequeued += 1;
