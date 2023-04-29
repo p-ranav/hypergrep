@@ -285,8 +285,29 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     return result;
 }
 
+// void visit(std::string path)
+// {
+//     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+//     {
+//         const auto &path          = entry.path();
+//         const auto &filename      = path.filename();
+//         const auto  filename_cstr = filename.c_str();
+//         const auto  pathstring    = path.string();
+//         if (filename_cstr[0] == '.')
+//             continue;
+
+//         if (entry.is_regular_file())
+//         {
+//           queue.enqueue(ptok, std::move(pathstring));
+//           num_files_enqueued += 1;
+//         }
+//     }
+// }
+
 void visit(std::string path)
 {
+    const int max_vector_size = 1000;
+    std::vector<std::string> paths_to_enqueue;
     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path          = entry.path();
@@ -298,16 +319,27 @@ void visit(std::string path)
 
         if (entry.is_regular_file())
         {
-          queue.enqueue(ptok, std::move(pathstring));
-          num_files_enqueued += 1;
+            paths_to_enqueue.push_back(std::move(pathstring));
+            num_files_enqueued += 1;
+
+            if (paths_to_enqueue.size() >= max_vector_size)
+            {
+                queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), max_vector_size);
+                paths_to_enqueue.clear();
+            }
         }
+    }
+    if (!paths_to_enqueue.empty())
+    {
+        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), paths_to_enqueue.size());
     }
 }
 
 static inline bool visit_one(const std::size_t i, char *buffer, std::string &search_string, std::string &remaining_from_previous_chunk)
 {
-    std::string entries[32];
-    auto        count = queue.try_dequeue_bulk_from_producer(ptok, entries, 32);
+  constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
+    std::string entries[BULK_DEQUEUE_SIZE];
+    auto        count = queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
     if (count > 0)
     {
       for (std::size_t j = 0; j < count; ++j)
