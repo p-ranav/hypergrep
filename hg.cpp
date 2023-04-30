@@ -11,7 +11,6 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
-#include <git2.h>
 
 inline bool is_elf_header(const char *buffer)
 {
@@ -31,8 +30,6 @@ moodycamel::ProducerToken                ptok(queue);
 
 bool is_stdout{true};
 
-std::atomic<bool>        path_is_a_git_repo{false};
-std::atomic<bool>        git_index_built{false};
 std::atomic<bool>        running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
@@ -46,10 +43,6 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
-bool option_search_only_git_index{false};
-
-git_repository * repo = nullptr;
-git_index * repo_index = nullptr;
 
 struct file_context
 {
@@ -293,58 +286,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     return result;
 }
 
-// void visit(std::string path)
-// {
-//     for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
-//     {
-//         const auto &path          = entry.path();
-//         const auto &filename      = path.filename();
-//         const auto  filename_cstr = filename.c_str();
-//         const auto  pathstring    = path.string();
-//         if (filename_cstr[0] == '.')
-//             continue;
-
-//         if (entry.is_regular_file())
-//         {
-//           queue.enqueue(ptok, std::move(pathstring));
-//           num_files_enqueued += 1;
-//         }
-//     }
-// }
-
-void visit_git_index(std::string path)
-{
-  constexpr int                              BULK_ENQUEUE_SIZE = 32;
-  std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
-  std::size_t i = 0;
-  std::size_t index = 0;
-
-  while (true)
-  {
-    const auto entry = git_index_get_byindex(repo_index, i++);
-    if (!entry)
-    {
-      // No more entries
-      break;
-    }
-
-    paths_to_enqueue[index++] = entry->path;
-
-    if (index == BULK_ENQUEUE_SIZE)
-    {
-      queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
-      index = 0;
-      num_files_enqueued += BULK_ENQUEUE_SIZE;
-    }
-  }
-
-  if (index > 0)
-  {
-    queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
-    num_files_enqueued += index;
-  }
-}
-
 void visit(std::string path)
 {
     constexpr int                              BULK_ENQUEUE_SIZE = 32;
@@ -403,7 +344,7 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "nig")) != -1)
+    while ((opt = getopt(argc, argv, "ni")) != -1)
     {
         switch (opt)
         {
@@ -412,9 +353,6 @@ int main(int argc, char **argv)
             break;
         case 'i':
             option_ignore_case = true;
-            break;
-        case 'g':
-            option_search_only_git_index = true;
             break;
         default:
             fprintf(stderr, "Usage: %s [-n] [-i] [-g] pattern [filename]\n", argv[0]);
@@ -427,31 +365,6 @@ int main(int argc, char **argv)
     if (optind + 1 < argc)
     {
         path = argv[optind + 1];
-    }
-
-    std::thread git_repo_init_thread;
-    if (option_search_only_git_index)
-    {
-      git_repo_init_thread = std::thread([&]() {
-        git_libgit2_init();
-
-        if (git_repository_open(&repo, path) == 0)
-        {
-          path_is_a_git_repo = true;
-          if (git_repository_index(&repo_index, repo) == 0)
-          {
-            git_index_built = true;
-          }
-          else
-          {
-            fmt::print("Error: Failed to load repository index\n");
-          }
-        }
-        else
-        {
-          fmt::print("Error: Not a git repo\n");
-        }
-      });      
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
@@ -554,21 +467,7 @@ int main(int argc, char **argv)
             });
         }
 
-        if (option_search_only_git_index)
-        {
-          auto start = std::chrono::high_resolution_clock::now();
-          git_repo_init_thread.join();
-          auto end = std::chrono::high_resolution_clock::now();
-          fmt::print("Wait time: {}\n", (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()));
-          if (path_is_a_git_repo && git_index_built)
-          {
-            visit_git_index(path);
-          }
-        }
-        else
-        {
-          visit(path);
-        }
+        visit(path);
         running = false;
 
         for (std::size_t i = 0; i < N; ++i)
@@ -580,11 +479,6 @@ int main(int argc, char **argv)
 
     hs_free_scratch(scratch);
     hs_free_database(database);
-
-    if (git_repo_init_thread.joinable())
-    {
-      git_repo_init_thread.join();
-    }
 
     return 0;
 }
