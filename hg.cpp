@@ -432,15 +432,10 @@ int main(int argc, char **argv)
     std::thread git_repo_init_thread;
     if (option_search_only_git_index)
     {
-      git_libgit2_init();
       git_repo_init_thread = std::thread([&]() {
-        char* resolved_path = realpath(path, NULL);
-        if (path == NULL)
-        {
-          fmt::print("Error: Failed to resolve path\n");
-        }
+        git_libgit2_init();
 
-        if (git_repository_open(&repo, resolved_path) == 0)
+        if (git_repository_open(&repo, path) == 0)
         {
           path_is_a_git_repo = true;
           if (git_repository_index(&repo_index, repo) == 0)
@@ -456,7 +451,6 @@ int main(int argc, char **argv)
         {
           fmt::print("Error: Not a git repo\n");
         }
-        free(resolved_path);
       });      
     }
 
