@@ -316,12 +316,18 @@ void visit_git_index(std::string path)
 {
   constexpr int                              BULK_ENQUEUE_SIZE = 32;
   std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
+  std::size_t i = 0;
   std::size_t index = 0;
 
-  const auto count = git_index_entrycount(repo_index);
-  for (std::size_t i = 0; i < count; ++i)
+  while (true)
   {
-    const auto entry = git_index_get_byindex(repo_index, i);
+    const auto entry = git_index_get_byindex(repo_index, i++);
+    if (!entry)
+    {
+      // No more entries
+      break;
+    }
+
     paths_to_enqueue[index++] = entry->path;
 
     if (index == BULK_ENQUEUE_SIZE)
@@ -330,10 +336,8 @@ void visit_git_index(std::string path)
       index = 0;
       num_files_enqueued += BULK_ENQUEUE_SIZE;
     }
-
-    // queue.enqueue(ptok, entry->path);
-    // ++num_files_enqueued;
   }
+
   if (index > 0)
   {
     queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
@@ -398,8 +402,6 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
 
 int main(int argc, char **argv)
 {
-  git_libgit2_init();
-
     int opt;
     while ((opt = getopt(argc, argv, "nig")) != -1)
     {
@@ -430,6 +432,7 @@ int main(int argc, char **argv)
     std::thread git_repo_init_thread;
     if (option_search_only_git_index)
     {
+      git_libgit2_init();
       git_repo_init_thread = std::thread([&]() {
         char* resolved_path = realpath(path, NULL);
         if (path == NULL)
@@ -559,7 +562,10 @@ int main(int argc, char **argv)
 
         if (option_search_only_git_index)
         {
+          auto start = std::chrono::high_resolution_clock::now();
           git_repo_init_thread.join();
+          auto end = std::chrono::high_resolution_clock::now();
+          fmt::print("Wait time: {}\n", (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()));
           if (path_is_a_git_repo && git_index_built)
           {
             visit_git_index(path);
