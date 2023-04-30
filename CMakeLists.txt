@@ -30,4 +30,4 @@ endif()
 
 add_executable(hg hg.cpp)
 target_include_directories(hg PRIVATE ${fmt_SOURCE_DIR}/include)
-target_link_libraries(hg PRIVATE hs pthread fmt::fmt)
+target_link_libraries(hg PRIVATE hs pthread fmt::fmt git2)

@@ -11,6 +11,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <git2.h>
 
 inline bool is_elf_header(const char *buffer)
 {
@@ -30,6 +31,8 @@ moodycamel::ProducerToken                ptok(queue);
 
 bool is_stdout{true};
 
+std::atomic<bool>        path_is_a_git_repo{false};
+std::atomic<bool>        git_index_built{false};
 std::atomic<bool>        running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
@@ -43,6 +46,10 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
+bool option_search_only_git_index{false};
+
+git_repository * repo = nullptr;
+git_index * repo_index = nullptr;
 
 struct file_context
 {
@@ -305,6 +312,17 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 //     }
 // }
 
+void visit_git_index(std::string path)
+{
+  const auto count = git_index_entrycount(repo_index);
+  for (std::size_t i = 0; i < count; ++i)
+  {
+    const auto entry = git_index_get_byindex(repo_index, i);
+    queue.enqueue(ptok, entry->path);
+    ++num_files_enqueued;
+  }
+}
+
 void visit(std::string path)
 {
     constexpr int                              BULK_ENQUEUE_SIZE = 32;
@@ -317,19 +335,21 @@ void visit(std::string path)
         const auto &path          = entry.path();
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
+
         if (filename_cstr[0] == '.')
             continue;
 
         if (entry.is_regular_file())
         {
+            // fmt::print("{} found\n", filename_cstr);
             const auto pathstring = path.string();
             paths_to_enqueue[index++] = std::move(pathstring);
             num_files_enqueued += 1;
 
             if (index == BULK_ENQUEUE_SIZE)
             {
-                queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
-                index = 0;
+              queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
+              index = 0;
             }
         }
     }
@@ -357,10 +377,14 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
     return false;
 }
 
+#include <cstdlib>
+
 int main(int argc, char **argv)
 {
+  git_libgit2_init();
+
     int opt;
-    while ((opt = getopt(argc, argv, "ni")) != -1)
+    while ((opt = getopt(argc, argv, "nig")) != -1)
     {
         switch (opt)
         {
@@ -370,8 +394,11 @@ int main(int argc, char **argv)
         case 'i':
             option_ignore_case = true;
             break;
+        case 'g':
+            option_search_only_git_index = true;
+            break;
         default:
-            fprintf(stderr, "Usage: %s [-n] [-i] pattern [filename]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-n] [-i] [-g] pattern [filename]\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
@@ -381,6 +408,37 @@ int main(int argc, char **argv)
     if (optind + 1 < argc)
     {
         path = argv[optind + 1];
+    }
+
+    if (option_search_only_git_index)
+    {
+      char* resolved_path = realpath(path, NULL);
+      if (path == NULL)
+      {
+        fmt::print("Error: Failed to resolve path\n");
+        return 1;
+      }
+
+      if (git_repository_open(&repo, resolved_path) == 0)
+      {
+        path_is_a_git_repo = true;
+        if (git_repository_index(&repo_index, repo) == 0)
+        {
+          git_index_built = true;
+        }
+        else
+        {
+          fmt::print("Error: Failed to load repository index\n");
+          return 1;
+        }
+
+        free(resolved_path);
+      }
+      else
+      {
+        fmt::print("Error: Not a git repo\n");
+        return 1;
+      }      
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
@@ -483,13 +541,21 @@ int main(int argc, char **argv)
             });
         }
 
-        visit(path);
+        if (option_search_only_git_index && path_is_a_git_repo && git_index_built)
+        {
+          visit_git_index(path);
+        }
+        else
+        {
+          visit(path);
+        }
         running = false;
 
         for (std::size_t i = 0; i < N; ++i)
         {
             consumer_threads[i].join();
         }
+
     }
 
     hs_free_scratch(scratch);
