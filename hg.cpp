@@ -314,12 +314,30 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit_git_index(std::string path)
 {
+  constexpr int                              BULK_ENQUEUE_SIZE = 32;
+  std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
+  std::size_t index = 0;
+
   const auto count = git_index_entrycount(repo_index);
   for (std::size_t i = 0; i < count; ++i)
   {
     const auto entry = git_index_get_byindex(repo_index, i);
-    queue.enqueue(ptok, entry->path);
-    ++num_files_enqueued;
+    paths_to_enqueue[index++] = entry->path;
+
+    if (index == BULK_ENQUEUE_SIZE)
+    {
+      queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
+      index = 0;
+      num_files_enqueued += BULK_ENQUEUE_SIZE;
+    }
+
+    // queue.enqueue(ptok, entry->path);
+    // ++num_files_enqueued;
+  }
+  if (index > 0)
+  {
+    queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
+    num_files_enqueued += index;
   }
 }
 
@@ -344,18 +362,19 @@ void visit(std::string path)
             // fmt::print("{} found\n", filename_cstr);
             const auto pathstring = path.string();
             paths_to_enqueue[index++] = std::move(pathstring);
-            num_files_enqueued += 1;
 
             if (index == BULK_ENQUEUE_SIZE)
             {
               queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
               index = 0;
+              num_files_enqueued += BULK_ENQUEUE_SIZE;
             }
         }
     }
     if (index > 0)
     {
-        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
+      queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
+      num_files_enqueued += index;
     }
 }
 
@@ -376,8 +395,6 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
 
     return false;
 }
-
-#include <cstdlib>
 
 int main(int argc, char **argv)
 {
@@ -410,35 +427,34 @@ int main(int argc, char **argv)
         path = argv[optind + 1];
     }
 
+    std::thread git_repo_init_thread;
     if (option_search_only_git_index)
     {
-      char* resolved_path = realpath(path, NULL);
-      if (path == NULL)
-      {
-        fmt::print("Error: Failed to resolve path\n");
-        return 1;
-      }
-
-      if (git_repository_open(&repo, resolved_path) == 0)
-      {
-        path_is_a_git_repo = true;
-        if (git_repository_index(&repo_index, repo) == 0)
+      git_repo_init_thread = std::thread([&]() {
+        char* resolved_path = realpath(path, NULL);
+        if (path == NULL)
         {
-          git_index_built = true;
+          fmt::print("Error: Failed to resolve path\n");
+        }
+
+        if (git_repository_open(&repo, resolved_path) == 0)
+        {
+          path_is_a_git_repo = true;
+          if (git_repository_index(&repo_index, repo) == 0)
+          {
+            git_index_built = true;
+          }
+          else
+          {
+            fmt::print("Error: Failed to load repository index\n");
+          }
         }
         else
         {
-          fmt::print("Error: Failed to load repository index\n");
-          return 1;
+          fmt::print("Error: Not a git repo\n");
         }
-
         free(resolved_path);
-      }
-      else
-      {
-        fmt::print("Error: Not a git repo\n");
-        return 1;
-      }      
+      });      
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
@@ -541,9 +557,13 @@ int main(int argc, char **argv)
             });
         }
 
-        if (option_search_only_git_index && path_is_a_git_repo && git_index_built)
+        if (option_search_only_git_index)
         {
-          visit_git_index(path);
+          git_repo_init_thread.join();
+          if (path_is_a_git_repo && git_index_built)
+          {
+            visit_git_index(path);
+          }
         }
         else
         {
@@ -560,6 +580,11 @@ int main(int argc, char **argv)
 
     hs_free_scratch(scratch);
     hs_free_database(database);
+
+    if (git_repo_init_thread.joinable())
+    {
+      git_repo_init_thread.join();
+    }
 
     return 0;
 }
