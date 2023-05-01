@@ -502,39 +502,50 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit(const std::filesystem::path &path)
 {
-    for (auto &&entry: std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+    constexpr int                              BULK_ENQUEUE_SIZE = 32;
+    std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
+
+    std::size_t index{0};
+
+    for (auto it = std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied); it != std::filesystem::recursive_directory_iterator(); ++it)
     {
-        const auto &path          = entry.path();
+        const auto &path          = it->path();
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
 
         if (filename_cstr[0] == '.')
             continue;
 
-        if (entry.is_regular_file() && !entry.is_symlink())
+        if (it->is_regular_file() && !it->is_symlink())
         {
             if (option_no_ignore || (!option_no_ignore && !is_ignored(path.c_str())))
             {
-                queue.enqueue(ptok, path.string());
-                ++num_files_enqueued;
+                const auto pathstring     = path.string();
+                paths_to_enqueue[index++] = std::move(pathstring);
+
+                if (index == BULK_ENQUEUE_SIZE)
+                {
+                    queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
+                    index = 0;
+                    num_files_enqueued += BULK_ENQUEUE_SIZE;
+                }
             }
-            // else
-            // {
-            //   fmt::print("Ignored file: {}\n", path.c_str());
-            // }
         }
-        else if (entry.is_directory() && !entry.is_symlink())
+        else if (it->is_directory() && !it->is_symlink())
         {
             const auto path_with_slash = path.string() + "/";
-            if (option_no_ignore || (!option_no_ignore && !is_ignored(path_with_slash.c_str())))
+            if (!option_no_ignore && is_ignored(path_with_slash.c_str()))
             {
-                visit(path);
+                // Stop processing this directory and its contents
+                it.disable_recursion_pending();
             }
-            // else
-            // {
-            //   fmt::print("Ignored directory: {}\n", path.c_str());
-            // }
         }
+    }
+
+    if (index > 0)
+    {
+        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
+        num_files_enqueued += index;
     }
 }
 
@@ -615,7 +626,7 @@ int main(int argc, char **argv)
         }
         else
         {
-          option_no_ignore = false;
+            option_no_ignore = false;
         }
     }
 
