@@ -46,7 +46,7 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
       }
     }
 
-    std::string pattern = "^";
+    std::string pattern = "";
 
     for (auto it = glob.begin(); it != glob.end(); ++it) {
         switch (*it) {
@@ -402,8 +402,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                 result = false;
                 break;
             }
-            
-            result_files_searched += 1;
         }
 
         // Find the position of the last newline in the buffer
@@ -509,6 +507,7 @@ void visit(const std::filesystem::path& path)
 
           if (!is_ignored(path.c_str()))
           {
+            result_files_searched += 1;
             queue.enqueue(ptok, path.string());
             ++num_files_enqueued;
           }
