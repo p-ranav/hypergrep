@@ -12,13 +12,6 @@
 #include <unistd.h>
 #include <vector>
 
-
-
-std::atomic<std::size_t> result_matches{0};
-std::atomic<std::size_t> result_matched_lines{0};
-std::atomic<std::size_t> result_matched_files{0};
-std::atomic<std::size_t> result_files_searched{0};
-
 hs_database_t *           ignore_database = NULL;
 hs_scratch_t *            ignore_scratch  = NULL;
 
@@ -260,8 +253,6 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from, un
     lines += fmt::format(fg(fmt::color::red), "{}", std::string_view(&line_data[from], len));
     *(fctx->current_ptr) = line_data + to;
 
-    result_matches += 1;
-
     return 0;
 }
 
@@ -303,9 +294,10 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     auto line_count = 0;
     if (option_show_line_numbers)
     {
-        const std::size_t previous_line_number = fctx->current_line_number;
+        const std::size_t previous_line_number = current_line_number;
         line_count                             = count_newlines(fctx->data, fctx->data + start);
         current_line_number += line_count;
+        fmt::print("{},{},{},{},{}\n", previous_line_number, line_count, current_line_number, size, data);
 
         if (current_line_number == previous_line_number && previous_line_number > 0)
         {
@@ -317,14 +309,21 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
     {
         if (option_print_only_filenames)
         {
-          lines += fmt::format("{}\n", fctx->filename);
+          std::string_view path = fctx->filename;
+          if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+          {
+              lines += fmt::format("{}\n", path.substr(2));
+          }
+          else
+          {
+              lines += fmt::format("{}\n", path);
+          }
           return 1; // suspend the search now
         }
 
         if (is_stdout)
         {
             std::string_view line(&data[start], end - start);
-            result_matched_lines += 1;
 
             if (option_show_line_numbers)
             {
@@ -348,13 +347,35 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
         }
         else
         {
+            std::string_view path = fctx->filename;
+
             if (option_show_line_numbers)
             {
-                lines += fmt::format("{}:{}:{}\n", fctx->filename, current_line_number, std::string_view(&data[start], end - start));
+
+                if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+                {
+                  lines += fmt::format("{}:{}:{}\n", path.substr(2), current_line_number, std::string_view(&data[start], end - start));
+                }
+                else
+                {
+                  lines += fmt::format("{}:{}:{}\n", path, current_line_number, std::string_view(&data[start], end - start));
+                }
+
+                
             }
             else
             {
-                lines += fmt::format("{}:{}\n", fctx->filename, std::string_view(&data[start], end - start));
+
+                if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+                {
+                  lines += fmt::format("{}:{}\n", path.substr(2), std::string_view(&data[start], end - start));
+                }
+                else
+                {
+                  lines += fmt::format("{}:{}\n", path, std::string_view(&data[start], end - start));
+                }
+
+                
             }
         }
     }
@@ -470,7 +491,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     if (result && !lines.empty())
     {
-        result_matched_files += 1;
         if (is_stdout)
         {
           if (option_print_only_filenames)
@@ -507,7 +527,6 @@ void visit(const std::filesystem::path& path)
 
           if (!is_ignored(path.c_str()))
           {
-            result_files_searched += 1;
             queue.enqueue(ptok, path.string());
             ++num_files_enqueued;
           }
@@ -725,10 +744,6 @@ int main(int argc, char **argv)
         }
 
     }
-
-    parse_gitignore_file(".gitignore");
-    fmt::print("\n{} matches, {} lines, {} files\n", result_matches, result_matched_lines, result_matched_files);
-    fmt::print("{} files searched\n", result_files_searched);
 
     hs_free_scratch(scratch);
     hs_free_database(database);
