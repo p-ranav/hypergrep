@@ -15,12 +15,12 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
       return "";
     }
 
-    bool dir_pattern{false};
-    if (glob[0] == '/') {
-      dir_pattern = true;
-    }
+    // bool dir_pattern{false};
+    // if (glob[0] == '/') {
+    //   dir_pattern = true;
+    // }
 
-    std::string pattern = dir_pattern ? "" : "^";
+    std::string pattern = "^"; // dir_pattern ? "" : "^";
 
     for (auto it = glob.begin(); it != glob.end(); ++it) {
         switch (*it) {
@@ -75,7 +75,7 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
                 break;
         }
     }
-    pattern += dir_pattern ? "" : "$";
+    // pattern += "$";
 
     return pattern;
 }
@@ -192,23 +192,24 @@ int main()
       return 1;
   }
 
-  // {
-  //   std::cout << pattern << "\n";
-  //   std::vector<const char*> inputs = {
-  //     "./include/config/FONT_AUTOSELECT",
-  //     "./foo/bar/baz.a",
-  //     "./foo/bar/baz.o.cmd",
-  //     "./tools",
-  //     "./src"
-  //   };
-  //   for (const auto& i : inputs)
-  //   {
-  //     std::cout << i << " " << fnmatch_hyperscan(pattern, i, database, scratch) << "\n";
-  //   }
-  // }
+  {
+    std::cout << pattern << "\n";
+    std::vector<const char*> inputs = {
+      "./include/config/FONT_AUTOSELECT",
+      "./foo/bar/baz.a",
+      "./foo/bar/baz.o.cmd",
+      "./tools",
+      "./src",
+      "./tools/testing/radix-tree/linux/local_lock.h"
+    };
+    for (const auto& i : inputs)
+    {
+      std::cout << i << " " << fnmatch_hyperscan(pattern, i, database, scratch) << "\n";
+    }
+  }
 
-  std::cout << pattern << "\n";
-  visit(".", pattern, false, database, scratch);
+  // std::cout << pattern << "\n";
+  // visit(".", pattern, false, database, scratch);
 
   hs_free_database(database);
 }

@@ -14,6 +14,11 @@
 
 
 
+std::atomic<std::size_t> result_matches{0};
+std::atomic<std::size_t> result_matched_lines{0};
+std::atomic<std::size_t> result_files_searched{0};
+std::atomic<std::size_t> result_files_git_ignored{0};
+
 hs_database_t *           ignore_database = NULL;
 hs_scratch_t *            ignore_scratch  = NULL;
 
@@ -30,12 +35,7 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
       return "";
     }
 
-    bool dir_pattern{false};
-    if (glob[0] == '/') {
-      dir_pattern = true;
-    }
-
-    std::string pattern = dir_pattern ? "" : "^";
+    std::string pattern = "^";
 
     for (auto it = glob.begin(); it != glob.end(); ++it) {
         switch (*it) {
@@ -90,7 +90,6 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
                 break;
         }
     }
-    pattern += dir_pattern ? "" : "$";
 
     return pattern;
 }
@@ -246,6 +245,8 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from, un
     lines += fmt::format(fg(fmt::color::red), "{}", std::string_view(&line_data[from], len));
     *(fctx->current_ptr) = line_data + to;
 
+    result_matches += 1;
+
     return 0;
 }
 
@@ -302,6 +303,8 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
         if (is_stdout)
         {
             std::string_view line(&data[start], end - start);
+            result_matched_lines += 1;
+
             if (option_show_line_numbers)
             {
                 lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
@@ -378,6 +381,8 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                 result = false;
                 break;
             }
+            
+            result_files_searched += 1;
         }
 
         // Find the position of the last newline in the buffer
@@ -476,6 +481,10 @@ void visit(std::string path)
                 index = 0;
                 num_files_enqueued += BULK_ENQUEUE_SIZE;
               }
+          }
+          else
+          {
+            result_files_git_ignored += 1;
           }
         }
     }
@@ -676,6 +685,14 @@ int main(int argc, char **argv)
             consumer_threads[i].join();
         }
 
+    }
+
+    if (is_stdout)
+    {
+      fmt::print("\n{} matches\n", result_matches);
+      fmt::print("{} matched lines\n", result_matched_lines);
+      fmt::print("{} files searched\n", result_files_searched);
+      fmt::print("{} files ignored (.gitignore)\n", result_files_git_ignored);
     }
 
     hs_free_scratch(scratch);
