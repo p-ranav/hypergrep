@@ -8,92 +8,97 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <hs/hs.h>
+#include <numeric>
+#include <set>
 #include <thread>
 #include <unistd.h>
 #include <vector>
-#include <set>
-#include <numeric>
 
-hs_database_t *           ignore_database = NULL;
-hs_scratch_t *            ignore_scratch  = NULL;
-
-
-
-
-
-
+hs_database_t *ignore_database = NULL;
+hs_scratch_t * ignore_scratch  = NULL;
 
 // Converts a glob expression to a HyperScan pattern
-std::string convert_to_hyper_scan_pattern(const std::string& glob) {
-
-    if (glob.empty()) {
-      return "";
+std::string convert_to_hyper_scan_pattern(const std::string &glob)
+{
+    if (glob.empty())
+    {
+        return "";
     }
     else if (glob == ".*")
     {
-      return "^/\\..*$";
+        return "^/\\..*$";
     }
     else if (glob.find("*") == std::string::npos)
     {
-      if (glob.find("/") == std::string::npos)
-      {
-        return "^" + glob + "$";
-      }
+        if (glob.find("/") == std::string::npos)
+        {
+            return "^" + glob + "$";
+        }
     }
 
     std::string pattern = "";
 
-    for (auto it = glob.begin(); it != glob.end(); ++it) {
-        switch (*it) {
+    for (auto it = glob.begin(); it != glob.end(); ++it)
+    {
+        switch (*it)
+        {
+        case '*':
+            pattern += ".*";
+            break;
+        case '?':
+            pattern += ".";
+            break;
+        case '.':
+            pattern += "\\.";
+            break;
+        case '[':
+        {
+            ++it;
+            pattern += "[";
+            while (*it != ']')
+            {
+                if (*it == '\\')
+                {
+                    pattern += "\\\\";
+                }
+                else if (*it == '-')
+                {
+                    pattern += "\\-";
+                }
+                else
+                {
+                    pattern += *it;
+                }
+                ++it;
+            }
+            pattern += "]";
+        }
+        break;
+        case '\\':
+        {
+            ++it;
+            if (it == glob.end())
+            {
+                pattern += "\\\\";
+                break;
+            }
+            switch (*it)
+            {
             case '*':
-                pattern += ".*";
-                break;
             case '?':
-                pattern += ".";
-                break;
             case '.':
-                pattern += "\\.";
-                break;
             case '[':
-                {
-                    ++it;
-                    pattern += "[";
-                    while (*it != ']') {
-                        if (*it == '\\') {
-                            pattern += "\\\\";
-                        } else if (*it == '-') {
-                            pattern += "\\-";
-                        } else {
-                            pattern += *it;
-                        }
-                        ++it;
-                    }
-                    pattern += "]";
-                }
-                break;
             case '\\':
-                {
-                    ++it;
-                    if (it == glob.end()) {
-                        pattern += "\\\\";
-                        break;
-                    }
-                    switch (*it) {
-                        case '*':
-                        case '?':
-                        case '.':
-                        case '[':
-                        case '\\':
-                            pattern += "\\";
-                        default:
-                            pattern += *it;
-                            break;
-                    }
-                }
-                break;
+                pattern += "\\";
             default:
                 pattern += *it;
                 break;
+            }
+        }
+        break;
+        default:
+            pattern += *it;
+            break;
         }
     }
 
@@ -129,10 +134,12 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
 //     return result;
 // }
 
-std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_path) {
+std::string parse_gitignore_file(const std::filesystem::path &gitignore_file_path)
+{
     std::ifstream gitignore_file(gitignore_file_path, std::ios::in | std::ios::binary);
 
-    if (!gitignore_file.is_open()) {
+    if (!gitignore_file.is_open())
+    {
         fmt::print("Error: Failed to open .gitignore file\n");
         return {};
     }
@@ -144,9 +151,11 @@ std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_pat
 
     std::string line{};
 
-    while (std::getline(gitignore_file, line)) {
-        if (line.empty() || line[0] == '#' || line[0] == '!') {
-          continue;
+    while (std::getline(gitignore_file, line))
+    {
+        if (line.empty() || line[0] == '#' || line[0] == '!')
+        {
+            continue;
         }
 
         // Construct the pattern string and move it into the vector
@@ -154,62 +163,43 @@ std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_pat
     }
 
     // Join the pattern strings in the vector with '|' separator
-    result = std::accumulate(patterns.begin(), patterns.end(), std::string{}, [](std::string& s, const std::string& p) {
+    result = std::accumulate(patterns.begin(), patterns.end(), std::string{}, [](std::string &s, const std::string &p) {
         return s.empty() ? p : s + "|" + p;
     });
 
     return result;
 }
 
-
-struct ScanContext {
+struct ScanContext
+{
     bool matched;
 };
 
-hs_error_t on_ignore_match(unsigned int id, unsigned long long from, 
-    unsigned long long to, unsigned int flags, void* context)
+hs_error_t on_ignore_match(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *context)
 {
-    ScanContext* scanCtx = static_cast<ScanContext*>(context);
-    scanCtx->matched = true;
+    ScanContext *scanCtx = static_cast<ScanContext *>(context);
+    scanCtx->matched     = true;
     return HS_SUCCESS;
 }
 
-bool is_ignored(const char* path)
+bool is_ignored(const char *path)
 {
-  std::string_view str = path;
-  // if (str.size() > 2 && str[0] == '.' && str[1] == '/')
-  // {
-  //   str = str.substr(1);
-  // }
+    std::string_view str = path;
+    // if (str.size() > 2 && str[0] == '.' && str[1] == '/')
+    // {
+    //   str = str.substr(1);
+    // }
 
-  ScanContext ctx { false };
-  // Scan the input string for matches
-  if (hs_scan(ignore_database, str.data(), str.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS) {
-    return false;
-  }
+    ScanContext ctx{false};
+    // Scan the input string for matches
+    if (hs_scan(ignore_database, str.data(), str.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS)
+    {
+        return false;
+    }
 
-  // Return true if a match was found
-  return ctx.matched;
+    // Return true if a match was found
+    return ctx.matched;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 inline bool is_elf_header(const char *buffer)
 {
@@ -259,102 +249,102 @@ std::size_t count_newlines(const char *start, const char *end)
 
 struct file_context
 {
-  std::atomic<size_t>& number_of_matches;
-  std::set<std::pair<unsigned long long, unsigned long long>>& matches;
+    std::atomic<size_t> &                                        number_of_matches;
+    std::set<std::pair<unsigned long long, unsigned long long>> &matches;
 };
 
 static int on_match(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *ctx)
 {
-  file_context* fctx = (file_context*)(ctx);
-  fctx->number_of_matches += 1;
-  fctx->matches.insert(std::make_pair(from, to));
+    file_context *fctx = (file_context *)(ctx);
+    fctx->number_of_matches += 1;
+    fctx->matches.insert(std::make_pair(from, to));
 
-  if (option_print_only_filenames)
-  {
-    return HS_SCAN_TERMINATED;
-  }
-  else
-  {
-    return HS_SUCCESS;
-  }
+    if (option_print_only_filenames)
+    {
+        return HS_SCAN_TERMINATED;
+    }
+    else
+    {
+        return HS_SUCCESS;
+    }
 }
 
-void process_matches(const char* filename, char* buffer, std::size_t bytes_read, file_context& ctx, std::size_t& current_line_number, std::string& lines)
+void process_matches(const char *filename, char *buffer, std::size_t bytes_read, file_context &ctx, std::size_t &current_line_number, std::string &lines)
 {
-  std::string_view chunk(buffer, bytes_read);
-  // std::set<std::pair<std::size_t, std::size_t>> set_of_matches{};
+    std::string_view chunk(buffer, bytes_read);
+    // std::set<std::pair<std::size_t, std::size_t>> set_of_matches{};
 
-  // while(ctx.number_of_matches > 0)
-  // {
-  //   std::pair<unsigned long long, unsigned long long> from_to;
-  //   auto found = ctx.matches.try_dequeue(from_to);
-  //   if (found)
-  //   {
-  //     // Do work with match
-  //     set_of_matches.insert(std::move(from_to));
-  //     ctx.number_of_matches -= 1;
-  //   }
-  // }
-  // ctx.number_of_matches = 0;
+    // while(ctx.number_of_matches > 0)
+    // {
+    //   std::pair<unsigned long long, unsigned long long> from_to;
+    //   auto found = ctx.matches.try_dequeue(from_to);
+    //   if (found)
+    //   {
+    //     // Do work with match
+    //     set_of_matches.insert(std::move(from_to));
+    //     ctx.number_of_matches -= 1;
+    //   }
+    // }
+    // ctx.number_of_matches = 0;
 
-  const char* start = buffer;
-  const char* ptr = buffer;
-  for (const auto& match: ctx.matches)
-  {
-    const auto previous_line_number = current_line_number;
-    auto line_count = std::count(ptr, start + match.first, '\n');
-    current_line_number += line_count;
-
-    if (current_line_number == previous_line_number && previous_line_number > 0)
+    const char *start = buffer;
+    const char *ptr   = buffer;
+    for (const auto &match: ctx.matches)
     {
-      // Ignore match, it's in the same line as the previous match
-      continue;
-    }
+        const auto previous_line_number = current_line_number;
+        auto       line_count           = std::count(ptr, start + match.first, '\n');
+        current_line_number += line_count;
 
-    ptr = start + match.second;
+        if (current_line_number == previous_line_number && previous_line_number > 0)
+        {
+            // Ignore match, it's in the same line as the previous match
+            continue;
+        }
 
-    auto end_of_line = chunk.find_first_of('\n', match.second);
-    if (end_of_line == std::string_view::npos)
-    {
-        end_of_line = bytes_read;
-    }
+        ptr = start + match.second;
 
-    auto start_of_line = chunk.find_last_of('\n', match.first);
-    if (start_of_line == std::string_view::npos)
-    {
-        start_of_line = 0;
-    }
-    else
-    {
-        start_of_line += 1;
-    }
+        auto end_of_line = chunk.find_first_of('\n', match.second);
+        if (end_of_line == std::string_view::npos)
+        {
+            end_of_line = bytes_read;
+        }
 
-    std::string_view line(start + start_of_line, end_of_line - start_of_line);
+        auto start_of_line = chunk.find_last_of('\n', match.first);
+        if (start_of_line == std::string_view::npos)
+        {
+            start_of_line = 0;
+        }
+        else
+        {
+            start_of_line += 1;
+        }
 
-    if (is_stdout)
-    {
-      if (option_show_line_numbers)
-      {
-        lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
-        lines += fmt::format(":{}\n", line);
-      }
-      else
-      {
-        lines += fmt::format("{}\n", line);
-      }
+        std::string_view line(start + start_of_line, end_of_line - start_of_line);
+
+        if (is_stdout)
+        {
+            if (option_show_line_numbers)
+            {
+                lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
+                lines += fmt::format(":{}\n", line);
+            }
+            else
+            {
+                lines += fmt::format("{}\n", line);
+            }
+        }
+        else
+        {
+            if (option_show_line_numbers)
+            {
+                lines += fmt::format("{}:{}:{}\n", filename, current_line_number, line);
+            }
+            else
+            {
+                lines += fmt::format("{}:{}\n", filename, line);
+            }
+        }
     }
-    else
-    {
-      if (option_show_line_numbers)
-      {
-        lines += fmt::format("{}:{}:{}\n", filename, current_line_number, line);
-      }
-      else
-      {
-        lines += fmt::format("{}:{}\n", filename, line);
-      }
-    }
-  }
 }
 
 template<std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
@@ -372,10 +362,10 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
     // Process the file in chunks
-    std::size_t bytes_read = 0;
+    std::size_t              bytes_read = 0;
     std::atomic<std::size_t> max_line_number{0};
-    std::size_t current_line_number{1};
-    std::string lines{""};
+    std::size_t              current_line_number{1};
+    std::string              lines{""};
 
     // Read the file in chunks and perform search
     bool first{true};
@@ -411,35 +401,35 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
         }
 
         std::set<std::pair<unsigned long long, unsigned long long>> matches{};
-        std::atomic<size_t> number_of_matches = 0;
-        file_context ctx{number_of_matches, matches};
+        std::atomic<size_t>                                         number_of_matches = 0;
+        file_context                                                ctx{number_of_matches, matches};
 
         if (remainder_from_previous_chunk.empty())
         {
             // Process the current chunk
             if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
-              if (option_print_only_filenames && ctx.number_of_matches > 0)
-              {
-                result = true;
-              }
-              else
-              {
-                result = false;
-              }
-              break;
+                if (option_print_only_filenames && ctx.number_of_matches > 0)
+                {
+                    result = true;
+                }
+                else
+                {
+                    result = false;
+                }
+                break;
             }
             else
             {
-              if (ctx.number_of_matches > 0)
-              {
-                result = true;
-              }
+                if (ctx.number_of_matches > 0)
+                {
+                    result = true;
+                }
             }
 
             if (ctx.number_of_matches > 0)
             {
-              process_matches(filename.data(), buffer, search_size, ctx, current_line_number, lines);
+                process_matches(filename.data(), buffer, search_size, ctx, current_line_number, lines);
             }
 
             if (last_newline)
@@ -460,25 +450,25 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             {
                 if (option_print_only_filenames && ctx.number_of_matches > 0)
                 {
-                  result = true;
+                    result = true;
                 }
                 else
                 {
-                  result = false;
+                    result = false;
                 }
                 break;
             }
             else
             {
-              if (ctx.number_of_matches > 0)
-              {
-                result = true;
-              }
+                if (ctx.number_of_matches > 0)
+                {
+                    result = true;
+                }
             }
 
             if (ctx.number_of_matches > 0)
             {
-              process_matches(filename.data(), search_string.data(), search_size, ctx, current_line_number, lines);
+                process_matches(filename.data(), search_string.data(), search_size, ctx, current_line_number, lines);
             }
 
             if (last_newline)
@@ -492,14 +482,14 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     if (result && option_print_only_filenames)
     {
-      fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+        fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
     }
     else if (result && !lines.empty())
     {
         if (is_stdout)
         {
-          fmt::print(fg(fmt::color::steel_blue), "\n{}", filename);
-          fmt::print("\n{}", lines);
+            fmt::print(fg(fmt::color::steel_blue), "\n{}", filename);
+            fmt::print("\n{}", lines);
         }
         else
         {
@@ -510,7 +500,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     return result;
 }
 
-void visit(const std::filesystem::path& path)
+void visit(const std::filesystem::path &path)
 {
     for (auto &&entry: std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
@@ -523,27 +513,27 @@ void visit(const std::filesystem::path& path)
 
         if (entry.is_regular_file() && !entry.is_symlink())
         {
-          if (option_no_ignore || (!option_no_ignore && !is_ignored(path.c_str())))
-          {
-            queue.enqueue(ptok, path.string());
-            ++num_files_enqueued;
-          }
-          // else
-          // {
-          //   fmt::print("Ignored file: {}\n", path.c_str());
-          // }
+            if (option_no_ignore || (!option_no_ignore && !is_ignored(path.c_str())))
+            {
+                queue.enqueue(ptok, path.string());
+                ++num_files_enqueued;
+            }
+            // else
+            // {
+            //   fmt::print("Ignored file: {}\n", path.c_str());
+            // }
         }
         else if (entry.is_directory() && !entry.is_symlink())
         {
-          const auto path_with_slash = path.string() + "/";
-          if (option_no_ignore || (!option_no_ignore && !is_ignored(path_with_slash.c_str())))
-          {
-            visit(path);
-          }
-          // else
-          // {
-          //   fmt::print("Ignored directory: {}\n", path.c_str());
-          // }
+            const auto path_with_slash = path.string() + "/";
+            if (option_no_ignore || (!option_no_ignore && !is_ignored(path_with_slash.c_str())))
+            {
+                visit(path);
+            }
+            // else
+            // {
+            //   fmt::print("Ignored directory: {}\n", path.c_str());
+            // }
         }
     }
 }
@@ -598,44 +588,32 @@ int main(int argc, char **argv)
         path = argv[optind + 1];
     }
 
-
-
     if (!option_no_ignore)
     {
-      // Git Ignore HS Database Init
-      hs_compile_error_t* ignore_hs_compile_error = nullptr;
+        // Git Ignore HS Database Init
+        hs_compile_error_t *ignore_hs_compile_error = nullptr;
 
-      auto hs_pattern = parse_gitignore_file(".gitignore");
+        auto hs_pattern = parse_gitignore_file(".gitignore");
 
-      if (!hs_pattern.empty())
-      {
-          // Compile the pattern expression into a Hyperscan database
-          if (hs_compile(hs_pattern.data(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &ignore_database, &ignore_hs_compile_error) != HS_SUCCESS) {
-              fmt::print("Error: Failed to compile pattern expression - {}\n", ignore_hs_compile_error->message);
-              hs_free_compile_error(ignore_hs_compile_error);
-              return false;
-          }
+        if (!hs_pattern.empty())
+        {
+            // Compile the pattern expression into a Hyperscan database
+            if (hs_compile(hs_pattern.data(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &ignore_database, &ignore_hs_compile_error) != HS_SUCCESS)
+            {
+                fmt::print("Error: Failed to compile pattern expression - {}\n", ignore_hs_compile_error->message);
+                hs_free_compile_error(ignore_hs_compile_error);
+                return false;
+            }
 
-          hs_error_t database_error = hs_alloc_scratch(ignore_database, &ignore_scratch);
-          if (database_error != HS_SUCCESS)
-          {
-              fprintf(stderr, "Error allocating scratch space\n");
-              hs_free_database(database);
-              return false;
-          } 
-      }
+            hs_error_t database_error = hs_alloc_scratch(ignore_database, &ignore_scratch);
+            if (database_error != HS_SUCCESS)
+            {
+                fprintf(stderr, "Error allocating scratch space\n");
+                hs_free_database(database);
+                return false;
+            }
+        }
     }
-
-
-
-
-
-
-
-
-
-
-
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
 
@@ -744,7 +722,6 @@ int main(int argc, char **argv)
         {
             consumer_threads[i].join();
         }
-
     }
 
     hs_free_scratch(scratch);
