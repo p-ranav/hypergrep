@@ -519,7 +519,7 @@ void visit(const std::filesystem::path& path)
         }
         else if (entry.is_directory() && !entry.is_symlink())
         {
-          std::string path_with_slash = path.string() + "/";
+          auto path_with_slash = path.string() + "/";
           if (!is_ignored(path_with_slash.c_str()))
           {
             visit(path);
