@@ -613,6 +613,10 @@ int main(int argc, char **argv)
                 return false;
             }
         }
+        else
+        {
+          option_no_ignore = false;
+        }
     }
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
