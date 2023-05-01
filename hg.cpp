@@ -336,7 +336,8 @@ void process_matches(const char* filename, char* buffer, std::size_t bytes_read,
     {
       if (option_show_line_numbers)
       {
-        lines += fmt::format("{}:{}\n", current_line_number, line);
+        lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
+        lines += fmt::format(":{}\n", line);
       }
       else
       {
@@ -365,7 +366,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     {
         return false;
     }
-    bool result{true};
+    bool result{false};
 
     // Set up the scratch space
     hs_scratch_t *local_scratch          = thread_local_scratch[i];
@@ -419,7 +420,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             // Process the current chunk
             if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
-              if (option_print_only_filenames)
+              if (option_print_only_filenames && ctx.number_of_matches > 0)
               {
                 result = true;
               }
@@ -428,6 +429,13 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                 result = false;
               }
               break;
+            }
+            else
+            {
+              if (ctx.number_of_matches > 0)
+              {
+                result = true;
+              }
             }
 
             if (ctx.number_of_matches > 0)
@@ -451,7 +459,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             // Process the current chunk along with the leftover from the previous chunk
             if (hs_scan(database, search_string.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
-                if (option_print_only_filenames)
+                if (option_print_only_filenames && ctx.number_of_matches > 0)
                 {
                   result = true;
                 }
@@ -460,6 +468,13 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                   result = false;
                 }
                 break;
+            }
+            else
+            {
+              if (ctx.number_of_matches > 0)
+              {
+                result = true;
+              }
             }
 
             if (ctx.number_of_matches > 0)
@@ -476,18 +491,16 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     close(fd);
 
-    if (result && !lines.empty())
+    if (result && option_print_only_filenames)
+    {
+      fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+    }
+    else if (result && !lines.empty())
     {
         if (is_stdout)
         {
-          if (option_print_only_filenames)
-          {
-            fmt::print("{}\n", filename);
-          }
-          else
-          {
-            fmt::print("\n{}\n{}", filename, lines);
-          }
+          fmt::print(fg(fmt::color::steel_blue), "\n{}", filename);
+          fmt::print("\n{}", lines);
         }
         else
         {
