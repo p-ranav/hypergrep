@@ -523,7 +523,7 @@ void visit(const std::filesystem::path& path)
 
         if (entry.is_regular_file() && !entry.is_symlink())
         {
-          if (!option_no_ignore || !is_ignored(path.c_str()))
+          if (option_no_ignore || (!option_no_ignore && !is_ignored(path.c_str())))
           {
             queue.enqueue(ptok, path.string());
             ++num_files_enqueued;
@@ -536,7 +536,7 @@ void visit(const std::filesystem::path& path)
         else if (entry.is_directory() && !entry.is_symlink())
         {
           const auto path_with_slash = path.string() + "/";
-          if (!option_no_ignore || !is_ignored(path_with_slash.c_str()))
+          if (option_no_ignore || (!option_no_ignore && !is_ignored(path_with_slash.c_str())))
           {
             visit(path);
           }
