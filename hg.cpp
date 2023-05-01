@@ -11,6 +11,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <set>
 
 hs_database_t *           ignore_database = NULL;
 hs_scratch_t *            ignore_scratch  = NULL;
@@ -216,6 +217,7 @@ struct file_context
     const char * data;
     std::size_t &size;
     std::string &lines;
+    std::atomic<std::size_t>& max_line_number;
     std::size_t &current_line_number;
     const char **current_ptr;
     hs_scratch * local_scratch;
@@ -256,131 +258,103 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from, un
     return 0;
 }
 
+struct file_context_new
+{
+  std::atomic<size_t>& number_of_matches;
+  moodycamel::ConcurrentQueue<std::pair<unsigned long long, unsigned long long>>& matches;
+};
+
 static int on_match(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *ctx)
 {
-    // print line with match
-    auto *fctx = (file_context *)(ctx);
+  file_context_new* fctx = (file_context_new*)(ctx);
+  fctx->number_of_matches += 1;
+  fctx->matches.enqueue(std::make_pair(from, to));
 
-    auto &       lines               = fctx->lines;
-    auto &       size                = fctx->size;
-    std::size_t &current_line_number = fctx->current_line_number;
+  if (option_print_only_filenames)
+  {
+    return HS_SCAN_TERMINATED;
+  }
+  else
+  {
+    return HS_SUCCESS;
+  }
+}
 
-    if (memchr((void *)fctx->data, '\0', size) != NULL)
+void process_matches(const char* filename, char* buffer, std::size_t bytes_read, file_context_new& ctx, std::size_t& current_line_number, std::string& lines)
+{
+  std::string_view chunk(buffer, bytes_read);
+  std::set<std::pair<std::size_t, std::size_t>> set_of_matches{};
+
+  while(ctx.number_of_matches > 0)
+  {
+    std::pair<unsigned long long, unsigned long long> from_to;
+    auto found = ctx.matches.try_dequeue(from_to);
+    if (found)
     {
-        // NULL bytes found
-        // Ignore file
-        // Could be a .exe, .gz, .bin etc.
-        return 1;
+      // Do work with match
+      set_of_matches.insert(std::move(from_to));
+      ctx.number_of_matches -= 1;
+    }
+  }
+  ctx.number_of_matches = 0;
+
+  const char* start = buffer;
+  const char* ptr = buffer;
+  for (const auto& match: set_of_matches)
+  {
+    const auto previous_line_number = current_line_number;
+    auto line_count = std::count(ptr, start + match.first, '\n');
+    current_line_number += line_count;
+
+    if (current_line_number == previous_line_number && previous_line_number > 0)
+    {
+      // Ignore match, it's in the same line as the previous match
+      continue;
     }
 
-    auto data = std::string_view(fctx->data, size);
+    ptr = start + match.second;
 
-    auto end = data.find_first_of('\n', to);
-    if (end == std::string_view::npos)
+    auto end_of_line = chunk.find_first_of('\n', match.second);
+    if (end_of_line == std::string_view::npos)
     {
-        end = size;
+        end_of_line = bytes_read;
     }
 
-    auto start = data.find_last_of('\n', from);
-    if (start == std::string_view::npos)
+    auto start_of_line = chunk.find_last_of('\n', match.first);
+    if (start_of_line == std::string_view::npos)
     {
-        start = 0;
+        start_of_line = 0;
     }
     else
     {
-        start += 1;
+        start_of_line += 1;
     }
 
-    auto line_count = 0;
-    if (option_show_line_numbers)
+    std::string_view line(start + start_of_line, end_of_line - start_of_line);
+
+    if (is_stdout)
     {
-        const std::size_t previous_line_number = current_line_number;
-        line_count                             = count_newlines(fctx->data, fctx->data + start);
-        current_line_number += line_count;
-        fmt::print("{},{},{},{},{}\n", previous_line_number, line_count, current_line_number, size, data);
-
-        if (current_line_number == previous_line_number && previous_line_number > 0)
-        {
-            return 0;
-        }
+      if (option_show_line_numbers)
+      {
+        lines += fmt::format("{}:{}\n", current_line_number, line);
+      }
+      else
+      {
+        lines += fmt::format("{}\n", line);
+      }
     }
-
-    if (from >= start && to >= from && end >= to && end >= start)
+    else
     {
-        if (option_print_only_filenames)
-        {
-          std::string_view path = fctx->filename;
-          if (path.size() > 2 && path[0] == '.' && path[1] == '/')
-          {
-              lines += fmt::format("{}\n", path.substr(2));
-          }
-          else
-          {
-              lines += fmt::format("{}\n", path);
-          }
-          return 1; // suspend the search now
-        }
-
-        if (is_stdout)
-        {
-            std::string_view line(&data[start], end - start);
-
-            if (option_show_line_numbers)
-            {
-                lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
-            }
-
-            const char *line_ptr = line.data();
-
-            line_context nested_ctx{line_ptr, lines, &line_ptr};
-            if (hs_scan(database, &data[start], end - start, 0, fctx->local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS)
-            {
-                return 1;
-            }
-
-            if (line_ptr != (&data[start] + end - start))
-            {
-                // some left over
-                lines += std::string(line_ptr, &data[start] + end - start - line_ptr);
-            }
-            lines += '\n';
-        }
-        else
-        {
-            std::string_view path = fctx->filename;
-
-            if (option_show_line_numbers)
-            {
-
-                if (path.size() > 2 && path[0] == '.' && path[1] == '/')
-                {
-                  lines += fmt::format("{}:{}:{}\n", path.substr(2), current_line_number, std::string_view(&data[start], end - start));
-                }
-                else
-                {
-                  lines += fmt::format("{}:{}:{}\n", path, current_line_number, std::string_view(&data[start], end - start));
-                }
-
-                
-            }
-            else
-            {
-
-                if (path.size() > 2 && path[0] == '.' && path[1] == '/')
-                {
-                  lines += fmt::format("{}:{}\n", path.substr(2), std::string_view(&data[start], end - start));
-                }
-                else
-                {
-                  lines += fmt::format("{}:{}\n", path, std::string_view(&data[start], end - start));
-                }
-
-                
-            }
-        }
+      if (option_show_line_numbers)
+      {
+        lines += fmt::format("{}:{}:{}\n", filename, current_line_number, line);
+      }
+      else
+      {
+        lines += fmt::format("{}:{}\n", filename, line);
+      }
     }
-
-    return 0;
+  }
 }
 
 template<std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
@@ -399,6 +373,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     // Process the file in chunks
     std::size_t bytes_read = 0;
+    std::atomic<std::size_t> max_line_number{0};
     std::size_t current_line_number{1};
     std::string lines{""};
 
@@ -435,10 +410,13 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             search_size = last_newline - buffer;
         }
 
+        moodycamel::ConcurrentQueue<std::pair<unsigned long long, unsigned long long>> matches{};
+        std::atomic<size_t> number_of_matches = 0;
+        file_context_new ctx{number_of_matches, matches};
+
         if (remainder_from_previous_chunk.empty())
         {
             // Process the current chunk
-            file_context ctx{filename, buffer, search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
               if (option_print_only_filenames)
@@ -450,6 +428,11 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                 result = false;
               }
               break;
+            }
+
+            if (ctx.number_of_matches > 0)
+            {
+              process_matches(filename.data(), buffer, search_size, ctx, current_line_number, lines);
             }
 
             if (last_newline)
@@ -466,7 +449,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             remainder_from_previous_chunk.clear();
 
             // Process the current chunk along with the leftover from the previous chunk
-            file_context ctx{filename, search_string.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, search_string.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
                 if (option_print_only_filenames)
@@ -478,6 +460,11 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
                   result = false;
                 }
                 break;
+            }
+
+            if (ctx.number_of_matches > 0)
+            {
+              process_matches(filename.data(), search_string.data(), search_size, ctx, current_line_number, lines);
             }
 
             if (last_newline)
