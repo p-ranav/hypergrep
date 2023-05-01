@@ -243,6 +243,7 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
 bool option_print_only_filenames{false};
+bool option_no_ignore{false};
 
 std::size_t count_newlines(const char *start, const char *end)
 {
@@ -522,7 +523,7 @@ void visit(const std::filesystem::path& path)
 
         if (entry.is_regular_file() && !entry.is_symlink())
         {
-          if (!is_ignored(path.c_str()))
+          if (!option_no_ignore || !is_ignored(path.c_str()))
           {
             queue.enqueue(ptok, path.string());
             ++num_files_enqueued;
@@ -535,7 +536,7 @@ void visit(const std::filesystem::path& path)
         else if (entry.is_directory() && !entry.is_symlink())
         {
           const auto path_with_slash = path.string() + "/";
-          if (!is_ignored(path_with_slash.c_str()))
+          if (!option_no_ignore || !is_ignored(path_with_slash.c_str()))
           {
             visit(path);
           }
@@ -568,7 +569,7 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "nil")) != -1)
+    while ((opt = getopt(argc, argv, "nilI")) != -1)
     {
         switch (opt)
         {
@@ -581,8 +582,11 @@ int main(int argc, char **argv)
         case 'l':
             option_print_only_filenames = true;
             break;
+        case 'I':
+            option_no_ignore = true;
+            break;
         default:
-            fprintf(stderr, "Usage: %s [-n] [-i] [-l] pattern [filename]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-n] [-i] [-l] [-I] pattern [filename]\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
@@ -596,8 +600,9 @@ int main(int argc, char **argv)
 
 
 
-    // Git Ignore HS Database Init
+    if (!option_no_ignore)
     {
+      // Git Ignore HS Database Init
       hs_compile_error_t* ignore_hs_compile_error = nullptr;
 
       auto hs_pattern = parse_gitignore_file(".gitignore");
