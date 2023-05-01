@@ -12,6 +12,165 @@
 #include <unistd.h>
 #include <vector>
 
+
+
+hs_database_t *           ignore_database = NULL;
+hs_scratch_t *            ignore_scratch  = NULL;
+
+
+
+
+
+
+
+// Converts a glob expression to a HyperScan pattern
+std::string convert_to_hyper_scan_pattern(const std::string& glob) {
+
+    if (glob.empty()) {
+      return "";
+    }
+
+    bool dir_pattern{false};
+    if (glob[0] == '/') {
+      dir_pattern = true;
+    }
+
+    std::string pattern = dir_pattern ? "" : "^";
+
+    for (auto it = glob.begin(); it != glob.end(); ++it) {
+        switch (*it) {
+            case '*':
+                pattern += ".*";
+                break;
+            case '?':
+                pattern += ".";
+                break;
+            case '.':
+                pattern += "\\.";
+                break;
+            case '[':
+                {
+                    ++it;
+                    pattern += "[";
+                    while (*it != ']') {
+                        if (*it == '\\') {
+                            pattern += "\\\\";
+                        } else if (*it == '-') {
+                            pattern += "\\-";
+                        } else {
+                            pattern += *it;
+                        }
+                        ++it;
+                    }
+                    pattern += "]";
+                }
+                break;
+            case '\\':
+                {
+                    ++it;
+                    if (it == glob.end()) {
+                        pattern += "\\\\";
+                        break;
+                    }
+                    switch (*it) {
+                        case '*':
+                        case '?':
+                        case '.':
+                        case '[':
+                        case '\\':
+                            pattern += "\\";
+                        default:
+                            pattern += *it;
+                            break;
+                    }
+                }
+                break;
+            default:
+                pattern += *it;
+                break;
+        }
+    }
+    pattern += dir_pattern ? "" : "$";
+
+    return pattern;
+}
+
+std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_path) {
+    std::ifstream gitignore_file(gitignore_file_path, std::ios::in | std::ios::binary);
+    char buffer[1024];
+
+    if (!gitignore_file.is_open()) {
+        fmt::print("Error: Failed to open .gitignore file\n");
+        return {};
+    }
+
+    std::string result{};
+    std::string line{};
+
+    while (std::getline(gitignore_file, line)) {
+        if (line.empty() || line[0] == '#' || line[0] == '!') {
+          continue;
+        }
+
+        if (!result.empty())
+        {
+          result += "|";
+        }
+        result += "(" + convert_to_hyper_scan_pattern(line) + ")";
+    }
+
+    return result;
+}
+
+struct ScanContext {
+    bool matched;
+};
+
+hs_error_t on_ignore_match(unsigned int id, unsigned long long from, 
+    unsigned long long to, unsigned int flags, void* context)
+{
+    ScanContext* scanCtx = static_cast<ScanContext*>(context);
+    scanCtx->matched = true;
+    return HS_SUCCESS;
+}
+
+bool is_ignored(const char* str)
+{
+  std::string_view path = str;
+  if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+  {
+    path = path.substr(1);
+  }
+
+  ScanContext ctx { false };
+  // Scan the input string for matches
+  if (hs_scan(ignore_database, path.data(), path.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS) {
+    return false;
+  }
+
+  // Return true if a match was found
+  return ctx.matched;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 inline bool is_elf_header(const char *buffer)
 {
     static constexpr std::string_view elf_magic = "\x7f"
@@ -304,16 +463,20 @@ void visit(std::string path)
 
         if (entry.is_regular_file())
         {
-            // fmt::print("{} found\n", filename_cstr);
-            const auto pathstring = path.string();
-            paths_to_enqueue[index++] = std::move(pathstring);
 
-            if (index == BULK_ENQUEUE_SIZE)
-            {
-              queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
-              index = 0;
-              num_files_enqueued += BULK_ENQUEUE_SIZE;
-            }
+          if (!is_ignored(path.c_str()))
+          {
+              // fmt::print("{} found\n", filename_cstr);
+              const auto pathstring = path.string();
+              paths_to_enqueue[index++] = std::move(pathstring);
+
+              if (index == BULK_ENQUEUE_SIZE)
+              {
+                queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
+                index = 0;
+                num_files_enqueued += BULK_ENQUEUE_SIZE;
+              }
+          }
         }
     }
     if (index > 0)
@@ -366,6 +529,44 @@ int main(int argc, char **argv)
     {
         path = argv[optind + 1];
     }
+
+
+
+  // Git Ignore HS Database Init
+  {
+    hs_compile_error_t* ignore_hs_compile_error = nullptr;
+
+    auto hs_pattern = parse_gitignore_file(".gitignore");
+
+    if (!hs_pattern.empty())
+    {
+        // Compile the pattern expression into a Hyperscan database
+        if (hs_compile(hs_pattern.data(), HS_FLAG_ALLOWEMPTY | HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &ignore_database, &ignore_hs_compile_error) != HS_SUCCESS) {
+            fmt::print("Error: Failed to compile pattern expression - {}\n", ignore_hs_compile_error->message);
+            hs_free_compile_error(ignore_hs_compile_error);
+            return false;
+        }
+
+        hs_error_t database_error = hs_alloc_scratch(ignore_database, &ignore_scratch);
+        if (database_error != HS_SUCCESS)
+        {
+            fprintf(stderr, "Error allocating scratch space\n");
+            hs_free_database(database);
+            return 1;
+        } 
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
 
     is_stdout = isatty(STDOUT_FILENO) == 1;
 
