@@ -14,13 +14,12 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
     if (glob.empty()) {
       return "";
     }
+    else if (glob == ".*")
+    {
+      return "/\\..*";
+    }
 
-    // bool dir_pattern{false};
-    // if (glob[0] == '/') {
-    //   dir_pattern = true;
-    // }
-
-    std::string pattern = "^"; // dir_pattern ? "" : "^";
+    std::string pattern = "";
 
     for (auto it = glob.begin(); it != glob.end(); ++it) {
         switch (*it) {
@@ -75,7 +74,11 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
                 break;
         }
     }
-    // pattern += "$";
+
+    if (glob.back() != '/')
+    {
+      pattern += "$";
+    }
 
     return pattern;
 }
@@ -122,10 +125,10 @@ hs_error_t on_match(unsigned int id, unsigned long long from,
 bool fnmatch_hyperscan(std::string patternExpr, const char* str, hs_database_t* database, hs_scratch_t* scratch)
 {
   std::string_view path = str;
-  if (path.size() > 2 && path[0] == '.' && path[1] == '/')
-  {
-    path = path.substr(1);
-  }
+  // if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+  // {
+  //   path = path.substr(1);
+  // }
 
   ScanContext ctx { false };
   // Scan the input string for matches
@@ -178,7 +181,7 @@ int main()
   auto pattern = parse_gitignore_file(".gitignore");
 
   // Compile the pattern expression into a Hyperscan database
-  if (hs_compile(pattern.c_str(), HS_FLAG_ALLOWEMPTY | HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &database, &compileErr) != HS_SUCCESS) {
+  if (hs_compile(pattern.c_str(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &database, &compileErr) != HS_SUCCESS) {
       std::cerr << "Error compiling pattern expression: " << compileErr->message << std::endl;
       hs_free_compile_error(compileErr);
       return false;
@@ -200,7 +203,11 @@ int main()
       "./foo/bar/baz.o.cmd",
       "./tools",
       "./src",
-      "./tools/testing/radix-tree/linux/local_lock.h"
+      "./tools/testing/radix-tree/linux/local_lock.h",
+      "./arch/powerpc/platforms/pseries/",
+      "./drivers/staging/media/atomisp/pci/isp/kernels/sc/sc_1.0/",
+      "./arch/x86/include/generated/",
+      "./arch/powerpc/platforms/pseries/vas.h"
     };
     for (const auto& i : inputs)
     {

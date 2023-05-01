@@ -16,8 +16,8 @@
 
 std::atomic<std::size_t> result_matches{0};
 std::atomic<std::size_t> result_matched_lines{0};
+std::atomic<std::size_t> result_matched_files{0};
 std::atomic<std::size_t> result_files_searched{0};
-std::atomic<std::size_t> result_files_git_ignored{0};
 
 hs_database_t *           ignore_database = NULL;
 hs_scratch_t *            ignore_scratch  = NULL;
@@ -33,6 +33,17 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
 
     if (glob.empty()) {
       return "";
+    }
+    else if (glob == ".*")
+    {
+      return "^/\\..*$";
+    }
+    else if (glob.find("*") == std::string::npos)
+    {
+      if (glob.find("/") == std::string::npos)
+      {
+        return "^" + glob + "$";
+      }
     }
 
     std::string pattern = "^";
@@ -91,6 +102,8 @@ std::string convert_to_hyper_scan_pattern(const std::string& glob) {
         }
     }
 
+    pattern += "$";
+
     return pattern;
 }
 
@@ -115,6 +128,7 @@ std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_pat
         {
           result += "|";
         }
+        // fmt::print("{}\n", convert_to_hyper_scan_pattern(line));
         result += "(" + convert_to_hyper_scan_pattern(line) + ")";
     }
 
@@ -133,17 +147,17 @@ hs_error_t on_ignore_match(unsigned int id, unsigned long long from,
     return HS_SUCCESS;
 }
 
-bool is_ignored(const char* str)
+bool is_ignored(const char* path)
 {
-  std::string_view path = str;
-  if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+  std::string_view str = path;
+  if (str.size() > 2 && str[0] == '.' && str[1] == '/')
   {
-    path = path.substr(1);
+    str = str.substr(1);
   }
 
   ScanContext ctx { false };
   // Scan the input string for matches
-  if (hs_scan(ignore_database, path.data(), path.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS) {
+  if (hs_scan(ignore_database, str.data(), str.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS) {
     return false;
   }
 
@@ -201,6 +215,7 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
+bool option_print_only_filenames{false};
 
 struct file_context
 {
@@ -300,6 +315,12 @@ static int on_match(unsigned int id, unsigned long long from, unsigned long long
 
     if (from >= start && to >= from && end >= to && end >= start)
     {
+        if (option_print_only_filenames)
+        {
+          lines += fmt::format("{}\n", fctx->filename);
+          return 1; // suspend the search now
+        }
+
         if (is_stdout)
         {
             std::string_view line(&data[start], end - start);
@@ -401,8 +422,15 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             file_context ctx{filename, buffer, search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
+              if (option_print_only_filenames)
+              {
+                result = true;
+              }
+              else
+              {
                 result = false;
-                break;
+              }
+              break;
             }
 
             if (last_newline)
@@ -422,7 +450,14 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
             file_context ctx{filename, search_string.data(), search_size, lines, current_line_number, nullptr, local_scratch_per_line};
             if (hs_scan(database, search_string.data(), search_size, 0, local_scratch, on_match, (void *)(&ctx)) != HS_SUCCESS)
             {
-                result = false;
+                if (option_print_only_filenames)
+                {
+                  result = true;
+                }
+                else
+                {
+                  result = false;
+                }
                 break;
             }
 
@@ -437,9 +472,17 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     if (result && !lines.empty())
     {
+        result_matched_files += 1;
         if (is_stdout)
         {
+          if (option_print_only_filenames)
+          {
+            fmt::print("{}\n", filename);
+          }
+          else
+          {
             fmt::print("\n{}\n{}", filename, lines);
+          }
         }
         else
         {
@@ -450,14 +493,9 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     return result;
 }
 
-void visit(std::string path)
+void visit(const std::filesystem::path& path)
 {
-    constexpr int                              BULK_ENQUEUE_SIZE = 32;
-    std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
-
-    std::size_t index{0};
-
-    for (auto &&entry: std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
+    for (auto &&entry: std::filesystem::directory_iterator(path, std::filesystem::directory_options::skip_permission_denied))
     {
         const auto &path          = entry.path();
         const auto &filename      = path.filename();
@@ -466,32 +504,31 @@ void visit(std::string path)
         if (filename_cstr[0] == '.')
             continue;
 
-        if (entry.is_regular_file())
+        if (entry.is_regular_file() && !entry.is_symlink())
         {
 
           if (!is_ignored(path.c_str()))
           {
-              // fmt::print("{} found\n", filename_cstr);
-              const auto pathstring = path.string();
-              paths_to_enqueue[index++] = std::move(pathstring);
-
-              if (index == BULK_ENQUEUE_SIZE)
-              {
-                queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
-                index = 0;
-                num_files_enqueued += BULK_ENQUEUE_SIZE;
-              }
+            queue.enqueue(ptok, path.string());
+            ++num_files_enqueued;
           }
-          else
-          {
-            result_files_git_ignored += 1;
-          }
+          // else
+          // {
+          //   fmt::print("Ignored file: {}\n", path.c_str());
+          // }
         }
-    }
-    if (index > 0)
-    {
-      queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
-      num_files_enqueued += index;
+        else if (entry.is_directory() && !entry.is_symlink())
+        {
+          std::string path_with_slash = path.string() + "/";
+          if (!is_ignored(path_with_slash.c_str()))
+          {
+            visit(path);
+          }
+          // else
+          // {
+          //   fmt::print("Ignored directory: {}\n", path.c_str());
+          // }
+        }
     }
 }
 
@@ -516,7 +553,7 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string &sea
 int main(int argc, char **argv)
 {
     int opt;
-    while ((opt = getopt(argc, argv, "ni")) != -1)
+    while ((opt = getopt(argc, argv, "nil")) != -1)
     {
         switch (opt)
         {
@@ -526,8 +563,11 @@ int main(int argc, char **argv)
         case 'i':
             option_ignore_case = true;
             break;
+        case 'l':
+            option_print_only_filenames = true;
+            break;
         default:
-            fprintf(stderr, "Usage: %s [-n] [-i] [-g] pattern [filename]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-n] [-i] [-l] pattern [filename]\n", argv[0]);
             exit(EXIT_FAILURE);
         }
     }
@@ -550,7 +590,7 @@ int main(int argc, char **argv)
     if (!hs_pattern.empty())
     {
         // Compile the pattern expression into a Hyperscan database
-        if (hs_compile(hs_pattern.data(), HS_FLAG_ALLOWEMPTY | HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &ignore_database, &ignore_hs_compile_error) != HS_SUCCESS) {
+        if (hs_compile(hs_pattern.data(), HS_FLAG_SINGLEMATCH | HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr, &ignore_database, &ignore_hs_compile_error) != HS_SUCCESS) {
             fmt::print("Error: Failed to compile pattern expression - {}\n", ignore_hs_compile_error->message);
             hs_free_compile_error(ignore_hs_compile_error);
             return false;
@@ -561,7 +601,7 @@ int main(int argc, char **argv)
         {
             fprintf(stderr, "Error allocating scratch space\n");
             hs_free_database(database);
-            return 1;
+            return false;
         } 
     }
   }
@@ -687,13 +727,9 @@ int main(int argc, char **argv)
 
     }
 
-    if (is_stdout)
-    {
-      fmt::print("\n{} matches\n", result_matches);
-      fmt::print("{} matched lines\n", result_matched_lines);
-      fmt::print("{} files searched\n", result_files_searched);
-      fmt::print("{} files ignored (.gitignore)\n", result_files_git_ignored);
-    }
+    parse_gitignore_file(".gitignore");
+    fmt::print("\n{} matches, {} lines, {} files\n", result_matches, result_matched_lines, result_matched_files);
+    fmt::print("{} files searched\n", result_files_searched);
 
     hs_free_scratch(scratch);
     hs_free_database(database);
