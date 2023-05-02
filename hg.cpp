@@ -381,8 +381,7 @@ void visit(const std::filesystem::path &path) {
       // }
     } else if (it->is_directory() && !it->is_symlink()) {
       // path_with_slash = path.native() + "/";
-      if ((!option_no_ignore && is_ignored(path.native())) ||
-          filename_cstr[0] == '.') {
+      if (filename_cstr[0] == '.' || (!option_no_ignore && is_ignored(path.native()))) {
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
         // fmt::print("Ignoring {}\n", path.c_str());
