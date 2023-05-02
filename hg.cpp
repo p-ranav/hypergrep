@@ -259,9 +259,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
 }
 
 template <std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
-bool process_file(std::string &&filename, std::size_t i, char *buffer,
-                  std::string &search_string,
-                  std::string &remainder_from_previous_chunk) {
+bool process_file(std::string &&filename, std::size_t i, char *buffer) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -311,8 +309,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer,
     std::atomic<size_t> number_of_matches = 0;
     file_context ctx{number_of_matches, matches};
 
-    if (remainder_from_previous_chunk.empty()) {
-      // Process the current chunk
       if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
                   (void *)(&ctx)) != HS_SUCCESS) {
         if (option_print_only_filenames && ctx.number_of_matches > 0) {
@@ -332,43 +328,16 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer,
                         current_line_number, lines);
       }
 
-      if (last_newline) {
-        remainder_from_previous_chunk.append(last_newline,
-                                             bytes_read - search_size);
-      }
-    } else {
-      // If remaining bytes from previous chunk, prepend to the search buffer
-      search_string = remainder_from_previous_chunk;
-      search_string.append(buffer, search_size);
-      search_size = search_string.size();
-      remainder_from_previous_chunk.clear();
+      if (last_newline && bytes_read > search_size && bytes_read == CHUNK_SIZE) /* Not the last chunk */ {
 
-      // Process the current chunk along with the leftover from the previous
-      // chunk
-      if (hs_scan(database, search_string.data(), search_size, 0, local_scratch,
-                  on_match, (void *)(&ctx)) != HS_SUCCESS) {
-        if (option_print_only_filenames && ctx.number_of_matches > 0) {
-          result = true;
-        } else {
-          result = false;
-        }
-        break;
-      } else {
-        if (ctx.number_of_matches > 0) {
-          result = true;
+        // Backtrack "remainder" number of characters
+        off_t pos = lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+        if (pos == -1) {
+            perror("lseek");
+            close(fd);
+            return 1;
         }
       }
-
-      if (ctx.number_of_matches > 0) {
-        process_matches(filename.data(), search_string.data(), search_size, ctx,
-                        current_line_number, lines);
-      }
-
-      if (last_newline) {
-        remainder_from_previous_chunk.append(
-            last_newline, bytes_read - (last_newline - buffer));
-      }
-    }
   }
 
   close(fd);
@@ -388,8 +357,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer,
 }
 
 void visit(const std::filesystem::path &path) {
-  // std::filesystem::path path_with_slash{};
-
   for (auto it = std::filesystem::recursive_directory_iterator(
            path, std::filesystem::directory_options::skip_permission_denied);
        it != std::filesystem::recursive_directory_iterator(); ++it) {
@@ -429,17 +396,14 @@ void visit(const std::filesystem::path &path) {
   }
 }
 
-static inline bool visit_one(const std::size_t i, char *buffer,
-                             std::string &search_string,
-                             std::string &remaining_from_previous_chunk) {
+static inline bool visit_one(const std::size_t i, char *buffer) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
       queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
-      process_file(std::move(entries[j]), i, buffer, search_string,
-                   remaining_from_previous_chunk);
+      process_file(std::move(entries[j]), i, buffer);
     }
     num_files_dequeued += count;
     return true;
@@ -550,10 +514,7 @@ int main(int argc, char **argv) {
 
     std::string path_string(path);
     char buffer[FILE_CHUNK_SIZE];
-    std::string search_string{};
-    std::string remaining_bytes_per_chunk{};
-    process_file(std::move(path_string), 0, buffer, search_string,
-                 remaining_bytes_per_chunk);
+    process_file(std::move(path_string), 0, buffer);
   } else {
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
@@ -584,12 +545,9 @@ int main(int argc, char **argv) {
 
       consumer_threads[i] = std::thread([i = i]() {
         char buffer[FILE_CHUNK_SIZE];
-        std::string search_string{};
-        std::string remaining_from_previous_chunk{};
-
         while (true) {
           if (num_files_enqueued > 0) {
-            visit_one(i, buffer, search_string, remaining_from_previous_chunk);
+            visit_one(i, buffer);
             if (!running && num_files_dequeued == num_files_enqueued) {
               break;
             }
