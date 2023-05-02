@@ -523,11 +523,12 @@ void visit(const std::filesystem::path &path)
         const auto &filename      = path.filename();
         const auto  filename_cstr = filename.c_str();
 
+        if (it->is_regular_file() && !it->is_symlink())
+        {
+
         if (filename_cstr[0] == '.')
             continue;
 
-        if (it->is_regular_file() && !it->is_symlink())
-        {
             if (option_no_ignore || (!option_no_ignore && !is_ignored(path.native())))
             {
                 queue.enqueue(ptok, path.native());
@@ -541,7 +542,7 @@ void visit(const std::filesystem::path &path)
         else if (it->is_directory() && !it->is_symlink())
         {
             // path_with_slash = path.native() + "/";
-            if (!option_no_ignore && is_ignored(path.native()))
+            if ((!option_no_ignore && is_ignored(path.native())) || filename_cstr[0] == '.')
             {
                 // Stop processing this directory and its contents
                 it.disable_recursion_pending();
