@@ -112,7 +112,10 @@ std::string convert_to_hyper_scan_pattern(const std::string &glob)
         }
     }
 
-    pattern += "$";
+    if (glob.back() != '/')
+    {
+      pattern += "$";
+    }
 
     return pattern;
 }
@@ -538,7 +541,7 @@ void visit(const std::filesystem::path &path)
         else if (it->is_directory() && !it->is_symlink())
         {
             // path_with_slash = path.native() + "/";
-            if (!option_no_ignore && is_ignored(path.c_str()))
+            if (!option_no_ignore && is_ignored(path.native()))
             {
                 // Stop processing this directory and its contents
                 it.disable_recursion_pending();
