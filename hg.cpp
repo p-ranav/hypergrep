@@ -170,7 +170,8 @@ std::atomic<bool> running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 
-constexpr std::size_t FILE_CHUNK_SIZE = 16 * 4096; // Typical file system block size is 4096
+constexpr std::size_t TYPICAL_FILESYSTEM_BLOCK_SIZE = 4096;
+constexpr std::size_t FILE_CHUNK_SIZE = 16 * TYPICAL_FILESYSTEM_BLOCK_SIZE;
 
 hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
@@ -258,7 +259,6 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   }
 }
 
-template <std::size_t CHUNK_SIZE = FILE_CHUNK_SIZE>
 bool process_file(std::string &&filename, std::size_t i, char *buffer) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
@@ -278,7 +278,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
 
   // Read the file in chunks and perform search
   bool first{true};
-  while ((bytes_read = read(fd, buffer, CHUNK_SIZE)) > 0) {
+  while ((bytes_read = read(fd, buffer, FILE_CHUNK_SIZE)) > 0) {
     if (first) {
       first = false;
       if (bytes_read >= 4 &&
@@ -328,7 +328,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
                         current_line_number, lines);
       }
 
-      if (last_newline && bytes_read > search_size && bytes_read == CHUNK_SIZE) /* Not the last chunk */ {
+      if (last_newline && bytes_read > search_size && bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
 
         if ((last_newline - buffer) == bytes_read - 1) {
           // Chunk ends exactly at the newline
@@ -341,7 +341,10 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
         else
         {
           // Backtrack "remainder" number of characters
+          // auto start = std::chrono::high_resolution_clock::now();
           lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+          // auto end = std::chrono::high_resolution_clock::now();
+          // fmt::print("{}us\n", (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()));
         }
       }
   }
