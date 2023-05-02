@@ -22,16 +22,9 @@ std::string convert_to_hyper_scan_pattern(std::string &&glob) {
     return "";
   } else if (glob == ".*") {
     return "^/\\..*$";
-  } else if (glob[0] == '/') {
-    std::string_view glob_view = glob;
-    // Leading slash anchors the match to the root
-    if (glob.back() == '/') {
-      glob_view = glob_view.substr(0, glob.size() - 1);
-    }
-    return "^" + std::string{glob_view} + "$";
   } else if (glob.find("*") == std::string::npos) {
     if (glob.find("/") == std::string::npos) {
-      return "^" + glob + "$";
+      return glob;
     }
   }
 
@@ -41,6 +34,13 @@ std::string convert_to_hyper_scan_pattern(std::string &&glob) {
     switch (*it) {
     case '*':
       pattern += ".*";
+      if (it + 1 != glob.end()) {
+	if (*(it + 1) == '*') {
+	  // ** pattern
+	  // Ignore this second *
+	  ++it;
+	}
+      }
       break;
     case '?':
       pattern += ".";
@@ -118,7 +118,7 @@ parse_gitignore_file(const std::filesystem::path &gitignore_file_path) {
     if (!result.empty()) {
       result += "|";
     }
-    result += "(" + convert_to_hyper_scan_pattern(std::move(line)) + ")";
+    result += convert_to_hyper_scan_pattern(std::move(line));
   }
 
   return result;
@@ -384,7 +384,7 @@ void visit(const std::filesystem::path &path) {
       // }
     } else if (it->is_directory() && !it->is_symlink()) {
       // path_with_slash = path.native() + "/";
-      if (filename_cstr[0] == '.' || (!option_no_ignore && is_ignored(path.native()))) {
+      if (filename_cstr[0] == '.' || (!option_no_ignore && is_ignored(path.native()))) {        
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
         // fmt::print("Ignoring {}\n", path.c_str());
@@ -394,6 +394,52 @@ void visit(const std::filesystem::path &path) {
          * xargs -a /tmp/ignored.txt -I {} sh -c 'git check-ignore -q "{}" &&
          * echo "CORRECT {} is ignored by git" || echo "{}"'
          */
+      }
+      else
+      {
+        // Check if this directory contains a .gitignore file
+        if (std::filesystem::exists(path / ".gitignore"))
+        {
+          // Found it
+          auto pattern = parse_gitignore_file(path / ".gitignore");
+
+
+          // {
+          //   hs_database_t * nested_database = nullptr;
+          //   hs_scratch_t * nested_scratch = nullptr;
+
+          //   // Git Ignore HS Database Init
+          //   hs_compile_error_t *ignore_hs_compile_error = nullptr;
+
+          //   if (!pattern.empty()) {
+          //     // Compile the pattern expression into a Hyperscan database
+          //     if (hs_compile(pattern.data(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr,
+          //                   &nested_database,
+          //                   &ignore_hs_compile_error) != HS_SUCCESS) {
+          //       fmt::print("Error: Failed to compile pattern expression - {}\n",
+          //                 ignore_hs_compile_error->message);
+          //       hs_free_compile_error(ignore_hs_compile_error);
+          //     }
+
+          //     hs_error_t database_error =
+          //         hs_alloc_scratch(nested_database, &nested_scratch);
+          //     if (database_error != HS_SUCCESS) {
+          //       fprintf(stderr, "Error allocating scratch space\n");
+          //       hs_free_database(nested_database);
+          //     }
+          //   } else {
+          //     option_no_ignore = false;
+          //   }
+          // }
+
+
+
+
+
+
+
+
+        }
       }
     }
   }
@@ -448,30 +494,66 @@ int main(int argc, char **argv) {
     // Git Ignore HS Database Init
     hs_compile_error_t *ignore_hs_compile_error = nullptr;
 
-    auto hs_pattern = parse_gitignore_file(".gitignore");
+    // Recursively iterate directory and find all gitignore files
+    // Read each one and build a pattern string
+    // Compile pattern string into database
+    // Perform ignore checking with this singular pattern string
+    // Maybe it'll be too long? We'll have to see
+    std::vector<std::string> multipattern{};
+    std::vector<unsigned int> flags{};
+    for (const auto& entry: std::filesystem::recursive_directory_iterator(".", std::filesystem::directory_options::skip_permission_denied))
+    {
+      if (entry.path().filename().native() == ".gitignore")
+      {
+        auto pattern = entry.path().parent_path().string() + "/(" + parse_gitignore_file(entry.path()) + ")";
+        fmt::print("\n{}\n", pattern);
 
-    if (!hs_pattern.empty()) {
-      // Compile the pattern expression into a Hyperscan database
-      if (hs_compile(hs_pattern.data(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr,
-                     &ignore_database,
-                     &ignore_hs_compile_error) != HS_SUCCESS) {
-        fmt::print("Error: Failed to compile pattern expression - {}\n",
-                   ignore_hs_compile_error->message);
-        hs_free_compile_error(ignore_hs_compile_error);
-        return false;
+	hs_compile_error_t *compile_error = NULL;
+	hs_error_t error_code =
+	  hs_compile(pattern.data(),
+		     (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+                     HS_FLAG_SOM_LEFTMOST,
+		     HS_MODE_BLOCK, NULL, &database, &compile_error);
+	if (error_code != HS_SUCCESS) {
+	  fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
+	  hs_free_compile_error(compile_error);
+	  return 1;
+	}	
+
+        multipattern.push_back(pattern);
+        flags.push_back(HS_FLAG_UTF8);
+      }
+    }
+
+    std::vector<const char*> multipattern_cstr{};
+    std::transform(multipattern.begin(), multipattern.end(), std::back_inserter(multipattern_cstr), [](const std::string& str) {
+        return str.c_str();
+    });
+
+    if (!multipattern_cstr.empty())
+    {
+      if (hs_compile_multi(multipattern_cstr.data(), flags.data(), nullptr, multipattern_cstr.size(), HS_MODE_BLOCK, nullptr,
+                      &ignore_database,
+                      &ignore_hs_compile_error) != HS_SUCCESS) {
+          fmt::print("Error: Failed to compile pattern expression - {}\n",
+                    ignore_hs_compile_error->message);
+          hs_free_compile_error(ignore_hs_compile_error);
+          return false;
       }
 
       hs_error_t database_error =
           hs_alloc_scratch(ignore_database, &ignore_scratch);
       if (database_error != HS_SUCCESS) {
         fprintf(stderr, "Error allocating scratch space\n");
-        hs_free_database(database);
+        hs_free_database(ignore_database);
         return false;
       }
     } else {
       option_no_ignore = false;
     }
   }
+
+  exit(0);
 
   is_stdout = isatty(STDOUT_FILENO) == 1;
 
