@@ -18,7 +18,7 @@ hs_database_t *ignore_database = NULL;
 hs_scratch_t * ignore_scratch  = NULL;
 
 // Converts a glob expression to a HyperScan pattern
-std::string convert_to_hyper_scan_pattern(const std::string &glob)
+std::string convert_to_hyper_scan_pattern(std::string&& glob)
 {
     if (glob.empty())
     {
@@ -120,65 +120,28 @@ std::string convert_to_hyper_scan_pattern(const std::string &glob)
     return pattern;
 }
 
-// std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_path) {
-//     std::ifstream gitignore_file(gitignore_file_path, std::ios::in | std::ios::binary);
-
-//     if (!gitignore_file.is_open()) {
-//         fmt::print("Error: Failed to open .gitignore file\n");
-//         return {};
-//     }
-
-//     std::string result{};
-//     std::string line{};
-
-//     while (std::getline(gitignore_file, line)) {
-//         if (line.empty() || line[0] == '#' || line[0] == '!') {
-//           continue;
-//         }
-
-//         if (!result.empty())
-//         {
-//           result += "|";
-//         }
-//         // fmt::print("{}\n", convert_to_hyper_scan_pattern(line));
-//         result += "(" + convert_to_hyper_scan_pattern(line) + ")";
-//     }
-
-//     return result;
-// }
-
-std::string parse_gitignore_file(const std::filesystem::path &gitignore_file_path)
-{
+std::string parse_gitignore_file(const std::filesystem::path& gitignore_file_path) {
     std::ifstream gitignore_file(gitignore_file_path, std::ios::in | std::ios::binary);
 
-    if (!gitignore_file.is_open())
-    {
+    if (!gitignore_file.is_open()) {
         fmt::print("Error: Failed to open .gitignore file\n");
         return {};
     }
 
-    std::string result{""};
-    result.reserve(4096); // Pre-allocate space for the result string
-
-    std::vector<std::string> patterns; // Store the patterns in a vector
-
+    std::string result{};
     std::string line{};
 
-    while (std::getline(gitignore_file, line))
-    {
-        if (line.empty() || line[0] == '#' || line[0] == '!')
-        {
-            continue;
+    while (std::getline(gitignore_file, line)) {
+        if (line.empty() || line[0] == '#' || line[0] == '!') {
+          continue;
         }
 
-        // Construct the pattern string and move it into the vector
-        patterns.emplace_back("(" + convert_to_hyper_scan_pattern(line) + ")");
+        if (!result.empty())
+        {
+          result += "|";
+        }
+        result += "(" + convert_to_hyper_scan_pattern(std::move(line)) + ")";
     }
-
-    // Join the pattern strings in the vector with '|' separator
-    result = std::accumulate(patterns.begin(), patterns.end(), std::string{}, [](std::string &s, const std::string &p) {
-        return s.empty() ? p : s + "|" + p;
-    });
 
     return result;
 }
