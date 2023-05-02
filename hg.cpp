@@ -1,7 +1,6 @@
 #include "concurrentqueue.h"
 #include <atomic>
 #include <chrono>
-#include <cstring>
 #include <fcntl.h>
 #include <filesystem>
 #include <fmt/color.h>
@@ -11,8 +10,8 @@
 #include <numeric>
 #include <set>
 #include <thread>
-#include <unistd.h>
 #include <vector>
+#include <unistd.h>
 
 hs_database_t *ignore_database = NULL;
 hs_scratch_t *ignore_scratch = NULL;
@@ -171,7 +170,7 @@ std::atomic<bool> running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
 std::atomic<std::size_t> num_files_dequeued{0};
 
-constexpr std::size_t FILE_CHUNK_SIZE = 10 * 4096;
+constexpr std::size_t FILE_CHUNK_SIZE = 16 * 4096; // Typical file system block size is 4096
 
 hs_database_t *database = NULL;
 hs_scratch_t *scratch = NULL;
@@ -193,14 +192,14 @@ std::size_t count_newlines(const char *start, const char *end) {
 
 struct file_context {
   std::atomic<size_t> &number_of_matches;
-  std::set<std::pair<unsigned long long, unsigned long long>> &matches;
+  std::vector<std::pair<unsigned long long, unsigned long long>> &matches;
 };
 
 static int on_match(unsigned int id, unsigned long long from,
                     unsigned long long to, unsigned int flags, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
-  fctx->matches.insert(std::make_pair(from, to));
+  fctx->matches.push_back(std::make_pair(from, to));
 
   if (option_print_only_filenames) {
     return HS_SCAN_TERMINATED;
@@ -213,21 +212,6 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      file_context &ctx, std::size_t &current_line_number,
                      std::string &lines) {
   std::string_view chunk(buffer, bytes_read);
-  // std::set<std::pair<std::size_t, std::size_t>> set_of_matches{};
-
-  // while(ctx.number_of_matches > 0)
-  // {
-  //   std::pair<unsigned long long, unsigned long long> from_to;
-  //   auto found = ctx.matches.try_dequeue(from_to);
-  //   if (found)
-  //   {
-  //     // Do work with match
-  //     set_of_matches.insert(std::move(from_to));
-  //     ctx.number_of_matches -= 1;
-  //   }
-  // }
-  // ctx.number_of_matches = 0;
-
   const char *start = buffer;
   const char *ptr = buffer;
   for (const auto &match : ctx.matches) {
@@ -323,7 +307,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer,
       search_size = last_newline - buffer;
     }
 
-    std::set<std::pair<unsigned long long, unsigned long long>> matches{};
+    std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
     file_context ctx{number_of_matches, matches};
 
