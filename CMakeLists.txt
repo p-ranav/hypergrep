@@ -1,20 +1,24 @@
-cmake_minimum_required(VERSION 3.14)
-project(find)
+cmake_minimum_required(VERSION 3.16)
+project(hg)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 add_compile_options(-march=native -O3)
 
-include(FetchContent)
+# ———————————————————————————
+# find 3rd party dependencies
+# ———————————————————————————
 
-# Fetch and include the fmt library
-FetchContent_Declare(
-  fmt
-  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG        9.1.0
-)
-FetchContent_MakeAvailable(fmt)
+find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
+find_path(HYPERSCAN_INCLUDE_DIR hs/hs.h)
+find_library(HYPERSCAN_LIBRARY hs)
+message(STATUS ${HYPERSCAN_INCLUDE_DIR})
+message(STATUS ${HYPERSCAN_LIBRARY})
 
+# —————————————————————————————
+# create target for main binary
+# —————————————————————————————
 add_executable(hg hg.cpp)
-target_include_directories(hg PRIVATE ${fmt_SOURCE_DIR}/include)
-target_link_libraries(hg PRIVATE hs pthread fmt::fmt)
+target_compile_features(hg PUBLIC cxx_std_17)
+target_link_libraries(hg PRIVATE unofficial::concurrentqueue::concurrentqueue fmt::fmt ${HYPERSCAN_LIBRARY})

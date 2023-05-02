@@ -48,6 +48,9 @@ std::string convert_to_hyper_scan_pattern(std::string &&glob) {
     case '.':
       pattern += "\\.";
       break;
+    case '$':
+      pattern += "\\$";
+      break;
     case '[': {
       ++it;
       pattern += "[";
