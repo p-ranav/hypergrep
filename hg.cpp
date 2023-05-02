@@ -28,6 +28,16 @@ std::string convert_to_hyper_scan_pattern(const std::string &glob)
     {
         return "^/\\..*$";
     }
+    else if (glob[0] == '/')
+    {
+      std::string_view glob_view = glob;
+      // Leading slash anchors the match to the root
+      if (glob.back() == '/')
+      {
+        glob_view = glob_view.substr(0, glob.size() - 1);
+      }
+      return "^" + std::string{glob_view} + "$"; 
+    }
     else if (glob.find("*") == std::string::npos)
     {
         if (glob.find("/") == std::string::npos)
@@ -144,7 +154,7 @@ std::string parse_gitignore_file(const std::filesystem::path &gitignore_file_pat
         return {};
     }
 
-    std::string result{"./"};
+    std::string result{""};
     result.reserve(4096); // Pre-allocate space for the result string
 
     std::vector<std::string> patterns; // Store the patterns in a vector
@@ -182,23 +192,23 @@ hs_error_t on_ignore_match(unsigned int id, unsigned long long from, unsigned lo
     return HS_SUCCESS;
 }
 
-bool is_ignored(const char *path)
+bool is_ignored(const std::string& path)
 {
-    std::string_view str = path;
-    // if (str.size() > 2 && str[0] == '.' && str[1] == '/')
-    // {
-    //   str = str.substr(1);
-    // }
+  std::string_view path_view = path;
+  if (path.size() > 2 && path[0] == '.' && path[1] == '/')
+  {
+    path_view = path_view.substr(1);
+  }
 
-    ScanContext ctx{false};
-    // Scan the input string for matches
-    if (hs_scan(ignore_database, str.data(), str.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS)
-    {
-        return false;
-    }
+  ScanContext ctx{false};
+  // Scan the input string for matches
+  if (hs_scan(ignore_database, path_view.data(), path_view.size(), 0, ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS)
+  {
+      return false;
+  }
 
-    // Return true if a match was found
-    return ctx.matched;
+  // Return true if a match was found
+  return ctx.matched;
 }
 
 inline bool is_elf_header(const char *buffer)
@@ -502,10 +512,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 void visit(const std::filesystem::path &path)
 {
-    constexpr int                              BULK_ENQUEUE_SIZE = 32;
-    std::array<std::string, BULK_ENQUEUE_SIZE> paths_to_enqueue;
-
-    std::size_t index{0};
+    // std::filesystem::path path_with_slash{};
 
     for (auto it = std::filesystem::recursive_directory_iterator(path, std::filesystem::directory_options::skip_permission_denied); it != std::filesystem::recursive_directory_iterator(); ++it)
     {
@@ -518,34 +525,31 @@ void visit(const std::filesystem::path &path)
 
         if (it->is_regular_file() && !it->is_symlink())
         {
-            if (option_no_ignore || (!option_no_ignore && !is_ignored(path.c_str())))
+            if (option_no_ignore || (!option_no_ignore && !is_ignored(path.native())))
             {
-                const auto pathstring     = path.string();
-                paths_to_enqueue[index++] = std::move(pathstring);
-
-                if (index == BULK_ENQUEUE_SIZE)
-                {
-                    queue.enqueue_bulk(ptok, std::make_move_iterator(paths_to_enqueue.begin()), BULK_ENQUEUE_SIZE);
-                    index = 0;
-                    num_files_enqueued += BULK_ENQUEUE_SIZE;
-                }
+                queue.enqueue(ptok, path.native());
+                ++num_files_enqueued;
             }
+            // else
+            // {
+            //   fmt::print("Ignoring {}\n", path.c_str());
+            // }
         }
         else if (it->is_directory() && !it->is_symlink())
         {
-            const auto path_with_slash = path.string() + "/";
-            if (!option_no_ignore && is_ignored(path_with_slash.c_str()))
+            // path_with_slash = path.native() + "/";
+            if (!option_no_ignore && is_ignored(path.c_str()))
             {
                 // Stop processing this directory and its contents
                 it.disable_recursion_pending();
+                // fmt::print("Ignoring {}\n", path.c_str());
+                /*
+                 * PIPE these "Ignoring..." messages to a file, e.g., /tmp/ignored.txt
+                 * and you can check if that's correct using `git check-ignore` like so:
+                 * xargs -a /tmp/ignored.txt -I {} sh -c 'git check-ignore -q "{}" && echo "CORRECT {} is ignored by git" || echo "{}"' 
+                 */
             }
         }
-    }
-
-    if (index > 0)
-    {
-        queue.enqueue_bulk(ptok, paths_to_enqueue.begin(), index);
-        num_files_enqueued += index;
     }
 }
 
