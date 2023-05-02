@@ -330,12 +330,18 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
 
       if (last_newline && bytes_read > search_size && bytes_read == CHUNK_SIZE) /* Not the last chunk */ {
 
-        // Backtrack "remainder" number of characters
-        off_t pos = lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
-        if (pos == -1) {
-            perror("lseek");
-            close(fd);
-            return 1;
+        if ((last_newline - buffer) == bytes_read - 1) {
+          // Chunk ends exactly at the newline
+          // Do nothing
+
+          // TODO
+          // There are probably other conditions too where lseek can be avoided
+          // Research this
+        }
+        else
+        {
+          // Backtrack "remainder" number of characters
+          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
         }
       }
   }
