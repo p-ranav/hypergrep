@@ -192,14 +192,14 @@ std::size_t count_newlines(const char *start, const char *end) {
 
 struct file_context {
   std::atomic<size_t> &number_of_matches;
-  std::vector<std::pair<unsigned long long, unsigned long long>> &matches;
+  std::set<std::pair<unsigned long long, unsigned long long>> &matches;
 };
 
 static int on_match(unsigned int id, unsigned long long from,
                     unsigned long long to, unsigned int flags, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
-  fctx->matches.push_back(std::make_pair(from, to));
+  fctx->matches.insert(std::make_pair(from, to));
 
   if (option_print_only_filenames) {
     return HS_SCAN_TERMINATED;
@@ -307,7 +307,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer,
       search_size = last_newline - buffer;
     }
 
-    std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
+    std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
     file_context ctx{number_of_matches, matches};
 
