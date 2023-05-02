@@ -183,14 +183,6 @@ bool option_ignore_case{false};
 bool option_print_only_filenames{false};
 bool option_no_ignore{false};
 
-std::size_t count_newlines(const char *start, const char *end) {
-  if (end > start) {
-    return std::count(start, end, '\n');
-  } else {
-    return 0;
-  }
-}
-
 struct file_context {
   std::atomic<size_t> &number_of_matches;
   std::set<std::pair<unsigned long long, unsigned long long>> &matches;
@@ -259,7 +251,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   }
 }
 
-bool process_file(std::string &&filename, std::size_t i, char *buffer) {
+bool process_file(std::string &&filename, std::size_t i, char *buffer, std::string& lines) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -274,7 +266,6 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
   std::size_t bytes_read = 0;
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
-  std::string lines{""};
 
   // Read the file in chunks and perform search
   bool first{true};
@@ -362,6 +353,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer) {
     }
   }
 
+  lines.clear();
   return result;
 }
 
@@ -405,14 +397,14 @@ void visit(const std::filesystem::path &path) {
   }
 }
 
-static inline bool visit_one(const std::size_t i, char *buffer) {
+static inline bool visit_one(const std::size_t i, char *buffer, std::string& lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
       queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
-      process_file(std::move(entries[j]), i, buffer);
+      process_file(std::move(entries[j]), i, buffer, lines);
     }
     num_files_dequeued += count;
     return true;
@@ -523,7 +515,8 @@ int main(int argc, char **argv) {
 
     std::string path_string(path);
     char buffer[FILE_CHUNK_SIZE];
-    process_file(std::move(path_string), 0, buffer);
+    std::string lines{};
+    process_file(std::move(path_string), 0, buffer, lines);
   } else {
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
@@ -554,9 +547,10 @@ int main(int argc, char **argv) {
 
       consumer_threads[i] = std::thread([i = i]() {
         char buffer[FILE_CHUNK_SIZE];
+        std::string lines{};
         while (true) {
           if (num_files_enqueued > 0) {
-            visit_one(i, buffer);
+            visit_one(i, buffer, lines);
             if (!running && num_files_dequeued == num_files_enqueued) {
               break;
             }
