@@ -46,6 +46,7 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
 bool option_print_only_filenames{false};
+bool option_count_matching_lines{false};
 
 bool option_filter_files{false};
 std::string option_filter_file_pattern{};
@@ -188,6 +189,8 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
 
+  std::size_t num_matching_lines{0};
+
   // Read the file in chunks and perform search
   bool first{true};
   while ((bytes_read = read(fd, buffer, FILE_CHUNK_SIZE)) > 0) {
@@ -238,6 +241,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
     if (ctx.number_of_matches > 0) {
       process_matches(filename.data(), buffer, search_size, ctx,
 		      current_line_number, lines);
+      num_matching_lines += ctx.number_of_matches;
     }
 
     if (last_newline && bytes_read > search_size && bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
@@ -263,18 +267,27 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
   close(fd);
 
-  if (result && option_print_only_filenames) {
+  if (result && option_count_matching_lines) {
     if (is_stdout) {
-      fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+      fmt::print("{}:{}\n", fmt::format(fg(fmt::color::steel_blue), "{}", filename), num_matching_lines);
     } else {
-      fmt::print("{}\n", filename);
+      fmt::print("{}:{}\n", filename, num_matching_lines);
     }
-  } else if (result && !lines.empty()) {
-    if (is_stdout) {
-      lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
-      fmt::print("{}", lines);
-    } else {
-      fmt::print("{}", lines);
+  }
+  else {
+    if (result && option_print_only_filenames) {
+      if (is_stdout) {
+	fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+      } else {
+	fmt::print("{}\n", filename);
+      }
+    } else if (result && !lines.empty()) {
+      if (is_stdout) {
+	lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+	fmt::print("{}", lines);
+      } else {
+	fmt::print("{}", lines);
+      }
     }
   }
 
@@ -428,6 +441,11 @@ int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
 
+  program.add_argument("-c", "--count")
+    .help("This flag suppresses normal output and shows the number of lines that match the given patterns for each file searched.")
+    .default_value(false)
+    .implicit_value(true);
+
   program.add_argument("-n", "--line-number")
     .help("Show line numbers (1-based). This is enabled by default when searching in a terminal.")
     .default_value(false)
@@ -478,6 +496,7 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  option_count_matching_lines = program.get<bool>("-c");
   auto N = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
