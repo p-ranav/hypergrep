@@ -211,11 +211,15 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   close(fd);
 
   if (result && option_print_only_filenames) {
-    fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+    if (is_stdout) {
+      fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+    } else {
+      fmt::print("{}\n", filename);
+    }
   } else if (result && !lines.empty()) {
     if (is_stdout) {
-      fmt::print(fg(fmt::color::steel_blue), "\n{}", filename);
-      fmt::print("\n{}", lines);
+      lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+      fmt::print("{}", lines);
     } else {
       fmt::print("{}", lines);
     }
@@ -225,14 +229,14 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   return result;
 }
 
-void visit_git_index(const char* dir, git_index* index) {
+void visit_git_index(const std::filesystem::path& dir, git_index* index) {
   std::size_t n{0};
   while (true) {
     auto entry = git_index_get_byindex(index, n++);
     if (!entry) {
       break;
     }
-    const auto path = std::filesystem::path(dir) / entry->path;
+    const auto path = dir / entry->path;
     queue.enqueue(ptok, path.string());
     ++num_files_enqueued;    
   }
@@ -276,6 +280,31 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string& lin
   }
 
   return false;
+}
+
+void search_submodules(const char* dir, git_repository* this_repo) {
+  git_submodule_foreach(this_repo, [](git_submodule* sm, const char* name, void* payload) -> int {
+
+    const char* dir = (const char*)(payload);
+    auto path = std::filesystem::path(dir);
+    
+    git_repository* sm_repo = nullptr;
+    if (git_submodule_open(&sm_repo, sm) == 0) {
+      // Open the submodule repo
+      git_index* sm_repo_index = nullptr;
+      
+      if (git_repository_index(&sm_repo_index, sm_repo) == 0) {
+	// Index loaded, search it
+
+	auto submodule_path = path / name;	
+	visit_git_index(submodule_path, sm_repo_index);
+
+	// Search the submodules inside this submodule
+	search_submodules(submodule_path.c_str(), sm_repo); 
+      }         
+    }	  
+    return 0;
+  }, (void*)dir);
 }
 
 int main(int argc, char **argv) {
@@ -414,24 +443,10 @@ int main(int argc, char **argv) {
 
     if (is_git_repo && is_git_index_loaded) {
       // Traverse the git index and search
-      visit_git_index("", repo_index);
+      visit_git_index(path, repo_index);
 
       // Search submodules
-      if (git_submodule_foreach(repo, [](git_submodule* sm, const char* name, void* payload) -> int {
-	git_repository* sm_repo = nullptr;
-	if (git_submodule_open(&sm_repo, sm) == 0) {
-	  // Open the submodule repo
-	  git_index* sm_repo_index = nullptr;
-	  
-	  if (git_repository_index(&sm_repo_index, sm_repo) == 0) {
-	    // Index loaded, search it
-	    visit_git_index(name, sm_repo_index);
-	  }
-	}	  
-	return 0;
-      }, nullptr) != 0) {
-	fmt::print("Error: failed to search submodules\n");
-      }
+      search_submodules(path, repo);
     } else {
       visit(path);
     }
