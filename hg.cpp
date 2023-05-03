@@ -32,8 +32,6 @@ moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
 
 bool is_stdout{true};
-bool is_git_repo{false};
-bool is_git_index_loaded{false};
 
 std::atomic<bool> running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
@@ -229,6 +227,23 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   return result;
 }
 
+bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo = nullptr);
+
+void search_submodules(const char* dir, git_repository* this_repo) {
+  git_submodule_foreach(this_repo, [](git_submodule* sm, const char* name, void* payload) -> int {
+
+    const char* dir = (const char*)(payload);
+    auto path = std::filesystem::path(dir);
+    
+    git_repository* sm_repo = nullptr;
+    if (git_submodule_open(&sm_repo, sm) == 0) {
+      auto submodule_path = path / name;      
+      visit_git_repo(submodule_path, sm_repo);
+    }	  
+    return 0;
+  }, (void*)dir);
+}
+
 void visit_git_index(const std::filesystem::path& dir, git_index* index) {
   std::size_t n{0};
   while (true) {
@@ -240,6 +255,32 @@ void visit_git_index(const std::filesystem::path& dir, git_index* index) {
     queue.enqueue(ptok, path.string());
     ++num_files_enqueued;    
   }
+}
+
+bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo) {
+  
+  if (!repo) {
+    // Open the repository
+    if (git_repository_open(&repo, dir.c_str()) != 0) {
+      return false;
+    }
+  }
+
+  // Load the git index for this repository
+  git_index* index = nullptr;  
+  if (git_repository_index(&index, repo) != 0) {
+    return false;    
+  }
+
+  // Visit each entry in the index
+  visit_git_index(dir, index);
+
+  // Search the submodules inside this submodule
+  search_submodules(dir.c_str(), repo);
+
+  git_index_free(index);
+  git_repository_free(repo);
+  return true;
 }
 
 void visit(const std::filesystem::path &path) {
@@ -280,31 +321,6 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string& lin
   }
 
   return false;
-}
-
-void search_submodules(const char* dir, git_repository* this_repo) {
-  git_submodule_foreach(this_repo, [](git_submodule* sm, const char* name, void* payload) -> int {
-
-    const char* dir = (const char*)(payload);
-    auto path = std::filesystem::path(dir);
-    
-    git_repository* sm_repo = nullptr;
-    if (git_submodule_open(&sm_repo, sm) == 0) {
-      // Open the submodule repo
-      git_index* sm_repo_index = nullptr;
-      
-      if (git_repository_index(&sm_repo_index, sm_repo) == 0) {
-	// Index loaded, search it
-
-	auto submodule_path = path / name;	
-	visit_git_index(submodule_path, sm_repo_index);
-
-	// Search the submodules inside this submodule
-	search_submodules(submodule_path.c_str(), sm_repo); 
-      }         
-    }	  
-    return 0;
-  }, (void*)dir);
 }
 
 int main(int argc, char **argv) {
@@ -381,24 +397,8 @@ int main(int argc, char **argv) {
     process_file(std::move(path_string), 0, buffer, lines);
   } else {
 
-    if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
-      // There is a .git folder
-
-      // Initialize libgit2
-      git_libgit2_init();
-
-      // Open the repository
-      if (git_repository_open(&repo, path) == 0) {
-	is_git_repo = true;
-      }
-
-      // Load up the git index for this repository
-      if (is_git_repo) {
-	if (git_repository_index(&repo_index, repo) == 0) {
-	  is_git_index_loaded = true;
-	}
-      }
-    }
+    // Initialize libgit2
+    git_libgit2_init();
     
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
@@ -441,13 +441,9 @@ int main(int argc, char **argv) {
       });
     }
 
-    if (is_git_repo && is_git_index_loaded) {
-      // Traverse the git index and search
-      visit_git_index(path, repo_index);
-
-      // Search submodules
-      search_submodules(path, repo);
-    } else {
+    // Try to visit as a git repo
+    // If it fails, visit normally
+    if (!visit_git_repo(path)) {
       visit(path);
     }
 
