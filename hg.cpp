@@ -474,9 +474,11 @@ int main(int argc, char **argv) {
   program.add_argument("-f", "--filter")
     .help("Filter files based on a pattern");
 
+  const auto max_concurrency = std::thread::hardware_concurrency();
+  const auto default_num_threads = max_concurrency > 1 ? max_concurrency - 1 : 1;
   program.add_argument("-j", "--threads")
     .help("The approximate number of threads to use")
-    .default_value(std::thread::hardware_concurrency())
+    .default_value(default_num_threads)
     .scan<'d', unsigned>();
 
   program.add_argument("pattern")
@@ -493,7 +495,7 @@ int main(int argc, char **argv) {
   catch (const std::runtime_error& err) {
     std::cerr << err.what() << std::endl;
     std::cerr << program;
-    return 1;
+     return 1;
   }
 
   option_count_matching_lines = program.get<bool>("-c");
