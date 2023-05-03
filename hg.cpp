@@ -14,9 +14,6 @@
 #include <unistd.h>
 #include <git2.h>
 
-git_repository* repo = nullptr;
-git_index* repo_index = nullptr; 
-
 inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"
                                                 "ELF";
@@ -238,7 +235,7 @@ void search_submodules(const char* dir, git_repository* this_repo) {
     git_repository* sm_repo = nullptr;
     if (git_submodule_open(&sm_repo, sm) == 0) {
       auto submodule_path = path / name;      
-      visit_git_repo(submodule_path, sm_repo);
+      visit_git_repo(std::move(submodule_path), sm_repo);
     }	  
     return 0;
   }, (void*)dir);
@@ -301,6 +298,13 @@ void visit(const std::filesystem::path &path) {
     } else if (it->is_directory()) {
       if (filename_cstr[0] == '.' || it->is_symlink()) {        
         // Stop processing this directory and its contents
+        it.disable_recursion_pending();
+      }
+      else if (std::filesystem::exists(path / ".git")) {
+	// Search this path as a git repo
+	visit_git_repo(path, nullptr);
+
+	// Stop processing this directory and its contents
         it.disable_recursion_pending();
       }
     }
@@ -398,7 +402,9 @@ int main(int argc, char **argv) {
   } else {
 
     // Initialize libgit2
-    git_libgit2_init();
+    auto libgit2_init_thread = std::thread([]() {      
+      git_libgit2_init();
+    });
     
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
@@ -440,6 +446,8 @@ int main(int argc, char **argv) {
         }
       });
     }
+
+    libgit2_init_thread.join();
 
     // Try to visit as a git repo
     // If it fails, visit normally
