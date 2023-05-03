@@ -454,8 +454,12 @@ int main(int argc, char **argv) {
     .implicit_value(true);
 
   program.add_argument("-f", "--filter")
-    .help("Filter files based on a pattern")
-    .required();
+    .help("Filter files based on a pattern");
+
+  program.add_argument("-j", "--threads")
+    .help("The approximate number of threads to use")
+    .default_value(std::thread::hardware_concurrency())
+    .scan<'d', unsigned>();
 
   program.add_argument("pattern")
     .required()    
@@ -474,12 +478,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  auto N = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
   option_ignore_case = program.get<bool>("-i");
   option_print_only_filenames = program.get<bool>("-l");
-  option_filter_file_pattern = program.get<std::string>("-f");
-  if (!option_filter_file_pattern.empty()) {
+  if (program.is_used("-f")) {
+    option_filter_file_pattern = program.get<std::string>("-f");
     option_filter_files = true;
     if (!construct_file_filtering_hs_database()) {
       throw std::runtime_error("Error compiling pattern " + option_filter_file_pattern);
@@ -554,7 +559,6 @@ int main(int argc, char **argv) {
     // Initialize libgit2
     git_libgit2_init();
     
-    const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
 
     thread_local_scratch.reserve(N);
