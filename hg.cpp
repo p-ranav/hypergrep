@@ -12,146 +12,10 @@
 #include <thread>
 #include <vector>
 #include <unistd.h>
+#include <git2.h>
 
-hs_database_t *ignore_database = NULL;
-hs_scratch_t *ignore_scratch = NULL;
-
-// Converts a glob expression to a HyperScan pattern
-std::string convert_to_hyper_scan_pattern(std::string &&glob) {
-  if (glob.empty()) {
-    return "";
-  } else if (glob == ".*") {
-    return "^/\\..*$";
-  } else if (glob.find("*") == std::string::npos) {
-    if (glob.find("/") == std::string::npos) {
-      return glob;
-    }
-  }
-
-  std::string pattern = "";
-
-  for (auto it = glob.begin(); it != glob.end(); ++it) {
-    switch (*it) {
-    case '*':
-      pattern += ".*";
-      if (it + 1 != glob.end()) {
-	if (*(it + 1) == '*') {
-	  // ** pattern
-	  // Ignore this second *
-	  ++it;
-	}
-      }
-      break;
-    case '?':
-      pattern += ".";
-      break;
-    case '.':
-      pattern += "\\.";
-      break;
-    case '$':
-      pattern += "\\$";
-      break;
-    case '[': {
-      ++it;
-      pattern += "[";
-      while (*it != ']') {
-        if (*it == '\\') {
-          pattern += "\\\\";
-        } else if (*it == '-') {
-          pattern += "\\-";
-        } else {
-          pattern += *it;
-        }
-        ++it;
-      }
-      pattern += "]";
-    } break;
-    case '\\': {
-      ++it;
-      if (it == glob.end()) {
-        pattern += "\\\\";
-        break;
-      }
-      switch (*it) {
-      case '*':
-      case '?':
-      case '.':
-      case '[':
-      case '\\':
-        pattern += "\\";
-      default:
-        pattern += *it;
-        break;
-      }
-    } break;
-    default:
-      pattern += *it;
-      break;
-    }
-  }
-
-  if (glob.back() != '/') {
-    pattern += "$";
-  }
-
-  return pattern;
-}
-
-std::string
-parse_gitignore_file(const std::filesystem::path &gitignore_file_path) {
-  std::ifstream gitignore_file(gitignore_file_path,
-                               std::ios::in | std::ios::binary);
-
-  if (!gitignore_file.is_open()) {
-    fmt::print("Error: Failed to open .gitignore file\n");
-    return {};
-  }
-
-  std::string result{};
-  std::string line{};
-
-  while (std::getline(gitignore_file, line)) {
-    if (line.empty() || line[0] == '#' || line[0] == '!') {
-      continue;
-    }
-
-    if (!result.empty()) {
-      result += "|";
-    }
-    result += convert_to_hyper_scan_pattern(std::move(line));
-  }
-
-  return result;
-}
-
-struct ScanContext {
-  bool matched;
-};
-
-hs_error_t on_ignore_match(unsigned int id, unsigned long long from,
-                           unsigned long long to, unsigned int flags,
-                           void *context) {
-  ScanContext *scanCtx = static_cast<ScanContext *>(context);
-  scanCtx->matched = true;
-  return HS_SUCCESS;
-}
-
-bool is_ignored(const std::string &path) {
-  std::string_view path_view = path;
-  if (path.size() > 2 && path[0] == '.' && path[1] == '/') {
-    path_view = path_view.substr(1);
-  }
-
-  ScanContext ctx{false};
-  // Scan the input string for matches
-  if (hs_scan(ignore_database, path_view.data(), path_view.size(), 0,
-              ignore_scratch, &on_ignore_match, &ctx) != HS_SUCCESS) {
-    return false;
-  }
-
-  // Return true if a match was found
-  return ctx.matched;
-}
+git_repository* repo = nullptr;
+git_index* repo_index = nullptr; 
 
 inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"
@@ -168,6 +32,8 @@ moodycamel::ConcurrentQueue<std::string> queue;
 moodycamel::ProducerToken ptok(queue);
 
 bool is_stdout{true};
+bool is_git_repo{false};
+bool is_git_index_loaded{false};
 
 std::atomic<bool> running{true};
 std::atomic<std::size_t> num_files_enqueued{0};
@@ -184,7 +50,6 @@ std::vector<hs_scratch *> thread_local_scratch_per_line;
 bool option_show_line_numbers{false};
 bool option_ignore_case{false};
 bool option_print_only_filenames{false};
-bool option_no_ignore{false};
 
 struct file_context {
   std::atomic<size_t> &number_of_matches;
@@ -360,6 +225,19 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   return result;
 }
 
+void visit_git_index(const char* dir, git_index* index) {
+  std::size_t n{0};
+  while (true) {
+    auto entry = git_index_get_byindex(index, n++);
+    if (!entry) {
+      break;
+    }
+    const auto path = std::filesystem::path(dir) / entry->path;
+    queue.enqueue(ptok, path.string());
+    ++num_files_enqueued;    
+  }
+}
+
 void visit(const std::filesystem::path &path) {
   for (auto it = std::filesystem::recursive_directory_iterator(
            path, std::filesystem::directory_options::skip_permission_denied);
@@ -373,73 +251,12 @@ void visit(const std::filesystem::path &path) {
       if (filename_cstr[0] == '.')
         continue;
 
-      if (option_no_ignore ||
-          (!option_no_ignore && !is_ignored(path.native()))) {
-        queue.enqueue(ptok, path.native());
-        ++num_files_enqueued;
-      }
-      // else
-      // {
-      //   fmt::print("Ignoring {}\n", path.c_str());
-      // }
-    } else if (it->is_directory() && !it->is_symlink()) {
-      // path_with_slash = path.native() + "/";
-      if (filename_cstr[0] == '.' || (!option_no_ignore && is_ignored(path.native()))) {        
+      queue.enqueue(ptok, path.native());
+      ++num_files_enqueued;
+    } else if (it->is_directory()) {
+      if (filename_cstr[0] == '.' || it->is_symlink()) {        
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
-        // fmt::print("Ignoring {}\n", path.c_str());
-        /*
-         * PIPE these "Ignoring..." messages to a file, e.g., /tmp/ignored.txt
-         * and you can check if that's correct using `git check-ignore` like so:
-         * xargs -a /tmp/ignored.txt -I {} sh -c 'git check-ignore -q "{}" &&
-         * echo "CORRECT {} is ignored by git" || echo "{}"'
-         */
-      }
-      else
-      {
-        // Check if this directory contains a .gitignore file
-        if (std::filesystem::exists(path / ".gitignore"))
-        {
-          // Found it
-          auto pattern = parse_gitignore_file(path / ".gitignore");
-
-
-          // {
-          //   hs_database_t * nested_database = nullptr;
-          //   hs_scratch_t * nested_scratch = nullptr;
-
-          //   // Git Ignore HS Database Init
-          //   hs_compile_error_t *ignore_hs_compile_error = nullptr;
-
-          //   if (!pattern.empty()) {
-          //     // Compile the pattern expression into a Hyperscan database
-          //     if (hs_compile(pattern.data(), HS_FLAG_UTF8, HS_MODE_BLOCK, nullptr,
-          //                   &nested_database,
-          //                   &ignore_hs_compile_error) != HS_SUCCESS) {
-          //       fmt::print("Error: Failed to compile pattern expression - {}\n",
-          //                 ignore_hs_compile_error->message);
-          //       hs_free_compile_error(ignore_hs_compile_error);
-          //     }
-
-          //     hs_error_t database_error =
-          //         hs_alloc_scratch(nested_database, &nested_scratch);
-          //     if (database_error != HS_SUCCESS) {
-          //       fprintf(stderr, "Error allocating scratch space\n");
-          //       hs_free_database(nested_database);
-          //     }
-          //   } else {
-          //     option_no_ignore = false;
-          //   }
-          // }
-
-
-
-
-
-
-
-
-        }
       }
     }
   }
@@ -474,9 +291,6 @@ int main(int argc, char **argv) {
     case 'l':
       option_print_only_filenames = true;
       break;
-    case 'I':
-      option_no_ignore = true;
-      break;
     default:
       fprintf(stderr, "Usage: %s [-n] [-i] [-l] [-I] pattern [filename]\n",
               argv[0]);
@@ -489,71 +303,6 @@ int main(int argc, char **argv) {
   if (optind + 1 < argc) {
     path = argv[optind + 1];
   }
-
-  if (!option_no_ignore) {
-    // Git Ignore HS Database Init
-    hs_compile_error_t *ignore_hs_compile_error = nullptr;
-
-    // Recursively iterate directory and find all gitignore files
-    // Read each one and build a pattern string
-    // Compile pattern string into database
-    // Perform ignore checking with this singular pattern string
-    // Maybe it'll be too long? We'll have to see
-    std::vector<std::string> multipattern{};
-    std::vector<unsigned int> flags{};
-    for (const auto& entry: std::filesystem::recursive_directory_iterator(".", std::filesystem::directory_options::skip_permission_denied))
-    {
-      if (entry.path().filename().native() == ".gitignore")
-      {
-        auto pattern = entry.path().parent_path().string() + "/(" + parse_gitignore_file(entry.path()) + ")";
-        fmt::print("\n{}\n", pattern);
-
-	hs_compile_error_t *compile_error = NULL;
-	hs_error_t error_code =
-	  hs_compile(pattern.data(),
-		     (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                     HS_FLAG_SOM_LEFTMOST,
-		     HS_MODE_BLOCK, NULL, &database, &compile_error);
-	if (error_code != HS_SUCCESS) {
-	  fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
-	  hs_free_compile_error(compile_error);
-	  return 1;
-	}	
-
-        multipattern.push_back(pattern);
-        flags.push_back(HS_FLAG_UTF8);
-      }
-    }
-
-    std::vector<const char*> multipattern_cstr{};
-    std::transform(multipattern.begin(), multipattern.end(), std::back_inserter(multipattern_cstr), [](const std::string& str) {
-        return str.c_str();
-    });
-
-    if (!multipattern_cstr.empty())
-    {
-      if (hs_compile_multi(multipattern_cstr.data(), flags.data(), nullptr, multipattern_cstr.size(), HS_MODE_BLOCK, nullptr,
-                      &ignore_database,
-                      &ignore_hs_compile_error) != HS_SUCCESS) {
-          fmt::print("Error: Failed to compile pattern expression - {}\n",
-                    ignore_hs_compile_error->message);
-          hs_free_compile_error(ignore_hs_compile_error);
-          return false;
-      }
-
-      hs_error_t database_error =
-          hs_alloc_scratch(ignore_database, &ignore_scratch);
-      if (database_error != HS_SUCCESS) {
-        fprintf(stderr, "Error allocating scratch space\n");
-        hs_free_database(ignore_database);
-        return false;
-      }
-    } else {
-      option_no_ignore = false;
-    }
-  }
-
-  exit(0);
 
   is_stdout = isatty(STDOUT_FILENO) == 1;
 
@@ -602,6 +351,26 @@ int main(int argc, char **argv) {
     std::string lines{};
     process_file(std::move(path_string), 0, buffer, lines);
   } else {
+
+    if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
+      // There is a .git folder
+
+      // Initialize libgit2
+      git_libgit2_init();
+
+      // Open the repository
+      if (git_repository_open(&repo, path) == 0) {
+	is_git_repo = true;
+      }
+
+      // Load up the git index for this repository
+      if (is_git_repo) {
+	if (git_repository_index(&repo_index, repo) == 0) {
+	  is_git_index_loaded = true;
+	}
+      }
+    }
+    
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
 
@@ -643,7 +412,30 @@ int main(int argc, char **argv) {
       });
     }
 
-    visit(path);
+    if (is_git_repo && is_git_index_loaded) {
+      // Traverse the git index and search
+      visit_git_index("", repo_index);
+
+      // Search submodules
+      if (git_submodule_foreach(repo, [](git_submodule* sm, const char* name, void* payload) -> int {
+	git_repository* sm_repo = nullptr;
+	if (git_submodule_open(&sm_repo, sm) == 0) {
+	  // Open the submodule repo
+	  git_index* sm_repo_index = nullptr;
+	  
+	  if (git_repository_index(&sm_repo_index, sm_repo) == 0) {
+	    // Index loaded, search it
+	    visit_git_index(name, sm_repo_index);
+	  }
+	}	  
+	return 0;
+      }, nullptr) != 0) {
+	fmt::print("Error: failed to search submodules\n");
+      }
+    } else {
+      visit(path);
+    }
+
     running = false;
 
     for (std::size_t i = 0; i < N; ++i) {
