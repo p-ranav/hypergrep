@@ -439,7 +439,7 @@ int main(int argc, char **argv) {
     .implicit_value(true);
 
   program.add_argument("-i", "--ignore-case")
-    .help("ignore case")
+    .help("When this flag is provided, the given patterns will be searched case insensitively.")
     .default_value(false)
     .implicit_value(true);    
 
