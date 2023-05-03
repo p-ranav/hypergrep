@@ -427,17 +427,23 @@ bool construct_file_filtering_hs_database() {
 int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
-  program.add_argument("-n")
-    .help("print line numbers")
+
+  program.add_argument("-n", "--line-number")
+    .help("Show line numbers (1-based). This is enabled by default when searching in a terminal.")
     .default_value(false)
     .implicit_value(true);
 
-  program.add_argument("-i")
+  program.add_argument("-N", "--no-line-number")
+    .help("Suppress line numbers. This is enabled by default when not searching in a terminal.")
+    .default_value(false)
+    .implicit_value(true);
+
+  program.add_argument("-i", "--ignore-case")
     .help("ignore case")
     .default_value(false)
     .implicit_value(true);    
 
-  program.add_argument("-l")
+  program.add_argument("-l", "--files-with-matches")
     .help("print only filenames")
     .default_value(false)
     .implicit_value(true);
@@ -449,7 +455,6 @@ int main(int argc, char **argv) {
 
   program.add_argument("-f", "--filter")
     .help("Filter files based on a pattern")
-    .default_value(std::string{""})
     .required();
 
   program.add_argument("pattern")
@@ -469,7 +474,8 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  option_show_line_numbers = program.get<bool>("-n");
+  auto show_line_number = program.get<bool>("-n");
+  auto hide_line_number = program.get<bool>("-N");
   option_ignore_case = program.get<bool>("-i");
   option_print_only_filenames = program.get<bool>("-l");
   option_filter_file_pattern = program.get<std::string>("-f");
@@ -488,6 +494,17 @@ int main(int argc, char **argv) {
   }
 
   is_stdout = isatty(STDOUT_FILENO) == 1;
+
+  if (is_stdout) {
+    // By default show line numbers
+    // unless -N is used
+    option_show_line_numbers = (!hide_line_number);
+  }
+  else {
+    // By default hide line numbers
+    // unless -n is used
+    option_show_line_numbers = show_line_number;
+  }
 
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code =
