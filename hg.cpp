@@ -226,8 +226,8 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
 bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo = nullptr);
 
-void search_submodules(const char* dir, git_repository* this_repo) {
-  git_submodule_foreach(this_repo, [](git_submodule* sm, const char* name, void* payload) -> int {
+bool search_submodules(const char* dir, git_repository* this_repo) {
+  if (git_submodule_foreach(this_repo, [](git_submodule* sm, const char* name, void* payload) -> int {
 
     const char* dir = (const char*)(payload);
     auto path = std::filesystem::path(dir);
@@ -238,46 +238,62 @@ void search_submodules(const char* dir, git_repository* this_repo) {
       visit_git_repo(std::move(submodule_path), sm_repo);
     }	  
     return 0;
-  }, (void*)dir);
+  }, (void*)dir) != 0) {
+    return false;
+  } else {
+    return true;
+  }
 }
 
-void visit_git_index(const std::filesystem::path& dir, git_index* index) {
-  std::size_t n{0};
-  while (true) {
-    auto entry = git_index_get_byindex(index, n++);
-    if (!entry) {
-      break;
+bool visit_git_index(const std::filesystem::path& dir, git_index* index) {
+  git_index_iterator* iter = nullptr;
+  if (git_index_iterator_new(&iter, index) == 0) {
+
+    const git_index_entry* entry = nullptr;
+    while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
+      if (entry) {
+	const auto path = dir / entry->path;
+	queue.enqueue(ptok, path.string());
+	++num_files_enqueued;
+      }
     }
-    const auto path = dir / entry->path;
-    queue.enqueue(ptok, path.string());
-    ++num_files_enqueued;    
+    git_index_iterator_free(iter);
+    return true;
+  } else {
+    return false;
   }
 }
 
 bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo) {
+
+  bool result{true};
   
   if (!repo) {
     // Open the repository
     if (git_repository_open(&repo, dir.c_str()) != 0) {
-      return false;
+      result = false;
     }
   }
 
   // Load the git index for this repository
   git_index* index = nullptr;  
-  if (git_repository_index(&index, repo) != 0) {
-    return false;    
+  if (result && git_repository_index(&index, repo) != 0) {
+    result = false;
   }
 
   // Visit each entry in the index
-  visit_git_index(dir, index);
+  if (result && !visit_git_index(dir, index)) {
+    result = false;
+  }
 
   // Search the submodules inside this submodule
-  search_submodules(dir.c_str(), repo);
+  if (result && !search_submodules(dir.c_str(), repo)) {
+    result = false;
+  }
 
   git_index_free(index);
-  git_repository_free(repo);
-  return true;
+  git_repository_free(repo);  
+  return result;
 }
 
 void visit(const std::filesystem::path &path) {
@@ -402,9 +418,7 @@ int main(int argc, char **argv) {
   } else {
 
     // Initialize libgit2
-    auto libgit2_init_thread = std::thread([]() {      
-      git_libgit2_init();
-    });
+    git_libgit2_init();
     
     const auto N = std::thread::hardware_concurrency();
     std::vector<std::thread> consumer_threads(N);
@@ -446,8 +460,6 @@ int main(int argc, char **argv) {
         }
       });
     }
-
-    libgit2_init_thread.join();
 
     // Try to visit as a git repo
     // If it fails, visit normally
