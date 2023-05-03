@@ -104,10 +104,8 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from, un
   const char *line_data = fctx->data;
   auto &      lines     = fctx->lines;
   const char *start     = *(fctx->current_ptr);
-  lines += std::string(start, line_data + from - start);
-  lines += "\033[31m";
-  lines += std::string(&line_data[from], to - from);
-  lines += "\033[0m";
+  lines += fmt::format("{}", std::string_view(start, line_data + from - start));
+  lines += fmt::format(fg(fmt::color::red), "{}", std::string_view(&line_data[from], to - from));
   *(fctx->current_ptr) = line_data + to;
   return 0;
 }
@@ -160,6 +158,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
 	// some left over
 	lines += std::string(line_ptr, &buffer[start_of_line] + end_of_line - start_of_line - line_ptr);
       }
+
       lines += '\n';
     }
     else {
@@ -535,7 +534,8 @@ int main(int argc, char **argv) {
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code =
     hs_compile(pattern.c_str(),
-	       (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+	       (option_ignore_case ? HS_FLAG_CASELESS : 0) |
+	       HS_FLAG_UTF8 |
 	       HS_FLAG_SOM_LEFTMOST,
 	       HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
