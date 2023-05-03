@@ -47,6 +47,30 @@ bool option_show_line_numbers{false};
 bool option_ignore_case{false};
 bool option_print_only_filenames{false};
 
+bool option_filter_files{false};
+std::string option_filter_file_pattern{};
+hs_database_t *file_filter_database = NULL;
+hs_scratch_t *file_filter_scratch = NULL;
+
+struct filter_context {
+  bool result{false};
+};
+
+static int on_file_filter_match(unsigned int id, unsigned long long from,
+				unsigned long long to, unsigned int flags, void *ctx) {
+  filter_context* fctx = (filter_context*)(ctx);
+  fctx->result = true;
+  return HS_SUCCESS;
+}
+
+bool filter_file(const char* path) {
+  filter_context ctx{false};
+  if (hs_scan(file_filter_database, path, strlen(path), 0, file_filter_scratch, on_file_filter_match, (void*)(&ctx)) != HS_SUCCESS) {
+    return true;
+  }
+  return ctx.result;
+}
+
 struct file_context {
   std::atomic<size_t> &number_of_matches;
   std::set<std::pair<unsigned long long, unsigned long long>> &matches;
@@ -285,7 +309,7 @@ bool visit_git_index(const std::filesystem::path& dir, git_index* index) {
 
     const git_index_entry* entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
-      if (entry) {
+      if (entry && (!option_filter_files || (option_filter_files && filter_file(entry->path)))) {
 	const auto path = dir / entry->path;
 	queue.enqueue(ptok, path.string());
 	++num_files_enqueued;
@@ -343,8 +367,10 @@ void visit(const std::filesystem::path &path) {
       if (filename_cstr[0] == '.')
         continue;
 
-      queue.enqueue(ptok, path.native());
-      ++num_files_enqueued;
+      if (!option_filter_files || (option_filter_files && filter_file(path.c_str()))) {
+	queue.enqueue(ptok, path.native());
+	++num_files_enqueued;
+      }
     } else if (it->is_directory()) {
       if (filename_cstr[0] == '.' || it->is_symlink()) {        
         // Stop processing this directory and its contents
@@ -377,6 +403,27 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string& lin
   return false;
 }
 
+bool construct_file_filtering_hs_database() {
+  hs_compile_error_t *compile_error = NULL;
+  hs_error_t error_code =
+    hs_compile(option_filter_file_pattern.c_str(),
+	       HS_FLAG_UTF8, HS_MODE_BLOCK, NULL, &file_filter_database, &compile_error);
+  if (error_code != HS_SUCCESS) {
+    fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
+    hs_free_compile_error(compile_error);
+    return false;
+  }
+
+  hs_error_t database_error = hs_alloc_scratch(file_filter_database, &file_filter_scratch);
+  if (database_error != HS_SUCCESS) {
+    fprintf(stderr, "Error allocating scratch space\n");
+    hs_free_database(file_filter_database);
+    return false;
+  }
+
+  return true;
+}  
+
 int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
@@ -398,7 +445,12 @@ int main(int argc, char **argv) {
   program.add_argument("-w", "--word-regexp")
     .help("Only show matches surrounded by word boundaries. This is equivalent to putting \b before and after all of the search patterns.")
     .default_value(false)
-    .implicit_value(true);    
+    .implicit_value(true);
+
+  program.add_argument("-f", "--filter")
+    .help("Filter files based on a pattern")
+    .default_value(std::string{""})
+    .required();
 
   program.add_argument("pattern")
     .required()    
@@ -420,6 +472,13 @@ int main(int argc, char **argv) {
   option_show_line_numbers = program.get<bool>("-n");
   option_ignore_case = program.get<bool>("-i");
   option_print_only_filenames = program.get<bool>("-l");
+  option_filter_file_pattern = program.get<std::string>("-f");
+  if (!option_filter_file_pattern.empty()) {
+    option_filter_files = true;
+    if (!construct_file_filtering_hs_database()) {
+      throw std::runtime_error("Error compiling pattern " + option_filter_file_pattern);
+    }
+  }
   auto pattern = program.get<std::string>("pattern");
   auto path = program.get<std::string>("path");
 
