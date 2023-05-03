@@ -16,7 +16,7 @@
 
 inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"
-                                                "ELF";
+    "ELF";
   return (strncmp(buffer, elf_magic.data(), elf_magic.size()) == 0);
 }
 
@@ -49,6 +49,7 @@ bool option_print_only_filenames{false};
 struct file_context {
   std::atomic<size_t> &number_of_matches;
   std::set<std::pair<unsigned long long, unsigned long long>> &matches;
+  hs_scratch * local_scratch;  
 };
 
 static int on_match(unsigned int id, unsigned long long from,
@@ -62,6 +63,27 @@ static int on_match(unsigned int id, unsigned long long from,
   } else {
     return HS_SUCCESS;
   }
+}
+
+struct line_context
+{
+  const char * data;
+  std::string &lines;
+  const char **current_ptr;
+};
+
+static int print_match_in_red_color(unsigned int id, unsigned long long from, unsigned long long to, unsigned int flags, void *ctx)
+{
+  auto *      fctx      = (line_context *)(ctx);
+  const char *line_data = fctx->data;
+  auto &      lines     = fctx->lines;
+  const char *start     = *(fctx->current_ptr);
+  lines += std::string(start, line_data + from - start);
+  lines += "\033[31m";
+  lines += std::string(&line_data[from], to - from);
+  lines += "\033[0m";
+  *(fctx->current_ptr) = line_data + to;
+  return 0;
 }
 
 void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
@@ -96,19 +118,30 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
     }
 
     std::string_view line(start + start_of_line, end_of_line - start_of_line);
-
     if (is_stdout) {
       if (option_show_line_numbers) {
-        lines += fmt::format(fg(fmt::color::green), "{}", current_line_number);
-        lines += fmt::format(":{}\n", line);
-      } else {
-        lines += fmt::format("{}\n", line);
+	lines += fmt::format(fg(fmt::color::green), "{}:", current_line_number);
       }
-    } else {
+
+      const char *line_ptr = line.data();
+
+      line_context nested_ctx{line_ptr, lines, &line_ptr};
+      if (hs_scan(database, &buffer[start_of_line], end_of_line - start_of_line, 0, ctx.local_scratch, print_match_in_red_color, &nested_ctx) != HS_SUCCESS) {
+	return;
+      }
+
+      if (line_ptr != (&buffer[start_of_line] + end_of_line - start_of_line)) {
+	// some left over
+	lines += std::string(line_ptr, &buffer[start_of_line] + end_of_line - start_of_line - line_ptr);
+      }
+      lines += '\n';
+    }
+    else {
       if (option_show_line_numbers) {
-        lines += fmt::format("{}:{}:{}\n", filename, current_line_number, line);
-      } else {
-        lines += fmt::format("{}:{}\n", filename, line);
+	lines += fmt::format("{}:{}:{}\n", filename, current_line_number, std::string_view(&buffer[start_of_line], end_of_line - start_of_line));
+      }
+      else {
+	lines += fmt::format("{}:{}\n", filename, std::string_view(&buffer[start_of_line], end_of_line - start_of_line));
       }
     }
   }
@@ -161,38 +194,38 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
 
     std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
-    file_context ctx{number_of_matches, matches};
+    file_context ctx{number_of_matches, matches, local_scratch_per_line};
 
-      if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
-                  (void *)(&ctx)) != HS_SUCCESS) {
-        if (option_print_only_filenames && ctx.number_of_matches > 0) {
-          result = true;
-        } else {
-          result = false;
-        }
-        break;
+    if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
+		(void *)(&ctx)) != HS_SUCCESS) {
+      if (option_print_only_filenames && ctx.number_of_matches > 0) {
+	result = true;
       } else {
-        if (ctx.number_of_matches > 0) {
-          result = true;
-        }
+	result = false;
       }
-
+      break;
+    } else {
       if (ctx.number_of_matches > 0) {
-        process_matches(filename.data(), buffer, search_size, ctx,
-                        current_line_number, lines);
+	result = true;
       }
+    }
 
-      if (last_newline && bytes_read > search_size && bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
+    if (ctx.number_of_matches > 0) {
+      process_matches(filename.data(), buffer, search_size, ctx,
+		      current_line_number, lines);
+    }
 
-        if ((last_newline - buffer) == bytes_read - 1) {
-          // Chunk ends exactly at the newline
-          // Do nothing
+    if (last_newline && bytes_read > search_size && bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
 
-          // TODO
-          // There are probably other conditions too where lseek can be avoided
-          // Research this
-        }
-        else
+      if ((last_newline - buffer) == bytes_read - 1) {
+	// Chunk ends exactly at the newline
+	// Do nothing
+
+	// TODO
+	// There are probably other conditions too where lseek can be avoided
+	// Research this
+      }
+      else
         {
           // Backtrack "remainder" number of characters
           // auto start = std::chrono::high_resolution_clock::now();
@@ -200,7 +233,7 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
           // auto end = std::chrono::high_resolution_clock::now();
           // fmt::print("{}us\n", (std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()));
         }
-      }
+    }
   }
 
   close(fd);
@@ -298,7 +331,7 @@ bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo) {
 
 void visit(const std::filesystem::path &path) {
   for (auto it = std::filesystem::recursive_directory_iterator(
-           path, std::filesystem::directory_options::skip_permission_denied);
+							       path, std::filesystem::directory_options::skip_permission_denied);
        it != std::filesystem::recursive_directory_iterator(); ++it) {
     const auto &path = it->path();
     const auto &filename = path.filename();
@@ -331,7 +364,7 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string& lin
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
-      queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
+    queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
       process_file(std::move(entries[j]), i, buffer, lines);
@@ -373,10 +406,10 @@ int main(int argc, char **argv) {
 
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code =
-      hs_compile(pattern,
-                 (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                     HS_FLAG_SOM_LEFTMOST,
-                 HS_MODE_BLOCK, NULL, &database, &compile_error);
+    hs_compile(pattern,
+	       (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+	       HS_FLAG_SOM_LEFTMOST,
+	       HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
     hs_free_compile_error(compile_error);
