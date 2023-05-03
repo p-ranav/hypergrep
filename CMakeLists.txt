@@ -12,8 +12,11 @@ add_compile_options(-march=native -O3)
 find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(unofficial-git2 CONFIG REQUIRED)
+find_package(argparse CONFIG REQUIRED)
+
 find_path(HYPERSCAN_INCLUDE_DIR hs/hs.h)
 find_library(HYPERSCAN_LIBRARY hs)
+
 message(STATUS ${HYPERSCAN_INCLUDE_DIR})
 message(STATUS ${HYPERSCAN_LIBRARY})
 
@@ -22,5 +25,5 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 add_executable(hg hg.cpp)
 target_compile_features(hg PUBLIC cxx_std_17)
-target_link_libraries(hg PRIVATE unofficial::concurrentqueue::concurrentqueue unofficial::git2::git2 fmt::fmt ${HYPERSCAN_LIBRARY})
+target_link_libraries(hg PRIVATE argparse::argparse unofficial::concurrentqueue::concurrentqueue unofficial::git2::git2 fmt::fmt ${HYPERSCAN_LIBRARY})
 

@@ -13,6 +13,7 @@
 #include <vector>
 #include <unistd.h>
 #include <git2.h>
+#include <argparse/argparse.hpp>
 
 inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"
@@ -377,36 +378,61 @@ static inline bool visit_one(const std::size_t i, char *buffer, std::string& lin
 }
 
 int main(int argc, char **argv) {
-  int opt;
-  while ((opt = getopt(argc, argv, "nilI")) != -1) {
-    switch (opt) {
-    case 'n':
-      option_show_line_numbers = true;
-      break;
-    case 'i':
-      option_ignore_case = true;
-      break;
-    case 'l':
-      option_print_only_filenames = true;
-      break;
-    default:
-      fprintf(stderr, "Usage: %s [-n] [-i] [-l] [-I] pattern [filename]\n",
-              argv[0]);
-      exit(EXIT_FAILURE);
-    }
+
+  argparse::ArgumentParser program("hg");
+  program.add_argument("-n")
+    .help("print line numbers")
+    .default_value(false)
+    .implicit_value(true);
+
+  program.add_argument("-i")
+    .help("ignore case")
+    .default_value(false)
+    .implicit_value(true);    
+
+  program.add_argument("-l")
+    .help("print only filenames")
+    .default_value(false)
+    .implicit_value(true);
+
+  program.add_argument("-w", "--word-regexp")
+    .help("Only show matches surrounded by word boundaries. This is equivalent to putting \b before and after all of the search patterns.")
+    .default_value(false)
+    .implicit_value(true);    
+
+  program.add_argument("pattern")
+    .required()    
+    .help("regular expression pattern");
+
+  program.add_argument("path")
+    .default_value(std::string{"."})
+    .help("path to search");
+
+  try {
+    program.parse_args(argc, argv);
+  }
+  catch (const std::runtime_error& err) {
+    std::cerr << err.what() << std::endl;
+    std::cerr << program;
+    return 1;
   }
 
-  const char *pattern = argv[optind];
-  const char *path = ".";
-  if (optind + 1 < argc) {
-    path = argv[optind + 1];
+  option_show_line_numbers = program.get<bool>("-n");
+  option_ignore_case = program.get<bool>("-i");
+  option_print_only_filenames = program.get<bool>("-l");
+  auto pattern = program.get<std::string>("pattern");
+  auto path = program.get<std::string>("path");
+
+  // Check if word boundary is requested
+  if (program.get<bool>("-w")) {
+    pattern = "\\b" + pattern + "\\b";
   }
 
   is_stdout = isatty(STDOUT_FILENO) == 1;
 
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code =
-    hs_compile(pattern,
+    hs_compile(pattern.c_str(),
 	       (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
 	       HS_FLAG_SOM_LEFTMOST,
 	       HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -444,10 +470,9 @@ int main(int argc, char **argv) {
     }
     thread_local_scratch_per_line.push_back(scratch_per_line);
 
-    std::string path_string(path);
     char buffer[FILE_CHUNK_SIZE];
     std::string lines{};
-    process_file(std::move(path_string), 0, buffer, lines);
+    process_file(std::move(path), 0, buffer, lines);
   } else {
 
     // Initialize libgit2
