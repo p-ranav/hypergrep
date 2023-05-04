@@ -118,7 +118,7 @@ static int print_match_in_red_color(unsigned int id, unsigned long long from,
 
 void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      file_context &ctx, std::size_t &current_line_number,
-                     std::string &lines) {
+                     std::string &lines, bool print_filename = true) {
   std::string_view chunk(buffer, bytes_read);
   const char *start = buffer;
   const char *ptr = buffer;
@@ -170,14 +170,26 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
 
       lines += '\n';
     } else {
-      if (option_show_line_numbers) {
-        lines += fmt::format("{}:{}:{}\n", filename, current_line_number,
-                             std::string_view(&buffer[start_of_line],
-                                              end_of_line - start_of_line));
-      } else {
-        lines += fmt::format("{}:{}\n", filename,
-                             std::string_view(&buffer[start_of_line],
-                                              end_of_line - start_of_line));
+      if (print_filename) {
+	if (option_show_line_numbers) {
+	  lines += fmt::format("{}:{}:{}\n", filename, current_line_number,
+			       std::string_view(&buffer[start_of_line],
+						end_of_line - start_of_line));
+	} else {
+	  lines += fmt::format("{}:{}\n", filename,
+			       std::string_view(&buffer[start_of_line],
+						end_of_line - start_of_line));
+	}
+      }
+      else {
+	if (option_show_line_numbers) {
+	  lines += fmt::format("{}:{}\n", current_line_number,
+			       std::string_view(&buffer[start_of_line],
+						end_of_line - start_of_line));
+	} else {
+	  lines += fmt::format("{}\n", std::string_view(&buffer[start_of_line],
+							end_of_line - start_of_line));
+	}
       }
     }
   }
@@ -476,6 +488,9 @@ bool process_file_mmap(std::string &&filename) {
         }
 
         std::size_t previous_line_count{0};
+	if (offset == 0) {
+	  previous_line_count = 1;
+	}
         if (option_show_line_numbers && offset > 0) {
           // If not the first chunk,
           // get the number of lines (computed) in the previous chunk
@@ -488,12 +503,14 @@ bool process_file_mmap(std::string &&filename) {
           }
         }
 
+	const std::size_t line_count_at_start_of_chunk = previous_line_count;
+
         // Process matches with this line number as the start line number (for
         // this chunk)
         if (ctx.number_of_matches > 0) {
           std::string lines{};
           process_matches(filename.data(), start, end - start, ctx,
-                          previous_line_count, lines);
+                          previous_line_count, lines, false);
           num_matching_lines += ctx.number_of_matches;
 
           if (!option_count_matching_lines && result && !lines.empty()) {
@@ -504,10 +521,8 @@ bool process_file_mmap(std::string &&filename) {
         if (option_show_line_numbers) {
           // Count num lines in the chunk that was just searched
           const std::size_t num_lines_in_chunk = std::count(start, end, '\n');
-          // fmt::print("Thread {} eneueued {}\n", i, lines +
-          // previous_line_count);
           inter_thread_synchronization_line_count_queue[i].enqueue(
-              num_lines_in_chunk + previous_line_count);
+              line_count_at_start_of_chunk + num_lines_in_chunk);
         }
 
         offset += max_concurrency * max_searchable_size;
