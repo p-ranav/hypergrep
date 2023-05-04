@@ -465,6 +465,9 @@ bool process_file_mmap(std::string &&filename) {
           // TODO: This could be an error scenario, check
         } else {
           end = start + last_newline;
+	  if (offset == 0) {
+	    end += 1;
+	  }
         }
 
         // Perform the search
@@ -487,6 +490,7 @@ bool process_file_mmap(std::string &&filename) {
           }
         }
 
+	// Find the line count on the previous chunk
         std::size_t previous_line_count{0};
 	if (offset == 0) {
 	  previous_line_count = 1;
