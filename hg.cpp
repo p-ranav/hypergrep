@@ -14,6 +14,11 @@
 #include <unistd.h>
 #include <git2.h>
 #include <argparse/argparse.hpp>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <limits>
 
 inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"
@@ -294,6 +299,151 @@ bool process_file(std::string &&filename, std::size_t i, char *buffer, std::stri
   return result;
 }
 
+struct mmap_context {
+  char* start;
+  std::size_t size;
+};
+
+static int on_match_in_mmap(unsigned int id, unsigned long long from,
+                    unsigned long long to, unsigned int flags, void *ctx) {
+  mmap_context *fctx = (mmap_context *)(ctx);
+
+  std::string_view chunk(fctx->start, fctx->size);
+
+  auto end_of_line = chunk.find_first_of('\n', to);
+  if (end_of_line == std::string_view::npos) {
+    end_of_line = fctx->size;
+  }
+
+  auto start_of_line = chunk.find_last_of('\n', from);
+  if (start_of_line == std::string_view::npos) {
+    start_of_line = 0;
+  } else {
+    start_of_line += 1;
+  }
+  
+  std::string_view line(fctx->start + start_of_line, end_of_line - start_of_line);
+  fmt::print("{}\n", line);
+
+  return HS_SUCCESS;
+}
+
+bool process_file_mmap(std::string &&filename) {
+
+  int fd = open(filename.data(), O_RDONLY, 0);
+  if (fd == -1) {
+    return false;
+  }
+
+  // Get the size of the file
+  struct stat sb;
+  if (fstat(fd, &sb) == -1) {
+    return false;
+  }
+  std::size_t file_size = sb.st_size;   
+  
+  // Memory map the file
+  char *buffer = (char*)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (buffer == MAP_FAILED) {
+    return false;
+  }
+
+  // Use the data  
+
+  // NOTE: hs_scan takes a `unsigned int` buffer size (2^32-1)
+  // If the file_size is larger than that (e.g., 13GB), then  
+  // the search would need to be performed in chunks
+  std::size_t max_searchable_size = FILE_CHUNK_SIZE; // std::numeric_limits<unsigned int>::max() - 1; // max that hs_scan can handle
+
+  // Algorithm:
+  // Spawn N-1 threads (N = max hardware concurrency)
+  // Each thread will be given: buffer, file_size, offset
+  // Each thread will search from the bytes {buffer + offset, buffer + offset + search_size}
+  // Each thread will print its results
+
+  auto max_concurrency = std::thread::hardware_concurrency() - 1;
+  if (max_concurrency > 1) {
+    max_concurrency -= 1;
+  }
+
+  std::vector<std::thread> threads(max_concurrency);
+  
+  thread_local_scratch.reserve(max_concurrency);
+  thread_local_scratch_per_line.reserve(max_concurrency);
+  
+  for (std::size_t i = 0; i < max_concurrency; ++i) {
+    
+    // Set up the scratch space
+    hs_scratch_t *local_scratch = NULL;
+    hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
+    if (database_error != HS_SUCCESS) {
+      fprintf(stderr, "Error allocating scratch space\n");
+      hs_free_database(database);
+      return false;
+    }
+    thread_local_scratch.push_back(local_scratch);
+    
+    // Set up the scratch space per line
+    hs_scratch_t *scratch_per_line = NULL;
+    database_error = hs_alloc_scratch(database, &scratch_per_line);
+    if (database_error != HS_SUCCESS) {
+      fprintf(stderr, "Error allocating scratch space\n");
+      hs_free_database(database);
+      return false;
+    }
+    thread_local_scratch_per_line.push_back(scratch_per_line);  
+    
+    // Spawn a reader thread
+    threads[i] = std::thread([i = i, max_concurrency = max_concurrency, buffer = buffer, file_size = file_size, max_searchable_size = max_searchable_size]() {
+      
+      // Set up the scratch space
+      hs_scratch_t *local_scratch = thread_local_scratch[i];
+      hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];    
+      
+      std::size_t offset{i * max_searchable_size};
+      while (true) {
+
+	char* start = buffer + offset;
+	if (start > buffer + file_size) {
+	  // stop here
+	  break;
+	}
+	
+	char* end = start + max_searchable_size;
+	if (end > buffer + file_size) {
+	  end = buffer + file_size;
+	}
+
+	mmap_context ctx{ start, std::size_t(end - start) };
+	if (hs_scan(database, start, end - start, 0, local_scratch, on_match_in_mmap, (void*)(&ctx)) != HS_SUCCESS) {
+	  return true;
+	}
+	
+	offset += max_concurrency * max_searchable_size;
+      }
+
+      return true;
+    });
+    
+  }
+
+  for (auto& t : threads) {
+    t.join();
+  }
+  
+  // Unmap the file
+  if (munmap(buffer, file_size) == -1) {
+    return false;
+  }
+
+  // Close the file
+  if (close(fd) == -1) {
+    return false;
+  }  
+
+  return true;
+}
+
 bool visit_git_repo(const std::filesystem::path& dir, git_repository* repo = nullptr);
 
 bool search_submodules(const char* dir, git_repository* this_repo) {
@@ -571,10 +721,7 @@ int main(int argc, char **argv) {
       return false;
     }
     thread_local_scratch_per_line.push_back(scratch_per_line);
-
-    char buffer[FILE_CHUNK_SIZE];
-    std::string lines{};
-    process_file(std::move(path), 0, buffer, lines);
+    process_file_mmap(std::move(path));
   } else {
 
     // Initialize libgit2
