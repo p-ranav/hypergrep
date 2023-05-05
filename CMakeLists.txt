@@ -23,7 +23,7 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 # create target for main binary
 # —————————————————————————————
-add_executable(hg src/hg.cpp)
+add_executable(hg src/search.cpp src/main.cpp)
 target_compile_features(hg PUBLIC cxx_std_17)
 target_include_directories(hg PRIVATE include)
 target_link_libraries(hg PRIVATE
