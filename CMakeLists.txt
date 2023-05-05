@@ -23,7 +23,14 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 # create target for main binary
 # —————————————————————————————
-add_executable(hg hg.cpp)
+add_executable(hg src/hg.cpp)
 target_compile_features(hg PUBLIC cxx_std_17)
-target_link_libraries(hg PRIVATE argparse::argparse unofficial::concurrentqueue::concurrentqueue unofficial::git2::git2 fmt::fmt ${HYPERSCAN_LIBRARY})
+target_include_directories(hg PRIVATE include)
+target_link_libraries(hg PRIVATE
+  argparse::argparse
+  unofficial::concurrentqueue::concurrentqueue
+  unofficial::git2::git2
+  fmt::fmt
+  ${HYPERSCAN_LIBRARY}
+  )
 
