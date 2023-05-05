@@ -56,8 +56,6 @@ private:
 private:
   // Compile the HyperScan database for search
   void compile_hs_database(std::string& pattern);
-
-  bool construct_file_filtering_hs_database();  
   
   static int on_match(unsigned int id, unsigned long long from,
 		      unsigned long long to, unsigned int flags, void *ctx);
@@ -84,12 +82,16 @@ private:
 
   void visit(const std::filesystem::path &path);
 
+private:
   static int on_match_in_mmap(unsigned int id, unsigned long long from,
 			      unsigned long long to, unsigned int flags,
 			      void *ctx);
 
   bool process_file_mmap(std::string &&filename);
 
+private:
+  bool construct_file_filtering_hs_database();  
+  
   static int on_file_filter_match(unsigned int id, unsigned long long from,
 				  unsigned long long to, unsigned int flags,
 				  void *ctx);
@@ -97,7 +99,10 @@ private:
   bool filter_file(const char *path);  
   
 private:
-  
+  constexpr static inline std::size_t TYPICAL_FILESYSTEM_BLOCK_SIZE = 4096;
+  constexpr static inline std::size_t FILE_CHUNK_SIZE = 16 * TYPICAL_FILESYSTEM_BLOCK_SIZE;
+
+private:
   moodycamel::ConcurrentQueue<std::string> queue;
   moodycamel::ProducerToken ptok{queue};
   
@@ -106,9 +111,6 @@ private:
   std::atomic<bool> running{true};
   std::atomic<std::size_t> num_files_enqueued{0};
   std::atomic<std::size_t> num_files_dequeued{0};
-
-  constexpr static inline std::size_t TYPICAL_FILESYSTEM_BLOCK_SIZE = 4096;
-  constexpr static inline std::size_t FILE_CHUNK_SIZE = 16 * TYPICAL_FILESYSTEM_BLOCK_SIZE;
   
   hs_database_t *database = NULL;
   hs_scratch_t *scratch = NULL;
