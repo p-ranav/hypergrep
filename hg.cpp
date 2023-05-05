@@ -50,6 +50,7 @@ bool option_show_line_numbers{false};
 bool option_ignore_case{false};
 bool option_print_only_filenames{false};
 bool option_count_matching_lines{false};
+bool option_exclude_submodules{false};
 
 bool option_filter_files{false};
 std::string option_filter_file_pattern{};
@@ -567,6 +568,11 @@ bool visit_git_repo(const std::filesystem::path &dir,
                     git_repository *repo = nullptr);
 
 bool search_submodules(const char *dir, git_repository *this_repo) {
+
+  if (option_exclude_submodules) {
+    return true;
+  }
+  
   if (git_submodule_foreach(
           this_repo,
           [](git_submodule *sm, const char *name, void *payload) -> int {
@@ -754,6 +760,11 @@ int main(int argc, char **argv) {
   program.add_argument("-f", "--filter")
       .help("Filter files based on a pattern");
 
+  program.add_argument("--exclude-submodules")
+    .help("Exclude submodules from the search")
+    .default_value(false)
+    .implicit_value(true);
+
   const auto max_concurrency = std::thread::hardware_concurrency();
   const auto default_num_threads =
       max_concurrency > 1 ? max_concurrency - 1 : 1;
@@ -780,6 +791,7 @@ int main(int argc, char **argv) {
   auto N = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
+  option_exclude_submodules = program.get<bool>("--exclude-submodules");  
   option_ignore_case = program.get<bool>("-i");
   option_print_only_filenames = program.get<bool>("-l");
   if (program.is_used("-f")) {
