@@ -156,7 +156,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
         break;
       }
 
-      if (memchr((void *)buffer, '\0', bytes_read) != NULL) {
+      if (has_null_bytes(buffer, bytes_read)) {
         // NULL bytes found
         // Ignore file
         // Could be a .exe, .gz, .bin etc.
