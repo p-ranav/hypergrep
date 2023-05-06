@@ -1,8 +1,7 @@
 #include <match_handler.hpp>
 
-int on_match(unsigned int id, unsigned long long from,
-             unsigned long long to, unsigned int flags,
-             void *ctx) {
+int on_match(unsigned int id, unsigned long long from, unsigned long long to,
+             unsigned int flags, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
   fctx->matches.insert(std::make_pair(from, to));
@@ -14,10 +13,9 @@ int on_match(unsigned int id, unsigned long long from,
   }
 }
 
-int print_match_in_red_color(unsigned int id,
-                             unsigned long long from,
-                             unsigned long long to,
-                             unsigned int flags, void *ctx) {
+int print_match_in_red_color(unsigned int id, unsigned long long from,
+                             unsigned long long to, unsigned int flags,
+                             void *ctx) {
   auto *fctx = (line_context *)(ctx);
   const char *line_data = fctx->data;
   auto &lines = fctx->lines;
@@ -29,12 +27,10 @@ int print_match_in_red_color(unsigned int id,
   return 0;
 }
 
-void process_matches(hs_database_t* database,
-                     const char *filename, char *buffer,
-                     std::size_t bytes_read, file_context &ctx,
-                     std::size_t &current_line_number,
-                     std::string &lines, bool print_filename,
-                     bool is_stdout,
+void process_matches(hs_database_t *database, const char *filename,
+                     char *buffer, std::size_t bytes_read, file_context &ctx,
+                     std::size_t &current_line_number, std::string &lines,
+                     bool print_filename, bool is_stdout,
                      bool show_line_numbers) {
   std::string_view chunk(buffer, bytes_read);
   const char *start = buffer;

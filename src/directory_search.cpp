@@ -1,5 +1,5 @@
-#include <is_binary.hpp>
 #include <directory_search.hpp>
+#include <is_binary.hpp>
 
 directory_search::directory_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
@@ -41,7 +41,7 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
 
 directory_search::~directory_search() {
   if (file_filter_scratch) {
-    hs_free_scratch(file_filter_scratch); 
+    hs_free_scratch(file_filter_scratch);
   }
   if (file_filter_database) {
     hs_free_database(file_filter_database);
@@ -50,8 +50,8 @@ directory_search::~directory_search() {
     hs_free_scratch(scratch);
   }
   if (database) {
-    hs_free_database(database); 
-  }  
+    hs_free_database(database);
+  }
 }
 
 void directory_search::run(std::filesystem::path path) {
@@ -126,8 +126,8 @@ void directory_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-bool directory_search::process_file(std::string &&filename, std::size_t i, char *buffer,
-                          std::string &lines) {
+bool directory_search::process_file(std::string &&filename, std::size_t i,
+                                    char *buffer, std::string &lines) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -195,9 +195,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i, char 
 
     if (ctx.number_of_matches > 0) {
       process_matches(database, filename.data(), buffer, search_size, ctx,
-                      current_line_number, lines,
-                      true,
-                      options.is_stdout,
+                      current_line_number, lines, true, options.is_stdout,
                       options.show_line_numbers);
       num_matching_lines += ctx.number_of_matches;
     }
@@ -256,7 +254,8 @@ bool directory_search::process_file(std::string &&filename, std::size_t i, char 
   return result;
 }
 
-bool directory_search::search_submodules(const char *dir, git_repository *this_repo) {
+bool directory_search::search_submodules(const char *dir,
+                                         git_repository *this_repo) {
 
   if (options.exclude_submodules) {
     return true;
@@ -293,7 +292,7 @@ bool directory_search::search_submodules(const char *dir, git_repository *this_r
 }
 
 bool directory_search::visit_git_index(const std::filesystem::path &dir,
-                             git_index *index) {
+                                       git_index *index) {
   git_index_iterator *iter = nullptr;
   if (git_index_iterator_new(&iter, index) == 0) {
 
@@ -314,7 +313,7 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
 }
 
 bool directory_search::visit_git_repo(const std::filesystem::path &dir,
-                            git_repository *repo) {
+                                      git_repository *repo) {
 
   bool result{true};
 
@@ -346,7 +345,8 @@ bool directory_search::visit_git_repo(const std::filesystem::path &dir,
   return result;
 }
 
-void directory_search::visit_directory_and_enqueue(const std::filesystem::path &path) {
+void directory_search::visit_directory_and_enqueue(
+    const std::filesystem::path &path) {
   for (auto it = std::filesystem::recursive_directory_iterator(
            path, std::filesystem::directory_options::skip_permission_denied);
        it != std::filesystem::recursive_directory_iterator(); ++it) {
@@ -379,7 +379,9 @@ void directory_search::visit_directory_and_enqueue(const std::filesystem::path &
   }
 }
 
-bool directory_search::try_dequeue_and_process_path(const std::size_t i, char *buffer, std::string &lines) {
+bool directory_search::try_dequeue_and_process_path(const std::size_t i,
+                                                    char *buffer,
+                                                    std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
@@ -417,9 +419,10 @@ bool directory_search::construct_file_filtering_hs_database() {
   return true;
 }
 
-int directory_search::on_file_filter_match(unsigned int id, unsigned long long from,
-                                 unsigned long long to, unsigned int flags,
-                                 void *ctx) {
+int directory_search::on_file_filter_match(unsigned int id,
+                                           unsigned long long from,
+                                           unsigned long long to,
+                                           unsigned int flags, void *ctx) {
   filter_context *fctx = (filter_context *)(ctx);
   fctx->result = true;
   return HS_SUCCESS;

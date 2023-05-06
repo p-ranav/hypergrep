@@ -48,7 +48,8 @@ private:
   bool visit_git_repo(const std::filesystem::path &dir,
                       git_repository *repo = nullptr);
 
-  bool try_dequeue_and_process_path(const std::size_t i, char *buffer, std::string &lines);
+  bool try_dequeue_and_process_path(const std::size_t i, char *buffer,
+                                    std::string &lines);
 
   bool construct_file_filtering_hs_database();
 
@@ -56,8 +57,8 @@ private:
                                   unsigned long long to, unsigned int flags,
                                   void *ctx);
 
-  bool filter_file(const char *path);  
-  
+  bool filter_file(const char *path);
+
   void visit_directory_and_enqueue(const std::filesystem::path &path);
 
 private:
