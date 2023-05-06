@@ -1,5 +1,5 @@
+#include <directory_search.hpp>
 #include <file_search.hpp>
-#include <search.hpp>
 
 int main(int argc, char **argv) {
 
@@ -77,8 +77,8 @@ int main(int argc, char **argv) {
     file_search s(program);
     s.run(path);
   } else {
-    search s(program);
-    s.search_directory(path);
+    directory_search s(program);
+    s.run(path);
   }
 
   return 0;

@@ -29,8 +29,12 @@ file_search::file_search(argparse::ArgumentParser &program) {
 }
 
 file_search::~file_search() {
-  hs_free_scratch(scratch);
-  hs_free_database(database);
+  if (scratch) {
+    hs_free_scratch(scratch);  
+  }
+  if (database) {
+    hs_free_database(database); 
+  }
 }
 
 void file_search::compile_hs_database(std::string &pattern) {
