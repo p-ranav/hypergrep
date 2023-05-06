@@ -3,6 +3,7 @@
 #include <atomic>
 #include <chrono>
 #include <concurrentqueue/concurrentqueue.h>
+#include <constants.hpp>
 #include <directory_search_options.hpp>
 #include <fcntl.h>
 #include <filesystem>
@@ -13,6 +14,7 @@
 #include <hs/hs.h>
 #include <is_binary.hpp>
 #include <limits>
+#include <match_handler.hpp>
 #include <numeric>
 #include <set>
 #include <sys/mman.h>
@@ -28,19 +30,6 @@ public:
   void run(std::filesystem::path path);
 
 private:
-  struct file_context {
-    std::atomic<size_t> &number_of_matches;
-    std::set<std::pair<unsigned long long, unsigned long long>> &matches;
-    hs_scratch *local_scratch;
-    bool option_print_only_filenames;
-  };
-
-  struct line_context {
-    const char *data;
-    std::string &lines;
-    const char **current_ptr;
-  };
-
   struct filter_context {
     bool result{false};
   };
@@ -48,18 +37,6 @@ private:
 private:
   // Compile the HyperScan database for search
   void compile_hs_database(std::string &pattern);
-
-  static int on_match(unsigned int id, unsigned long long from,
-                      unsigned long long to, unsigned int flags, void *ctx);
-
-  static int print_match_in_red_color(unsigned int id, unsigned long long from,
-                                      unsigned long long to, unsigned int flags,
-                                      void *ctx);
-
-  void process_matches(const char *filename, char *buffer,
-                       std::size_t bytes_read, file_context &ctx,
-                       std::size_t &current_line_number, std::string &lines,
-                       bool print_filename = true);
 
   bool process_file(std::string &&filename, std::size_t i, char *buffer,
                     std::string &lines);
@@ -82,11 +59,6 @@ private:
   bool filter_file(const char *path);  
   
   void visit_directory_and_enqueue(const std::filesystem::path &path);
-
-private:
-  constexpr static inline std::size_t TYPICAL_FILESYSTEM_BLOCK_SIZE = 4096;
-  constexpr static inline std::size_t FILE_CHUNK_SIZE =
-      16 * TYPICAL_FILESYSTEM_BLOCK_SIZE;
 
 private:
   moodycamel::ConcurrentQueue<std::string> queue;
