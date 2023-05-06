@@ -10,4 +10,4 @@ make
 
 ## Workflow
 
-![image](https://user-images.githubusercontent.com/8450091/236642333-ed90eca1-287d-47ec-8ddf-0f333c8b6d81.png)
+![image](https://user-images.githubusercontent.com/8450091/236643050-65cbefb7-5162-4ff5-b952-374a1c945e26.png)
