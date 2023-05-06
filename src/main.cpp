@@ -1,3 +1,4 @@
+#include <file_search.hpp>
 #include <search.hpp>
 
 int main(int argc, char **argv) {
@@ -11,12 +12,12 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("--exclude-submodules")
-    .help("Exclude submodules from the search")
-    .default_value(false)
-    .implicit_value(true);
-  
+      .help("Exclude submodules from the search")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-f", "--filter")
-      .help("Filter files based on a pattern");  
+      .help("Filter files based on a pattern");
 
   program.add_argument("-i", "--ignore-case")
       .help("When this flag is provided, the given patterns will be searched "
@@ -27,8 +28,8 @@ int main(int argc, char **argv) {
   program.add_argument("-l", "--files-with-matches")
       .help("print only filenames")
       .default_value(false)
-      .implicit_value(true);  
-  
+      .implicit_value(true);
+
   program.add_argument("-n", "--line-number")
       .help("Show line numbers (1-based). This is enabled by default when "
             "searching in a terminal.")
@@ -70,13 +71,13 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  search s(program);
-
   auto path = program.get<std::string>("path");
 
   if (std::filesystem::is_regular_file(path)) {
-    s.search_file(path);
+    file_search s(program);
+    s.run(path);
   } else {
+    search s(program);
     s.search_directory(path);
   }
 

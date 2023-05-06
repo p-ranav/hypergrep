@@ -1,6 +1,6 @@
 #pragma once
-#include <string_view>
 #include <cstring>
+#include <string_view>
 
 static inline bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"

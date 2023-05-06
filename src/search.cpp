@@ -1,12 +1,12 @@
 #include <is_binary.hpp>
 #include <search.hpp>
 
-search::search(argparse::ArgumentParser& program) {
+search::search(argparse::ArgumentParser &program) {
   option_count_matching_lines = program.get<bool>("-c");
   option_num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
-  option_exclude_submodules = program.get<bool>("--exclude-submodules");  
+  option_exclude_submodules = program.get<bool>("--exclude-submodules");
   option_ignore_case = program.get<bool>("-i");
   option_print_only_filenames = program.get<bool>("-l");
   if (program.is_used("-f")) {
@@ -52,7 +52,7 @@ void search::search_file(std::filesystem::path path) {
     throw std::runtime_error("Error allocating scratch space");
   }
   thread_local_scratch.push_back(local_scratch);
-  
+
   // Set up the scratch space per line
   hs_scratch_t *scratch_per_line = NULL;
   database_error = hs_alloc_scratch(database, &scratch_per_line);
@@ -65,18 +65,18 @@ void search::search_file(std::filesystem::path path) {
   process_file_mmap(std::move(path));
 
   hs_free_scratch(local_scratch);
-  hs_free_scratch(scratch_per_line);  
+  hs_free_scratch(scratch_per_line);
 }
 
 void search::search_directory(std::filesystem::path path) {
   // Initialize libgit2
   git_libgit2_init();
-  
+
   std::vector<std::thread> consumer_threads(option_num_threads);
-  
+
   thread_local_scratch.reserve(option_num_threads);
   thread_local_scratch_per_line.reserve(option_num_threads);
-  
+
   for (std::size_t i = 0; i < option_num_threads; ++i) {
     // Set up the scratch space
     hs_scratch_t *local_scratch = NULL;
@@ -85,7 +85,7 @@ void search::search_directory(std::filesystem::path path) {
       throw std::runtime_error("Error allocating scratch space\n");
     }
     thread_local_scratch.push_back(local_scratch);
-    
+
     // Set up the scratch space per line
     hs_scratch_t *scratch_per_line = NULL;
     database_error = hs_alloc_scratch(database, &scratch_per_line);
@@ -93,29 +93,29 @@ void search::search_directory(std::filesystem::path path) {
       throw std::runtime_error("Error allocating scratch space\n");
     }
     thread_local_scratch_per_line.push_back(scratch_per_line);
-    
+
     consumer_threads[i] = std::thread([this, i = i]() {
       char buffer[FILE_CHUNK_SIZE];
       std::string lines{};
       while (true) {
-	if (num_files_enqueued > 0) {
-	  visit_one(i, buffer, lines);
-	  if (!running && num_files_dequeued == num_files_enqueued) {
-	    break;
-	  }
-	}
+        if (num_files_enqueued > 0) {
+          visit_one(i, buffer, lines);
+          if (!running && num_files_dequeued == num_files_enqueued) {
+            break;
+          }
+        }
       }
     });
   }
-  
+
   // Try to visit as a git repo
   // If it fails, visit normally
   if (!visit_git_repo(path)) {
     visit(path);
   }
-  
+
   running = false;
-  
+
   for (std::size_t i = 0; i < option_num_threads; ++i) {
     consumer_threads[i].join();
     hs_free_scratch(thread_local_scratch[i]);
@@ -123,15 +123,15 @@ void search::search_directory(std::filesystem::path path) {
   }
 }
 
-void search::compile_hs_database(std::string& pattern) {
+void search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
-  auto error_code =
-    hs_compile(pattern.data(),
-	       (option_ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-	       HS_FLAG_SOM_LEFTMOST,
-	       HS_MODE_BLOCK, NULL, &database, &compile_error);
+  auto error_code = hs_compile(pattern.data(),
+                               (option_ignore_case ? HS_FLAG_CASELESS : 0) |
+                                   HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
+                               HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
-    throw std::runtime_error(std::string{"Error compiling pattern: "} + compile_error->message);
+    throw std::runtime_error(std::string{"Error compiling pattern: "} +
+                             compile_error->message);
   }
 
   auto database_error = hs_alloc_scratch(database, &scratch);
@@ -141,7 +141,7 @@ void search::compile_hs_database(std::string& pattern) {
 }
 
 int search::on_match(unsigned int id, unsigned long long from,
-		     unsigned long long to, unsigned int flags, void *ctx) {
+                     unsigned long long to, unsigned int flags, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
   fctx->matches.insert(std::make_pair(from, to));
@@ -154,8 +154,8 @@ int search::on_match(unsigned int id, unsigned long long from,
 }
 
 int search::print_match_in_red_color(unsigned int id, unsigned long long from,
-				     unsigned long long to, unsigned int flags,
-				     void *ctx) {
+                                     unsigned long long to, unsigned int flags,
+                                     void *ctx) {
   auto *fctx = (line_context *)(ctx);
   const char *line_data = fctx->data;
   auto &lines = fctx->lines;
@@ -167,9 +167,10 @@ int search::print_match_in_red_color(unsigned int id, unsigned long long from,
   return 0;
 }
 
-void search::process_matches(const char *filename, char *buffer, std::size_t bytes_read,
-			     file_context &ctx, std::size_t &current_line_number,
-			     std::string &lines, bool print_filename) {
+void search::process_matches(const char *filename, char *buffer,
+                             std::size_t bytes_read, file_context &ctx,
+                             std::size_t &current_line_number,
+                             std::string &lines, bool print_filename) {
   std::string_view chunk(buffer, bytes_read);
   const char *start = buffer;
   const char *ptr = buffer;
@@ -222,32 +223,32 @@ void search::process_matches(const char *filename, char *buffer, std::size_t byt
       lines += '\n';
     } else {
       if (print_filename) {
-	if (option_show_line_numbers) {
-	  lines += fmt::format("{}:{}:{}\n", filename, current_line_number,
-			       std::string_view(&buffer[start_of_line],
-						end_of_line - start_of_line));
-	} else {
-	  lines += fmt::format("{}:{}\n", filename,
-			       std::string_view(&buffer[start_of_line],
-						end_of_line - start_of_line));
-	}
-      }
-      else {
-	if (option_show_line_numbers) {
-	  lines += fmt::format("{}:{}\n", current_line_number,
-			       std::string_view(&buffer[start_of_line],
-						end_of_line - start_of_line));
-	} else {
-	  lines += fmt::format("{}\n", std::string_view(&buffer[start_of_line],
-							end_of_line - start_of_line));
-	}
+        if (option_show_line_numbers) {
+          lines += fmt::format("{}:{}:{}\n", filename, current_line_number,
+                               std::string_view(&buffer[start_of_line],
+                                                end_of_line - start_of_line));
+        } else {
+          lines += fmt::format("{}:{}\n", filename,
+                               std::string_view(&buffer[start_of_line],
+                                                end_of_line - start_of_line));
+        }
+      } else {
+        if (option_show_line_numbers) {
+          lines += fmt::format("{}:{}\n", current_line_number,
+                               std::string_view(&buffer[start_of_line],
+                                                end_of_line - start_of_line));
+        } else {
+          lines += fmt::format("{}\n",
+                               std::string_view(&buffer[start_of_line],
+                                                end_of_line - start_of_line));
+        }
       }
     }
   }
 }
 
 bool search::process_file(std::string &&filename, std::size_t i, char *buffer,
-			  std::string &lines) {
+                          std::string &lines) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -296,7 +297,8 @@ bool search::process_file(std::string &&filename, std::size_t i, char *buffer,
 
     std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
-    file_context ctx{number_of_matches, matches, local_scratch_per_line, option_print_only_filenames};
+    file_context ctx{number_of_matches, matches, local_scratch_per_line,
+                     option_print_only_filenames};
 
     if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
                 (void *)(&ctx)) != HS_SUCCESS) {
@@ -373,8 +375,8 @@ bool search::process_file(std::string &&filename, std::size_t i, char *buffer,
 }
 
 int search::on_match_in_mmap(unsigned int id, unsigned long long from,
-			     unsigned long long to, unsigned int flags,
-			     void *ctx) {
+                             unsigned long long to, unsigned int flags,
+                             void *ctx) {
   mmap_context *fctx = (mmap_context *)(ctx);
   return HS_SUCCESS;
 }
@@ -511,16 +513,17 @@ bool search::process_file_mmap(std::string &&filename) {
           // TODO: This could be an error scenario, check
         } else {
           end = start + last_newline;
-	  if (offset == 0) {
-	    end += 1;
-	  }
+          if (offset == 0) {
+            end += 1;
+          }
         }
 
         // Perform the search
         bool result{false};
         std::set<std::pair<unsigned long long, unsigned long long>> matches{};
         std::atomic<size_t> number_of_matches = 0;
-        file_context ctx{number_of_matches, matches, local_scratch_per_line, option_print_only_filenames};
+        file_context ctx{number_of_matches, matches, local_scratch_per_line,
+                         option_print_only_filenames};
 
         if (hs_scan(database, start, end - start, 0, local_scratch, on_match,
                     (void *)(&ctx)) != HS_SUCCESS) {
@@ -536,11 +539,11 @@ bool search::process_file_mmap(std::string &&filename) {
           }
         }
 
-	// Find the line count on the previous chunk
+        // Find the line count on the previous chunk
         std::size_t previous_line_count{0};
-	if (offset == 0) {
-	  previous_line_count = 1;
-	}
+        if (offset == 0) {
+          previous_line_count = 1;
+        }
         if (option_show_line_numbers && offset > 0) {
           // If not the first chunk,
           // get the number of lines (computed) in the previous chunk
@@ -553,7 +556,7 @@ bool search::process_file_mmap(std::string &&filename) {
           }
         }
 
-	const std::size_t line_count_at_start_of_chunk = previous_line_count;
+        const std::size_t line_count_at_start_of_chunk = previous_line_count;
 
         // Process matches with this line number as the start line number (for
         // this chunk)
@@ -616,19 +619,18 @@ bool search::search_submodules(const char *dir, git_repository *this_repo) {
   }
 
   struct context {
-    search* ptr;
-    const char* dir;
+    search *ptr;
+    const char *dir;
   };
 
-  context ctx { this, dir };
-  
+  context ctx{this, dir};
+
   if (git_submodule_foreach(
           this_repo,
           [](git_submodule *sm, const char *name, void *payload) -> int {
-
-	    context* ctx = (context*)(payload);
-	    auto self = ctx->ptr;
-	    auto dir = ctx->dir;
+            context *ctx = (context *)(payload);
+            auto self = ctx->ptr;
+            auto dir = ctx->dir;
 
             auto path = std::filesystem::path(dir);
 
@@ -646,7 +648,8 @@ bool search::search_submodules(const char *dir, git_repository *this_repo) {
   }
 }
 
-bool search::visit_git_index(const std::filesystem::path &dir, git_index *index) {
+bool search::visit_git_index(const std::filesystem::path &dir,
+                             git_index *index) {
   git_index_iterator *iter = nullptr;
   if (git_index_iterator_new(&iter, index) == 0) {
 
@@ -666,7 +669,8 @@ bool search::visit_git_index(const std::filesystem::path &dir, git_index *index)
   }
 }
 
-bool search::visit_git_repo(const std::filesystem::path &dir, git_repository *repo) {
+bool search::visit_git_repo(const std::filesystem::path &dir,
+                            git_repository *repo) {
 
   bool result{true};
 
@@ -731,8 +735,7 @@ void search::visit(const std::filesystem::path &path) {
   }
 }
 
-bool search::visit_one(const std::size_t i, char *buffer,
-                             std::string &lines) {
+bool search::visit_one(const std::size_t i, char *buffer, std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
@@ -771,8 +774,8 @@ bool search::construct_file_filtering_hs_database() {
 }
 
 int search::on_file_filter_match(unsigned int id, unsigned long long from,
-				 unsigned long long to, unsigned int flags,
-				 void *ctx) {
+                                 unsigned long long to, unsigned int flags,
+                                 void *ctx) {
   filter_context *fctx = (filter_context *)(ctx);
   fctx->result = true;
   return HS_SUCCESS;
