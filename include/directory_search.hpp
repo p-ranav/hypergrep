@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <vector>
 #include <size_to_bytes.hpp>
+#include <file_search.hpp>
 
 class directory_search {
 public:
@@ -77,4 +78,9 @@ private:
   std::vector<hs_scratch *> thread_local_scratch;
   std::vector<hs_scratch *> thread_local_scratch_per_line;
   directory_search_options options;
+
+  // Optimizations for large files
+  bool large_file_searcher_used{false};
+  moodycamel::ConcurrentQueue<std::string> large_file_backlog;
+  std::atomic<std::size_t> num_large_files_enqueued{0};  
 };

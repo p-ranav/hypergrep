@@ -21,7 +21,6 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
   if (program.is_used("--max-file-size")) {
     const auto max_file_size_spec = program.get<std::string>("--max-file-size");
     options.max_file_size = size_to_bytes(max_file_size_spec);
-    fmt::print("{} -> {}\n", max_file_size_spec, options.max_file_size.value());
   }  
 
   auto pattern = program.get<std::string>("pattern");
@@ -53,11 +52,13 @@ directory_search::~directory_search() {
   if (file_filter_database) {
     hs_free_database(file_filter_database);
   }
-  if (scratch) {
-    hs_free_scratch(scratch);
-  }
-  if (database) {
-    hs_free_database(database);
+  if (!large_file_searcher_used) {
+    if (scratch) {
+      hs_free_scratch(scratch);
+    }
+    if (database) {
+      hs_free_database(database);
+    }    
   }
 }
 
@@ -114,6 +115,31 @@ void directory_search::run(std::filesystem::path path) {
     hs_free_scratch(thread_local_scratch[i]);
     hs_free_scratch(thread_local_scratch_per_line[i]);
   }
+
+  // All threads are done processing the file queue
+
+  // Now search large files one by one using the large_file_searcher
+  if (num_large_files_enqueued > 0) {
+
+    large_file_searcher_used = true;
+    file_search large_file_searcher(database, scratch, file_search_options {
+        options.is_stdout,
+        options.show_line_numbers,
+        options.ignore_case,
+        options.count_matching_lines,
+        options.num_threads
+      });
+
+     // Memory map + multi-threaded search
+    while (num_large_files_enqueued > 0) {
+      std::string path{};
+      auto found = large_file_backlog.try_dequeue(path);
+      if (found) {
+        large_file_searcher.run(path);
+        --num_large_files_enqueued;
+      }
+    }    
+  }  
 }
 
 void directory_search::compile_hs_database(std::string &pattern) {
@@ -162,6 +188,19 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
 
     if (max_file_size_provided && total_bytes_read > max_file_size) {
       // File size limit reached
+      close(fd);
+      return false;
+    } else if (total_bytes_read > LARGE_FILE_SIZE) {
+      // This file is a bit large
+      // Add it to the backlog and process it later with a file_search object
+      // instead of using a single thread to read in chunks
+      // The file_search object will memory map and search this large file
+      // in multiple threads
+
+      large_file_backlog.enqueue(std::move(filename));
+      ++num_large_files_enqueued;
+      
+      close(fd);
       return false;
     }
     

@@ -1,5 +1,7 @@
 #include <file_search.hpp>
 
+file_search::file_search(hs_database_t* database, hs_scratch_t* scratch, const file_search_options &options) : database(database), scratch(scratch), options(options) {}
+
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
@@ -28,12 +30,19 @@ file_search::file_search(argparse::ArgumentParser &program) {
   compile_hs_database(pattern);
 }
 
-file_search::~file_search() {
+file_search::~file_search() {  
   if (scratch) {
     hs_free_scratch(scratch);
   }
   if (database) {
     hs_free_database(database);
+  }
+
+  for (const auto& s : thread_local_scratch) {
+    hs_free_scratch(s);
+  }
+  for (const auto& s : thread_local_scratch_per_line) {
+    hs_free_scratch(s);
   }
 }
 
@@ -55,6 +64,9 @@ void file_search::compile_hs_database(std::string &pattern) {
 }
 
 void file_search::run(std::filesystem::path path) {
+  if (!database) {
+    throw std::runtime_error("Database is NULL");
+  }
   // Set up the scratch space
   hs_scratch_t *local_scratch = NULL;
   hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
@@ -62,20 +74,17 @@ void file_search::run(std::filesystem::path path) {
     throw std::runtime_error("Error allocating scratch space");
   }
   thread_local_scratch.push_back(local_scratch);
-
+  
   // Set up the scratch space per line
   hs_scratch_t *scratch_per_line = NULL;
   database_error = hs_alloc_scratch(database, &scratch_per_line);
   if (database_error != HS_SUCCESS) {
     throw std::runtime_error("Error allocating scratch space");
   }
-  thread_local_scratch_per_line.push_back(scratch_per_line);
-
+  thread_local_scratch_per_line.push_back(scratch_per_line);    
+  
   // Memory map and search file in chunks multithreaded
   mmap_and_scan(std::move(path));
-
-  hs_free_scratch(local_scratch);
-  hs_free_scratch(scratch_per_line);
 }
 
 bool file_search::mmap_and_scan(std::string &&filename) {
