@@ -17,6 +17,13 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
                                options.filter_file_pattern);
     }
   }
+
+  if (program.is_used("--max-file-size")) {
+    const auto max_file_size_spec = program.get<std::string>("--max-file-size");
+    options.max_file_size = size_to_bytes(max_file_size_spec);
+    fmt::print("{} -> {}\n", max_file_size_spec, options.max_file_size.value());
+  }  
+
   auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
@@ -139,15 +146,25 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
   hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
   // Process the file in chunks
+  std::size_t total_bytes_read = 0;
+  bool max_file_size_provided = options.max_file_size.has_value();
+  std::size_t max_file_size = max_file_size_provided ? options.max_file_size.value() : 0;
   std::size_t bytes_read = 0;
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
-
   std::size_t num_matching_lines{0};
 
   // Read the file in chunks and perform search
   bool first{true};
   while ((bytes_read = read(fd, buffer, FILE_CHUNK_SIZE)) > 0) {
+
+    total_bytes_read += bytes_read;
+
+    if (max_file_size_provided && total_bytes_read > max_file_size) {
+      // File size limit reached
+      return false;
+    }
+    
     if (first) {
       first = false;
       if (bytes_read >= 4 &&

@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 
 struct directory_search_options {
   bool is_stdout{true};
@@ -10,4 +11,5 @@ struct directory_search_options {
   std::size_t num_threads{0};
   bool filter_files{false};
   std::string filter_file_pattern{};
+  std::optional<unsigned long long> max_file_size{};
 };

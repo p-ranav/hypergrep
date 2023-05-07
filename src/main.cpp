@@ -30,6 +30,9 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--max-file-size")
+    .help("Ignore files above a certain size");
+
   program.add_argument("-n", "--line-number")
       .help("Show line numbers (1-based). This is enabled by default when "
             "searching in a terminal.")

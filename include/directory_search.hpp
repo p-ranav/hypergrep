@@ -22,6 +22,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <size_to_bytes.hpp>
 
 class directory_search {
 public:
