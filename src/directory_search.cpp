@@ -171,7 +171,13 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
 
   // Read the file in chunks and perform search
   bool first{true};
-  while ((bytes_read = read(fd, buffer, FILE_CHUNK_SIZE)) > 0) {
+  while (true) {
+
+    bytes_read = read(fd, buffer, FILE_CHUNK_SIZE);
+
+    if (bytes_read <= 0 || bytes_read > FILE_CHUNK_SIZE) {
+      break;
+    }
 
     total_bytes_read += bytes_read;
 
@@ -188,9 +194,9 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
 
       large_file_backlog.enqueue(std::move(filename));
       ++num_large_files_enqueued;
-      
+        
       close(fd);
-      return false;
+      return false;        
     }
     
     if (first) {
@@ -250,18 +256,11 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
       if ((last_newline - buffer) == bytes_read - 1) {
         // Chunk ends exactly at the newline
         // Do nothing
-
-        // TODO
-        // There are probably other conditions too where lseek can be avoided
-        // Research this
       } else {
         // Backtrack "remainder" number of characters
-        // auto start = std::chrono::high_resolution_clock::now();
-        lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
-        // auto end = std::chrono::high_resolution_clock::now();
-        // fmt::print("{}us\n",
-        // (std::chrono::duration_cast<std::chrono::microseconds>(end -
-        // start).count()));
+        if (bytes_read > search_size) {
+          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR); 
+        }        
       }
     }
   }
@@ -346,7 +345,7 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
                     (options.filter_files && filter_file(entry->path)))) {
         const auto path = dir / entry->path;
         queue.enqueue(ptok, path.string());
-        ++num_files_enqueued;
+        ++num_files_enqueued;         
       }
     }
     git_index_iterator_free(iter);

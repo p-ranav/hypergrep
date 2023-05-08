@@ -13,6 +13,7 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
     return HS_SUCCESS;
   }
 }
+
 void process_matches(const char *filename,
                      char *buffer, std::size_t bytes_read, file_context &ctx,
                      std::size_t &current_line_number, std::string &lines,
