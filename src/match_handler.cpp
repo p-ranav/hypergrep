@@ -1,4 +1,5 @@
 #include <match_handler.hpp>
+#include <unordered_map>
 
 int on_match(unsigned int id, unsigned long long from, unsigned long long to,
              unsigned int flags, void *ctx) {
@@ -29,43 +30,20 @@ void process_matches(const char *filename,
   // Pre process for entries with the same starting position
   // e.g., for the match list {{8192, 8214}, {8192, 8215}}
   // the list can be updated to {{8192, 8215}}
-  std::set<std::size_t> seen_first_values{};
-  std::set<std::pair<std::size_t, std::size_t>> reduced_matches{};
+  std::set<std::pair<std::size_t, std::size_t>> reduced_matches;
+  std::unordered_map<std::size_t, std::size_t> last_occurrence;
   
   for (const auto& match : ctx.matches) {
-    if (seen_first_values.count(match.first) == 0) {
+    const auto first = match.first;
+    if (last_occurrence.count(first) == 0) {
       reduced_matches.insert(match);
-      seen_first_values.insert(match.first);
     } else {
-
-      // Find any other entries using match.first
-      // and erase them
-
-      const auto lower = std::lower_bound(
-                                          reduced_matches.begin(),
-                                          reduced_matches.end(),
-                                          match.first,
-                                          [](const std::pair<std::size_t, std::size_t>& el, const std::size_t i)
-                                          {
-                                            return el.first < i;
-                                          }
-                                          );
-      
-      const auto upper = std::upper_bound(
-                                          reduced_matches.begin(),
-                                          reduced_matches.end(),
-                                          match.first,
-                                          [](const std::size_t i, const std::pair<std::size_t, std::size_t>& el)
-                                          {
-                                            return i < el.first;
-                                          }
-                                          );
-      
-      reduced_matches.erase(lower, upper);      
+      reduced_matches.erase(reduced_matches.lower_bound({first, 0}), reduced_matches.end());
       reduced_matches.insert(match);
     }
-  }  
-
+    last_occurrence[first] = match.second;
+  }
+  
   for (const auto &match : reduced_matches) {
 
     auto& [from, to] = match;
@@ -75,6 +53,11 @@ void process_matches(const char *filename,
       start_of_line = 0;
     } else {
       start_of_line += 1;
+    }
+
+    auto end_of_line = chunk.find_first_of('\n', to);
+    if (end_of_line == std::string_view::npos) {
+      end_of_line = bytes_read;
     }
 
     if (first) {
@@ -88,12 +71,7 @@ void process_matches(const char *filename,
         index = start_of_line;
       } 
     }
-    
-    auto end_of_line = chunk.find_first_of('\n', to);
-    if (end_of_line == std::string_view::npos) {
-      end_of_line = bytes_read;
-    }
-    
+        
     auto line_count = std::count(start, buffer + from, '\n');
     current_line_number = previous_line_number + line_count;
     previous_line_number = current_line_number;
@@ -119,6 +97,12 @@ void process_matches(const char *filename,
           }          
         }
       }
+    }
+
+    auto newlines_in_match = std::count(buffer + from, buffer + to, '\n');
+    if (newlines_in_match > 0) {
+      current_line_number += newlines_in_match;
+      previous_line_number = current_line_number;
     }
 
     // index points to to
