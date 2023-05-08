@@ -69,7 +69,6 @@ void directory_search::run(std::filesystem::path path) {
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   thread_local_scratch.reserve(options.num_threads);
-  thread_local_scratch_per_line.reserve(options.num_threads);
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
     // Set up the scratch space
@@ -79,14 +78,6 @@ void directory_search::run(std::filesystem::path path) {
       throw std::runtime_error("Error allocating scratch space\n");
     }
     thread_local_scratch.push_back(local_scratch);
-
-    // Set up the scratch space per line
-    hs_scratch_t *scratch_per_line = NULL;
-    database_error = hs_alloc_scratch(database, &scratch_per_line);
-    if (database_error != HS_SUCCESS) {
-      throw std::runtime_error("Error allocating scratch space\n");
-    }
-    thread_local_scratch_per_line.push_back(scratch_per_line);
 
     consumer_threads[i] = std::thread([this, i = i]() {
       char buffer[FILE_CHUNK_SIZE];
@@ -113,7 +104,6 @@ void directory_search::run(std::filesystem::path path) {
   for (std::size_t i = 0; i < options.num_threads; ++i) {
     consumer_threads[i].join();
     hs_free_scratch(thread_local_scratch[i]);
-    hs_free_scratch(thread_local_scratch_per_line[i]);
   }
 
   // All threads are done processing the file queue
@@ -169,7 +159,6 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
 
   // Set up the scratch space
   hs_scratch_t *local_scratch = thread_local_scratch[i];
-  hs_scratch_t *local_scratch_per_line = thread_local_scratch_per_line[i];
 
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
@@ -232,8 +221,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
 
     std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
-    file_context ctx{number_of_matches, matches, local_scratch_per_line,
-                     options.print_only_filenames};
+    file_context ctx{number_of_matches, matches, options.print_only_filenames};
 
     if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
                 (void *)(&ctx)) != HS_SUCCESS) {
@@ -250,7 +238,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_matches(database, filename.data(), buffer, search_size, ctx,
+      process_matches(filename.data(), buffer, search_size, ctx,
                       current_line_number, lines, true, options.is_stdout,
                       options.show_line_numbers);
       num_matching_lines += ctx.number_of_matches;
