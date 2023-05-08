@@ -44,6 +44,13 @@ void process_matches(const char *filename,
     }
     last_occurrence[first] = match.second;
   }
+
+  // TODO: Still need to handle the case where a second match
+  // starts somewhere inside the first match
+  // from              to
+  // ^^^^^^^^^^^^^^^^^^^^
+  //        from2            to2
+  //        ^^^^^^^^^^^^^^^^^^^^
   
   for (const auto &match : reduced_matches) {
 
