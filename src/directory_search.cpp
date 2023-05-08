@@ -176,6 +176,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
     bytes_read = read(fd, buffer, FILE_CHUNK_SIZE);
 
     if (bytes_read <= 0 || bytes_read > FILE_CHUNK_SIZE) {
+      result = false;
       break;
     }
 
@@ -260,7 +261,7 @@ bool directory_search::process_file(std::string &&filename, std::size_t i,
         // Backtrack "remainder" number of characters
         if (bytes_read > search_size) {
           lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR); 
-        }        
+        }     
       }
     }
   }

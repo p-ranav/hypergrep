@@ -3,7 +3,6 @@
 #include <file_context.hpp>
 #include <fmt/color.h>
 #include <fmt/format.h>
-#include <line_context.hpp>
 #include <string_view>
 
 int on_match(unsigned int id, unsigned long long from, unsigned long long to,
