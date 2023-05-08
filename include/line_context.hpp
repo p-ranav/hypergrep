@@ -1,8 +1,6 @@
 #pragma once
-#include <string>
+#include <set>
 
 struct line_context {
-  const char *data;
-  std::string &lines;
-  const char **current_ptr;
+  std::set<std::pair<unsigned long long, unsigned long long>> &matches;
 };

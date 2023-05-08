@@ -41,9 +41,6 @@ file_search::~file_search() {
   for (const auto& s : thread_local_scratch) {
     hs_free_scratch(s);
   }
-  for (const auto& s : thread_local_scratch_per_line) {
-    hs_free_scratch(s);
-  }
 }
 
 void file_search::compile_hs_database(std::string &pattern) {
@@ -74,14 +71,6 @@ void file_search::run(std::filesystem::path path) {
     throw std::runtime_error("Error allocating scratch space");
   }
   thread_local_scratch.push_back(local_scratch);
-  
-  // Set up the scratch space per line
-  hs_scratch_t *scratch_per_line = NULL;
-  database_error = hs_alloc_scratch(database, &scratch_per_line);
-  if (database_error != HS_SUCCESS) {
-    throw std::runtime_error("Error allocating scratch space");
-  }
-  thread_local_scratch_per_line.push_back(scratch_per_line);    
   
   // Memory map and search file in chunks multithreaded
   mmap_and_scan(std::move(path));
@@ -142,7 +131,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   std::vector<std::thread> threads(max_concurrency);
   thread_local_scratch.reserve(max_concurrency);
-  thread_local_scratch_per_line.reserve(max_concurrency);
   std::atomic<size_t> num_matching_lines{0};
 
   for (std::size_t i = 0; i < max_concurrency; ++i) {
@@ -157,16 +145,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     }
     thread_local_scratch.push_back(local_scratch);
 
-    // Set up the scratch space per line
-    hs_scratch_t *scratch_per_line = NULL;
-    database_error = hs_alloc_scratch(database, &scratch_per_line);
-    if (database_error != HS_SUCCESS) {
-      fprintf(stderr, "Error allocating scratch space\n");
-      hs_free_database(database);
-      return false;
-    }
-    thread_local_scratch_per_line.push_back(scratch_per_line);
-
     // Spawn a reader thread
     threads[i] = std::thread(
         [this, i = i, max_concurrency = max_concurrency, buffer = buffer,
@@ -175,8 +153,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
          &num_matching_lines]() {
           // Set up the scratch space
           hs_scratch_t *local_scratch = thread_local_scratch[i];
-          hs_scratch_t *local_scratch_per_line =
-              thread_local_scratch_per_line[i];
 
           std::size_t offset{i * max_searchable_size};
           while (true) {
@@ -232,7 +208,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
                 matches{};
             std::atomic<size_t> number_of_matches = 0;
             file_context
-                ctx{number_of_matches, matches, local_scratch_per_line, false /* print_only_filenames is not relevant in a single file search */};
+                ctx{number_of_matches, matches, false /* print_only_filenames is not relevant in a single file search */};
 
             if (hs_scan(database, start, end - start, 0, local_scratch,
                         on_match, (void *)(&ctx)) != HS_SUCCESS) {
@@ -269,7 +245,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             // (for this chunk)
             if (ctx.number_of_matches > 0) {
               std::string lines{};
-              process_matches(database, filename.data(), start, end - start,
+              process_matches(filename.data(), start, end - start,
                               ctx, previous_line_count, lines, false,
                               options.is_stdout, options.show_line_numbers);
               num_matching_lines += ctx.number_of_matches;
