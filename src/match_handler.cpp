@@ -25,8 +25,48 @@ void process_matches(const char *filename,
   std::size_t previous_start_of_line{0};
   std::size_t previous_end_of_line{0};
   std::size_t index{0};
+
+  // Pre process for entries with the same starting position
+  // e.g., for the match list {{8192, 8214}, {8192, 8215}}
+  // the list can be updated to {{8192, 8215}}
+  std::set<std::size_t> seen_first_values{};
+  std::set<std::pair<std::size_t, std::size_t>> reduced_matches{};
   
-  for (const auto &match : ctx.matches) {
+  for (const auto& match : ctx.matches) {
+    if (seen_first_values.count(match.first) == 0) {
+      reduced_matches.insert(match);
+      seen_first_values.insert(match.first);
+    } else {
+
+      // Find any other entries using match.first
+      // and erase them
+
+      const auto lower = std::lower_bound(
+                                          reduced_matches.begin(),
+                                          reduced_matches.end(),
+                                          match.first,
+                                          [](const std::pair<std::size_t, std::size_t>& el, const std::size_t i)
+                                          {
+                                            return el.first < i;
+                                          }
+                                          );
+      
+      const auto upper = std::upper_bound(
+                                          reduced_matches.begin(),
+                                          reduced_matches.end(),
+                                          match.first,
+                                          [](const std::size_t i, const std::pair<std::size_t, std::size_t>& el)
+                                          {
+                                            return i < el.first;
+                                          }
+                                          );
+      
+      reduced_matches.erase(lower, upper);      
+      reduced_matches.insert(match);
+    }
+  }  
+
+  for (const auto &match : reduced_matches) {
 
     auto& [from, to] = match;
 
@@ -80,7 +120,9 @@ void process_matches(const char *filename,
         }
       }
     }
-    
+
+    // index points to to
+    // Check if next match's from is AFTER the previous match's to
     lines += fmt::format("{}", chunk.substr(index, from - index));
     index = from;
     if (is_stdout) {    
@@ -88,7 +130,7 @@ void process_matches(const char *filename,
     } else {
       lines += fmt::format("{}", chunk.substr(index, to - from));
     }
-    index = to;
+    index = to; 
 
     previous_start_of_line = start_of_line;
     previous_end_of_line = end_of_line;
