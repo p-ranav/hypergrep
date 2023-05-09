@@ -167,6 +167,23 @@ bool git_index_search::process_file(const char *filename,
       return false;
     }
 
+    if (first) {
+      first = false;
+      if (bytes_read >= 4 &&
+          (is_elf_header(buffer) || is_archive_header(buffer))) {
+        result = false;
+        break;
+      }
+
+      if (has_null_bytes(buffer, bytes_read)) {
+        // NULL bytes found
+        // Ignore file
+        // Could be a .exe, .gz, .bin etc.
+        result = false;
+        break;
+      }
+    }  
+
     // Find the position of the last newline in the buffer
     // In order to catch matches between chunks, need to amend the buffer
     // and make sure it stops at a new line boundary
