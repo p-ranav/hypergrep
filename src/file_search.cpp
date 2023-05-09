@@ -47,26 +47,15 @@ file_search::~file_search() {
 
 void file_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
-
-  // Try to compile with FLAG_UCP
   auto error_code = hs_compile(pattern.data(),
                                (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-                                   HS_FLAG_UTF8 | HS_FLAG_UCP | HS_FLAG_SOM_LEFTMOST,
+                                   HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
                                HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
-
-    // UCP may have failed. Try to compile without FLAG_UCP
-    auto error_code = hs_compile(pattern.data(),
-				 (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-				 HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
-				 HS_MODE_BLOCK, NULL, &database, &compile_error);
-    
-    if (error_code != HS_SUCCESS) {
-      throw std::runtime_error(std::string{"Error compiling pattern: "} +
-			       compile_error->message);
-    }
+    throw std::runtime_error(std::string{"Error compiling pattern: "} +
+                             compile_error->message);
   }
-  
+
   auto database_error = hs_alloc_scratch(database, &scratch);
   if (database_error != HS_SUCCESS) {
     throw std::runtime_error("Error allocating scratch space");
