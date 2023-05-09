@@ -3,7 +3,7 @@
 
 ### File Search
 
- Single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz))
+ The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
 
 | Input | Command | Line Count | ripgrep | hypergrep |
 | --- | :---| ---:| ---:| ---:|
@@ -15,6 +15,8 @@
 | Alternation of Literals (Case insensitive) | `hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty'` | 10333 | 4.642 | **2.182** | 
 
 ### Directory Search
+
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`).
 
 | Input | Command | Line Count | ripgrep | hypergrep |
 | --- |:---| ---:| ---:| ---:|
