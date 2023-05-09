@@ -1,5 +1,6 @@
 #include <directory_search.hpp>
 #include <file_search.hpp>
+#include <git_index_search.hpp>
 
 int main(int argc, char **argv) {
 
@@ -80,8 +81,13 @@ int main(int argc, char **argv) {
     file_search s(program);
     s.run(path);
   } else {
-    directory_search s(program);
-    s.run(path);
+    if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
+      git_index_search s(program);
+      s.run(path);
+    } else {
+      directory_search s(program);
+      s.run(path);      
+    }
   }
 
   return 0;
