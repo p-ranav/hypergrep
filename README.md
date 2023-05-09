@@ -7,7 +7,8 @@
 
 | Input | Command | Line Count | ripgrep | hypergrep |
 | --- | :---| ---:| ---:| ---:|
-| Literal with Regex Suffix | `hg -nw 'Sherlock [A-Z]\w+'` | 7882 | 3.272 | **2.168** |
+| Literal with Regex Suffix | `hg -w 'Sherlock [A-Z]\w+'` | 7882 | 2.514 | **0.736** |
+| Literal with Regex Suffix (with Line Number) | `hg -nw 'Sherlock [A-Z]\w+'` | 7882 | 3.272 | **2.168** |
 | Simple Literal | `hg -nw 'Sherlock Holmes'` | 7653 | 2.411 | **2.179** |
 | Simple Literal (Case Insensitive) | `hg -inw 'Sherlock Holmes'` | 7871 | 2.773 | **2.167** |
 | Alternation of Literals | `hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty'` | 10078 | 2.542 | **2.169** |
