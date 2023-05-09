@@ -40,7 +40,7 @@ private:
   // Compile the HyperScan database for search
   void compile_hs_database(std::string &pattern);
 
-  bool process_file(std::string &&filename, std::size_t i, char *buffer,
+  bool process_file(std::string &&filename, hs_scratch_t* local_scratch, char *buffer,
                     std::string &lines);
 
   bool search_submodules(const char *dir, git_repository *this_repo);
@@ -50,7 +50,7 @@ private:
   bool visit_git_repo(const std::filesystem::path &dir,
                       git_repository *repo = nullptr);
 
-  bool try_dequeue_and_process_path(const std::size_t i, char *buffer,
+  bool try_dequeue_and_process_path(hs_scratch_t* local_scratch, char *buffer,
                                     std::string &lines);
 
   bool construct_file_filtering_hs_database();
@@ -75,8 +75,6 @@ private:
   hs_scratch_t *scratch = NULL;
   hs_database_t *file_filter_database = NULL;
   hs_scratch_t *file_filter_scratch = NULL;
-  std::vector<hs_scratch *> thread_local_scratch;
-  std::vector<hs_scratch *> thread_local_scratch_per_line;
   directory_search_options options;
 
   // Optimizations for large files
