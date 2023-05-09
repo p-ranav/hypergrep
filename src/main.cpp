@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
       s.run(path);
     } else {
       directory_search s(program);
-      s.run(path);      
+      s.run(path);
     }
   }
 
