@@ -16,7 +16,7 @@
 
 ### Directory Search
 
-The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`).
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) ([this](84e57d292203a45c96dbcb2e6be9dd80961d981a) commit, after running `make defconfig && make -j8`).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
