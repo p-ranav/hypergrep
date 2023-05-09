@@ -17,10 +17,10 @@
 
 | Input | Command | Line Count | ripgrep | hypergrep |
 | --- |:---| ---:| ---:| ---:|
-| Simple Literal | `hg -w 'PM_RESUME'` | 9 | 0.215 | **0.184** |
-| Simple Literal (Case insensitive) | `hg -niw 'PM_RESUME'` | 9 | 0.221 | 0.221 |
-| Regex with Literal Suffix | `hg -w '[A-Z]+_SUSPEND'` | 538 | 0.219 | **0.184** |
-| Unicode Greek | `hg -n '\p{Greek}'` | 105 | 0.394 | **0.210** |
+| Simple Literal | `hg -w 'PM_RESUME'` | 9 | 0.209 | 0.213 |
+| Simple Literal (Case insensitive) | `hg -niw 'PM_RESUME'` | 39 | 0.209 | 0.212 |
+| Regex with Literal Suffix | `hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | 0.212 |
+| Unicode Greek | `hg -n '\p{Greek}'` | 105 | 0.397 | **0.215** |
 
 ## Build
 
