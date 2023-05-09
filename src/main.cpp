@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("--max-file-size")
-    .help("Ignore files above a certain size");
+      .help("Ignore files above a certain size");
 
   program.add_argument("-n", "--line-number")
       .help("Show line numbers (1-based). This is enabled by default when "

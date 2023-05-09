@@ -21,7 +21,7 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
   if (program.is_used("--max-file-size")) {
     const auto max_file_size_spec = program.get<std::string>("--max-file-size");
     options.max_file_size = size_to_bytes(max_file_size_spec);
-  }  
+  }
 
   auto pattern = program.get<std::string>("pattern");
 
@@ -46,22 +46,20 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
 }
 
 git_index_search::~git_index_search() {
-  if (iter) {
-    git_index_iterator_free(iter);        
-  }
   if (file_filter_scratch) {
     hs_free_scratch(file_filter_scratch);
   }
   if (file_filter_database) {
     hs_free_database(file_filter_database);
   }
-  if (!large_file_searcher_used) {
-    if (scratch) {
-      hs_free_scratch(scratch);
-    }
-    if (database) {
-      hs_free_database(database);
-    }    
+  for (auto &iter : garbage_collect_index_iterator) {
+    git_index_iterator_free(iter);
+  }
+  for (auto &idx : garbage_collect_index) {
+    git_index_free(idx);
+  }
+  for (auto &repo : garbage_collect_repo) {
+    git_repository_free(repo);
   }
 }
 
@@ -71,17 +69,17 @@ void git_index_search::run(std::filesystem::path path) {
   for (std::size_t i = 0; i < options.num_threads; ++i) {
 
     consumer_threads[i] = std::thread([this, i = i]() {
-
       if (i == 0) {
         static bool libgit2_initialized = []() {
           // Initialize libgit2
-          return git_libgit2_init() == 1; // returns number of initializations or error code
+          return git_libgit2_init() ==
+                 1; // returns number of initializations or error code
         }();
         if (!libgit2_initialized) {
           throw std::runtime_error("Failed to initialize libgit2");
         }
       }
-      
+
       char buffer[FILE_CHUNK_SIZE];
       std::string lines{};
 
@@ -89,7 +87,7 @@ void git_index_search::run(std::filesystem::path path) {
       hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
       if (database_error != HS_SUCCESS) {
         throw std::runtime_error("Error allocating scratch space\n");
-      }      
+      }
 
       while (true) {
         if (num_files_enqueued > 0) {
@@ -113,7 +111,6 @@ void git_index_search::run(std::filesystem::path path) {
   for (std::size_t i = 0; i < options.num_threads; ++i) {
     consumer_threads[i].join();
   }
-
 }
 
 void git_index_search::compile_hs_database(std::string &pattern) {
@@ -133,8 +130,9 @@ void git_index_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-bool git_index_search::process_file(const char* filename, hs_scratch_t* local_scratch,
-                                    char *buffer, std::string &lines) {
+bool git_index_search::process_file(const char *filename,
+                                    hs_scratch_t *local_scratch, char *buffer,
+                                    std::string &lines) {
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -144,7 +142,8 @@ bool git_index_search::process_file(const char* filename, hs_scratch_t* local_sc
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
   bool max_file_size_provided = options.max_file_size.has_value();
-  std::size_t max_file_size = max_file_size_provided ? options.max_file_size.value() : 0;
+  std::size_t max_file_size =
+      max_file_size_provided ? options.max_file_size.value() : 0;
   std::size_t bytes_read = 0;
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
@@ -166,35 +165,6 @@ bool git_index_search::process_file(const char* filename, hs_scratch_t* local_sc
       // File size limit reached
       close(fd);
       return false;
-    } else if (false) {// }total_bytes_read > LARGE_FILE_SIZE) {
-      // This file is a bit large
-      // Add it to the backlog and process it later with a file_search object
-      // instead of using a single thread to read in chunks
-      // The file_search object will memory map and search this large file
-      // in multiple threads
-
-      large_file_backlog.enqueue(filename);
-      ++num_large_files_enqueued;
-        
-      close(fd);
-      return false;        
-    }
-    
-    if (first) {
-      first = false;
-      if (bytes_read >= 4 &&
-          (is_elf_header(buffer) || is_archive_header(buffer))) {
-        result = false;
-        break;
-      }
-
-      if (has_null_bytes(buffer, bytes_read)) {
-        // NULL bytes found
-        // Ignore file
-        // Could be a .exe, .gz, .bin etc.
-        result = false;
-        break;
-      }
     }
 
     // Find the position of the last newline in the buffer
@@ -206,9 +176,11 @@ bool git_index_search::process_file(const char* filename, hs_scratch_t* local_sc
       search_size = last_newline - buffer;
     }
 
+    std::mutex match_mutex;
     std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
-    file_context ctx{number_of_matches, matches, options.print_only_filenames};
+    file_context ctx{number_of_matches, matches, match_mutex,
+                     options.print_only_filenames};
 
     if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
                 (void *)(&ctx)) != HS_SUCCESS) {
@@ -225,8 +197,8 @@ bool git_index_search::process_file(const char* filename, hs_scratch_t* local_sc
     }
 
     if (ctx.number_of_matches > 0) {
-      process_matches(filename, buffer, search_size, ctx,
-                      current_line_number, lines, true, options.is_stdout,
+      process_matches(filename, buffer, search_size, ctx, current_line_number,
+                      lines, true, options.is_stdout,
                       options.show_line_numbers);
       num_matching_lines += ctx.number_of_matches;
     }
@@ -240,8 +212,8 @@ bool git_index_search::process_file(const char* filename, hs_scratch_t* local_sc
       } else {
         // Backtrack "remainder" number of characters
         if (bytes_read > search_size) {
-          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR); 
-        }     
+          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+        }
       }
     }
   }
@@ -317,7 +289,10 @@ bool git_index_search::search_submodules(const char *dir,
 
 bool git_index_search::visit_git_index(const std::filesystem::path &dir,
                                        git_index *index) {
+  git_index_iterator *iter{nullptr};
   if (git_index_iterator_new(&iter, index) == 0) {
+
+    garbage_collect_index_iterator.push_back(iter);
 
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
@@ -338,18 +313,22 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
 
   bool result{true};
 
+  // Open the repository
   if (!repo) {
-    // Open the repository
     if (git_repository_open(&repo, dir.c_str()) != 0) {
       result = false;
     }
   }
+
+  garbage_collect_repo.push_back(repo);
 
   // Load the git index for this repository
   git_index *index = nullptr;
   if (result && git_repository_index(&index, repo) != 0) {
     result = false;
   }
+
+  garbage_collect_index.push_back(index);
 
   // Visit each entry in the index
   if (result && !visit_git_index(dir, index)) {
@@ -360,24 +339,17 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
   if (result && !search_submodules(dir.c_str(), repo)) {
     result = false;
   }
-
-  git_index_free(index);
-  git_repository_free(repo);
   return result;
 }
 
-bool git_index_search::try_dequeue_and_process_path(hs_scratch_t* local_scratch,
+bool git_index_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
                                                     char *buffer,
                                                     std::string &lines) {
-  constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
-  const char* entries[BULK_DEQUEUE_SIZE];
-  auto count =
-      queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
-  if (count > 0) {
-    for (std::size_t j = 0; j < count; ++j) {
-      process_file(entries[j], local_scratch, buffer, lines);
-    }
-    num_files_dequeued += count;
+  const char *entry;
+  auto found = queue.try_dequeue_from_producer(ptok, entry);
+  if (found) {
+    process_file(entry, local_scratch, buffer, lines);
+    num_files_dequeued += 1;
     return true;
   }
 

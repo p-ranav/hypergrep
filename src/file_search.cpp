@@ -1,6 +1,8 @@
 #include <file_search.hpp>
 
-file_search::file_search(hs_database_t* database, hs_scratch_t* scratch, const file_search_options &options) : database(database), scratch(scratch), options(options) {}
+file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
+                         const file_search_options &options)
+    : database(database), scratch(scratch), options(options) {}
 
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
@@ -30,7 +32,7 @@ file_search::file_search(argparse::ArgumentParser &program) {
   compile_hs_database(pattern);
 }
 
-file_search::~file_search() {  
+file_search::~file_search() {
   if (scratch) {
     hs_free_scratch(scratch);
   }
@@ -38,7 +40,7 @@ file_search::~file_search() {
     hs_free_database(database);
   }
 
-  for (const auto& s : thread_local_scratch) {
+  for (const auto &s : thread_local_scratch) {
     hs_free_scratch(s);
   }
 }
@@ -71,7 +73,7 @@ void file_search::run(std::filesystem::path path) {
     throw std::runtime_error("Error allocating scratch space");
   }
   thread_local_scratch.push_back(local_scratch);
-  
+
   // Memory map and search file in chunks multithreaded
   mmap_and_scan(std::move(path));
 }
@@ -146,128 +148,124 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     thread_local_scratch.push_back(local_scratch);
 
     // Spawn a reader thread
-    threads[i] = std::thread(
-        [this, i = i, max_concurrency = max_concurrency, buffer = buffer,
-         file_size = file_size, max_searchable_size = max_searchable_size,
-         &inter_thread_synchronization_line_count_queue, &filename,
-         &num_matching_lines]() {
-          // Set up the scratch space
-          hs_scratch_t *local_scratch = thread_local_scratch[i];
+    threads[i] = std::thread([this, i = i, max_concurrency = max_concurrency,
+                              buffer = buffer, file_size = file_size,
+                              max_searchable_size = max_searchable_size,
+                              &inter_thread_synchronization_line_count_queue,
+                              &filename, &num_matching_lines]() {
+      // Set up the scratch space
+      hs_scratch_t *local_scratch = thread_local_scratch[i];
 
-          std::size_t offset{i * max_searchable_size};
-          while (true) {
+      std::size_t offset{i * max_searchable_size};
+      while (true) {
 
-            char *start = buffer + offset;
-            if (start > buffer + file_size) {
-              // stop here
-              // fmt::print("Thread {} done\n", i);
-              break;
-            }
+        char *start = buffer + offset;
+        if (start > buffer + file_size) {
+          // stop here
+          // fmt::print("Thread {} done\n", i);
+          break;
+        }
 
-            char *end = start + max_searchable_size;
-            if (end > buffer + file_size) {
-              end = buffer + file_size;
-            }
+        char *end = start + max_searchable_size;
+        if (end > buffer + file_size) {
+          end = buffer + file_size;
+        }
 
-            if (offset > 0) {
-              // Adjust start to go back to a newline boundary
-              // Adjust end as well to go back to a newline boundary
-              auto previous_start = start - max_searchable_size;
-              if (previous_start > buffer) {
-                std::string_view chunk(previous_start, max_searchable_size);
+        if (offset > 0) {
+          // Adjust start to go back to a newline boundary
+          // Adjust end as well to go back to a newline boundary
+          auto previous_start = start - max_searchable_size;
+          if (previous_start > buffer) {
+            std::string_view chunk(previous_start, max_searchable_size);
 
-                auto last_newline =
-                    chunk.find_last_of('\n', max_searchable_size);
-                if (last_newline == std::string_view::npos) {
-                  // No newline found, do nothing?
-                  // TODO: This could be an error scenario, check
-                } else {
-                  start = previous_start + last_newline;
-                }
-              } else {
-                // Something wrong, don't update start
-              }
-            }
-
-            // Update end to stop at a newline boundary
-            std::string_view chunk(start, end - start);
-            auto last_newline = chunk.find_last_of('\n', end - start);
+            auto last_newline = chunk.find_last_of('\n', max_searchable_size);
             if (last_newline == std::string_view::npos) {
               // No newline found, do nothing?
               // TODO: This could be an error scenario, check
             } else {
-              end = start + last_newline;
-              if (offset == 0) {
-                end += 1;
-              }
+              start = previous_start + last_newline;
             }
-
-            // Perform the search
-            bool result{false};
-            std::set<std::pair<unsigned long long, unsigned long long>>
-                matches{};
-            std::atomic<size_t> number_of_matches = 0;
-            file_context
-                ctx{number_of_matches, matches, false /* print_only_filenames is not relevant in a single file search */};
-
-            if (hs_scan(database, start, end - start, 0, local_scratch,
-                        on_match, (void *)(&ctx)) != HS_SUCCESS) {
-              result = false;
-              break;
-            } else {
-              if (ctx.number_of_matches > 0) {
-                result = true;
-              }
-            }
-
-            // Find the line count on the previous chunk
-            std::size_t previous_line_count{0};
-            if (offset == 0) {
-              previous_line_count = 1;
-            }
-            if (options.show_line_numbers && offset > 0) {
-              // If not the first chunk,
-              // get the number of lines (computed) in the previous chunk
-              auto thread_number = (i > 0) ? i - 1 : max_concurrency - 1;
-
-              bool found = false;
-              while (!found) {
-                found =
-                    inter_thread_synchronization_line_count_queue[thread_number]
-                        .try_dequeue(previous_line_count);
-              }
-            }
-
-            const std::size_t line_count_at_start_of_chunk =
-                previous_line_count;
-
-            // Process matches with this line number as the start line number
-            // (for this chunk)
-            if (ctx.number_of_matches > 0) {
-              std::string lines{};
-              process_matches(filename.data(), start, end - start,
-                              ctx, previous_line_count, lines, false,
-                              options.is_stdout, options.show_line_numbers);
-              num_matching_lines += ctx.number_of_matches;
-
-              if (!options.count_matching_lines && result && !lines.empty()) {
-                fmt::print("{}", lines);
-              }
-            }
-
-            if (options.show_line_numbers) {
-              // Count num lines in the chunk that was just searched
-              const std::size_t num_lines_in_chunk =
-                  std::count(start, end, '\n');
-              inter_thread_synchronization_line_count_queue[i].enqueue(
-                  line_count_at_start_of_chunk + num_lines_in_chunk);
-            }
-
-            offset += max_concurrency * max_searchable_size;
+          } else {
+            // Something wrong, don't update start
           }
+        }
 
-          return true;
-        });
+        // Update end to stop at a newline boundary
+        std::string_view chunk(start, end - start);
+        auto last_newline = chunk.find_last_of('\n', end - start);
+        if (last_newline == std::string_view::npos) {
+          // No newline found, do nothing?
+          // TODO: This could be an error scenario, check
+        } else {
+          end = start + last_newline;
+          if (offset == 0) {
+            end += 1;
+          }
+        }
+
+        // Perform the search
+        bool result{false};
+        std::mutex match_mutex;
+        std::set<std::pair<unsigned long long, unsigned long long>> matches{};
+        std::atomic<size_t> number_of_matches = 0;
+        file_context
+	      ctx{number_of_matches, matches, match_mutex, false /* print_only_filenames is not relevant in a single file search */};
+
+        if (hs_scan(database, start, end - start, 0, local_scratch, on_match,
+                    (void *)(&ctx)) != HS_SUCCESS) {
+          result = false;
+          break;
+        } else {
+          if (ctx.number_of_matches > 0) {
+            result = true;
+          }
+        }
+
+        // Find the line count on the previous chunk
+        std::size_t previous_line_count{0};
+        if (offset == 0) {
+          previous_line_count = 1;
+        }
+        if (options.show_line_numbers && offset > 0) {
+          // If not the first chunk,
+          // get the number of lines (computed) in the previous chunk
+          auto thread_number = (i > 0) ? i - 1 : max_concurrency - 1;
+
+          bool found = false;
+          while (!found) {
+            found = inter_thread_synchronization_line_count_queue[thread_number]
+                        .try_dequeue(previous_line_count);
+          }
+        }
+
+        const std::size_t line_count_at_start_of_chunk = previous_line_count;
+
+        // Process matches with this line number as the start line number
+        // (for this chunk)
+        if (ctx.number_of_matches > 0) {
+          std::string lines{};
+          process_matches(filename.data(), start, end - start, ctx,
+                          previous_line_count, lines, false, options.is_stdout,
+                          options.show_line_numbers);
+          num_matching_lines += ctx.number_of_matches;
+
+          if (!options.count_matching_lines && result && !lines.empty()) {
+            fmt::print("{}", lines);
+          }
+        }
+
+        if (options.show_line_numbers) {
+          // Count num lines in the chunk that was just searched
+          const std::size_t num_lines_in_chunk = std::count(start, end, '\n');
+          inter_thread_synchronization_line_count_queue[i].enqueue(
+              line_count_at_start_of_chunk + num_lines_in_chunk);
+        }
+
+        offset += max_concurrency * max_searchable_size;
+      }
+
+      return true;
+    });
   }
 
   for (auto &t : threads) {

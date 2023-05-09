@@ -11,7 +11,7 @@ bool is_archive_header(const char *buffer) {
   return (strncmp(buffer, archive_magic.data(), archive_magic.size()) == 0);
 }
 
-bool has_null_bytes(char* buffer, std::size_t search_size) {
+bool has_null_bytes(char *buffer, std::size_t search_size) {
   if (memchr((void *)buffer, '\0', search_size) != NULL) {
     return true;
   }

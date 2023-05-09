@@ -21,7 +21,7 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
   if (program.is_used("--max-file-size")) {
     const auto max_file_size_spec = program.get<std::string>("--max-file-size");
     options.max_file_size = size_to_bytes(max_file_size_spec);
-  }  
+  }
 
   auto pattern = program.get<std::string>("pattern");
 
@@ -58,7 +58,7 @@ directory_search::~directory_search() {
     }
     if (database) {
       hs_free_database(database);
-    }    
+    }
   }
 }
 
@@ -68,17 +68,17 @@ void directory_search::run(std::filesystem::path path) {
   for (std::size_t i = 0; i < options.num_threads; ++i) {
 
     consumer_threads[i] = std::thread([this, i = i]() {
-
       if (i == 0) {
         static bool libgit2_initialized = []() {
           // Initialize libgit2
-          return git_libgit2_init() == 1; // returns number of initializations or error code
+          return git_libgit2_init() ==
+                 1; // returns number of initializations or error code
         }();
         if (!libgit2_initialized) {
           throw std::runtime_error("Failed to initialize libgit2");
         }
       }
-      
+
       char buffer[FILE_CHUNK_SIZE];
       std::string lines{};
 
@@ -86,7 +86,7 @@ void directory_search::run(std::filesystem::path path) {
       hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
       if (database_error != HS_SUCCESS) {
         throw std::runtime_error("Error allocating scratch space\n");
-      }      
+      }
 
       while (true) {
         if (num_files_enqueued > 0) {
@@ -119,15 +119,13 @@ void directory_search::run(std::filesystem::path path) {
   if (num_large_files_enqueued > 0) {
 
     large_file_searcher_used = true;
-    file_search large_file_searcher(database, scratch, file_search_options {
-        options.is_stdout,
-        options.show_line_numbers,
-        options.ignore_case,
-        options.count_matching_lines,
-        options.num_threads
-      });
+    file_search large_file_searcher(
+        database, scratch,
+        file_search_options{options.is_stdout, options.show_line_numbers,
+                            options.ignore_case, options.count_matching_lines,
+                            options.num_threads});
 
-     // Memory map + multi-threaded search
+    // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
       std::string path{};
       auto found = large_file_backlog.try_dequeue(path);
@@ -135,8 +133,8 @@ void directory_search::run(std::filesystem::path path) {
         large_file_searcher.run(path);
         --num_large_files_enqueued;
       }
-    }    
-  }  
+    }
+  }
 }
 
 void directory_search::compile_hs_database(std::string &pattern) {
@@ -156,8 +154,9 @@ void directory_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-bool directory_search::process_file(std::string &&filename, hs_scratch_t* local_scratch,
-                                    char *buffer, std::string &lines) {
+bool directory_search::process_file(std::string &&filename,
+                                    hs_scratch_t *local_scratch, char *buffer,
+                                    std::string &lines) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -167,7 +166,8 @@ bool directory_search::process_file(std::string &&filename, hs_scratch_t* local_
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
   bool max_file_size_provided = options.max_file_size.has_value();
-  std::size_t max_file_size = max_file_size_provided ? options.max_file_size.value() : 0;
+  std::size_t max_file_size =
+      max_file_size_provided ? options.max_file_size.value() : 0;
   std::size_t bytes_read = 0;
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
@@ -198,11 +198,11 @@ bool directory_search::process_file(std::string &&filename, hs_scratch_t* local_
 
       large_file_backlog.enqueue(std::move(filename));
       ++num_large_files_enqueued;
-        
+
       close(fd);
-      return false;        
+      return false;
     }
-    
+
     if (first) {
       first = false;
       if (bytes_read >= 4 &&
@@ -229,9 +229,11 @@ bool directory_search::process_file(std::string &&filename, hs_scratch_t* local_
       search_size = last_newline - buffer;
     }
 
+    std::mutex match_mutex;
     std::set<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
-    file_context ctx{number_of_matches, matches, options.print_only_filenames};
+    file_context ctx{number_of_matches, matches, match_mutex,
+                     options.print_only_filenames};
 
     if (hs_scan(database, buffer, search_size, 0, local_scratch, on_match,
                 (void *)(&ctx)) != HS_SUCCESS) {
@@ -263,8 +265,8 @@ bool directory_search::process_file(std::string &&filename, hs_scratch_t* local_
       } else {
         // Backtrack "remainder" number of characters
         if (bytes_read > search_size) {
-          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR); 
-        }     
+          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+        }
       }
     }
   }
@@ -349,7 +351,7 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
                     (options.filter_files && filter_file(entry->path)))) {
         auto path = std::filesystem::path(dir) / entry->path;
         queue.enqueue(ptok, path.string());
-        ++num_files_enqueued;          
+        ++num_files_enqueued;
       }
     }
     git_index_iterator_free(iter);
@@ -426,7 +428,7 @@ void directory_search::visit_directory_and_enqueue(
   }
 }
 
-bool directory_search::try_dequeue_and_process_path(hs_scratch_t* local_scratch,
+bool directory_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
                                                     char *buffer,
                                                     std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;

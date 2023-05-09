@@ -12,8 +12,7 @@ int print_match_in_red_color(unsigned int id, unsigned long long from,
                              unsigned long long to, unsigned int flags,
                              void *ctx);
 
-void process_matches(const char *filename,
-                     char *buffer, std::size_t bytes_read, file_context &ctx,
-                     std::size_t &current_line_number, std::string &lines,
-                     bool print_filename, bool is_stdout,
+void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
+                     file_context &ctx, std::size_t &current_line_number,
+                     std::string &lines, bool print_filename, bool is_stdout,
                      bool show_line_numbers);
