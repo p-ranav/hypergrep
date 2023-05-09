@@ -1,6 +1,19 @@
 
 ## Performance
 
+The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
+
+### System Details
+
+| Type            | Value |
+|:--------------- |:---- |
+| Processor       | [11th Gen Intel(R) Core(TM) i9-11900KF @ 3.50GHz   3.50 GHz](https://ark.intel.com/content/www/us/en/ark/products/212321/intel-core-i911900kf-processor-16m-cache-up-to-5-30-ghz.html) |
+| Instruction Set Extensions | Intel® SSE4.1, Intel® SSE4.2, Intel® AVX2, Intel® AVX-512 |
+| Installed RAM   | 32.0 GB (31.9 GB usable) |
+| SSD             | [ADATA SX8200PNP](https://www.adata.com/upload/downloadfile/Datasheet_XPG%20SX8200%20Pro_EN_20181017.pdf) |
+| OS              | Ubuntu 20.04 LTS |
+| C++ Compiler    | g++ (Ubuntu 11.1.0-1ubuntu1-20.04) 11.1.0 |
+
 ### File Search
 
  The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
