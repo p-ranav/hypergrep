@@ -21,11 +21,12 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
 | Literal with Regex Suffix<br/>`hg -w 'Sherlock [A-Z]\w+' en.txt` | 7882 | 2.514 | **0.736** |
-| Literal with Regex Suffix (with line number)<br/>`hg -nw 'Sherlock [A-Z]\w+'` | 7882 | 3.272 | **2.168** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes'` | 7653 | 2.411 | **2.179** |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes'` | 7871 | 2.773 | **2.167** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty'` | 10078 | 2.542 | **2.169** |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty'` | 10333 | 4.642 | **2.182** | 
+| Literal with Regex Suffix (with line number)<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | 3.272 | **2.168** |
+| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 2.411 | **2.179** |
+| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 2.773 | **2.167** |
+| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 2.542 | **2.169** |
+| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 4.642 | **2.182** |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 2.266 | 2.205 |
 
 ### Directory Search
 
