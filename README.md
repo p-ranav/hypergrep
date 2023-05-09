@@ -23,6 +23,10 @@
 | Regex with Literal Suffix | `hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | 0.212 |
 | Unicode Greek | `hg -n '\p{Greek}'` | 105 | 0.397 | **0.215** |
 
+## Workflow
+
+![Workflow](doc/workflow.png)
+
 ## Build
 
 ```
@@ -31,7 +35,3 @@ cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=<path_to_vcpkg>/scripts/buildsystems/vcpkg.cmake ..
 make
 ```
-
-## Workflow
-
-![Workflow](doc/workflow.png)
