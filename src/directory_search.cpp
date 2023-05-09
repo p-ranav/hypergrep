@@ -63,9 +63,6 @@ directory_search::~directory_search() {
 }
 
 void directory_search::run(std::filesystem::path path) {
-  // Initialize libgit2
-  git_libgit2_init();
-
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   thread_local_scratch.reserve(options.num_threads);
@@ -80,6 +77,17 @@ void directory_search::run(std::filesystem::path path) {
     thread_local_scratch.push_back(local_scratch);
 
     consumer_threads[i] = std::thread([this, i = i]() {
+
+      if (i == 0) {
+        static bool libgit2_initialized = []() {
+          // Initialize libgit2
+          return git_libgit2_init() == 1; // returns number of initializations or error code
+        }();
+        if (!libgit2_initialized) {
+          throw std::runtime_error("Failed to initialize libgit2");
+        }
+      }
+      
       char buffer[FILE_CHUNK_SIZE];
       std::string lines{};
       while (true) {
