@@ -34,10 +34,10 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -w 'PM_RESUME'` | 9 | 0.209 | 0.213 |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | 0.212 |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | 0.212 |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 105 | 0.397 | **0.215** |
+| Simple Literal<br/>`hg -w 'PM_RESUME'` | 9 | 0.209 | **0.152** |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.156** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.159** |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` | 105 | 0.397 | **0.160** |
 
 ## Workflow
 
