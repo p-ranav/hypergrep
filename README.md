@@ -31,7 +31,20 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 ## Build
 
+### Install Dependencies with `vcpkg`
+
+```bash
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+./bootstrap-vcpkg.sh
+./vcpkg install concurrentqueue fmt argparse libgit2 hyperscan
 ```
+
+### Build `hypergrep` using CMake
+
+```
+git clone https://github.com/p-ranav/hypergrep
+cd hypergrep
 mkdir build
 cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=<path_to_vcpkg>/scripts/buildsystems/vcpkg.cmake ..
