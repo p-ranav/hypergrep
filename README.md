@@ -17,9 +17,9 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 | OS              | Ubuntu 20.04 LTS |
 | C++ Compiler    | g++ (Ubuntu 11.1.0-1ubuntu1-20.04) 11.1.0 |
 
-### Directory Search
+### Directory Search: `torvalds/linux`
 
-The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) ([this](84e57d292203a45c96dbcb2e6be9dd80961d981a) commit, after running `make defconfig && make -j8`).
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (commit `84e57d292203a45c96dbcb2e6be9dd80961d981a`, after running `make defconfig && make -j8`).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
@@ -29,7 +29,18 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 | Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.417 | **0.162** |
 | Unicode Greek<br/>`hg -n '\p{Greek}'` | 105 | 0.397 | **0.160** |
 
-### File Search
+### Directory Search: `apple/swift`
+
+The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift) (commit `2407256e5401080a79c1346a82c1c84bb3a88a13`).
+
+| Regex | Line Count | ripgrep | hypergrep |
+| :---| ---:| ---:| ---:|
+| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -nw '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 58934 | 0.189 | **0.104** |
+| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '-nw [A-Za-z]+\d{2,}'` | 127750 | 0.186 | **0.145** |
+| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2011521 | 0.711 | 0.708 |
+| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.072 | **0.048** |
+
+### Single Lrage File Search: `OpenSubtitles.raw.en.txt`
 
  The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
 
