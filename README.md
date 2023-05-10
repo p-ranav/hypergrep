@@ -26,7 +26,7 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 
 ### Directory Search: `torvalds/linux`
 
-The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (commit `84e57d292203a45c96dbcb2e6be9dd80961d981a`, after running `make defconfig && make -j8`).
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
@@ -38,7 +38,7 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 ### Directory Search: `apple/swift`
 
-The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift) (commit `2407256e5401080a79c1346a82c1c84bb3a88a13`).
+The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
