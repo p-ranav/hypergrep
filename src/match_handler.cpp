@@ -31,32 +31,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   std::size_t previous_end_of_line{0};
   std::size_t index{0};
 
-  // Pre process for entries with the same starting position
-  // e.g., for the match list {{8192, 8214}, {8192, 8215}}
-  // the list can be updated to {{8192, 8215}}
-  std::set<std::pair<std::size_t, std::size_t>> reduced_matches;
-  std::unordered_map<std::size_t, std::size_t> last_occurrence;
-
   for (const auto &match : ctx.matches) {
-    const auto first = match.first;
-    if (last_occurrence.count(first) == 0) {
-      reduced_matches.insert(match);
-    } else {
-      reduced_matches.erase(reduced_matches.lower_bound({first, 0}),
-                            reduced_matches.end());
-      reduced_matches.insert(match);
-    }
-    last_occurrence[first] = match.second;
-  }
-
-  // TODO: Still need to handle the case where a second match
-  // starts somewhere inside the first match
-  // from              to
-  // ^^^^^^^^^^^^^^^^^^^^
-  //        from2            to2
-  //        ^^^^^^^^^^^^^^^^^^^^
-
-  for (const auto &match : reduced_matches) {
 
     auto &[from, to] = match;
 
