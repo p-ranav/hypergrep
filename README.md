@@ -1,5 +1,5 @@
 <p align="center">
-  <img height="100" src="https://github.com/p-ranav/hypergrep/assets/8450091/9c7e439f-8d9f-4195-89ad-bce40f9c59ab"/>
+  <img height="100" src="https://github.com/p-ranav/hypergrep/assets/8450091/18aeff91-0c0b-4e1c-b7b9-628e377798e2"/>
 </p>
 
 ## Performance
