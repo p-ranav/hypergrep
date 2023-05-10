@@ -20,7 +20,7 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -w 'PM_RESUME'` | 9 | 0.209 | **0.152** |
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.209 | **0.152** |
 | Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.156** |
 | Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.159** |
 | Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.417 | **0.162** |
