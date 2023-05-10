@@ -2,6 +2,13 @@
   <img height="100" src="https://github.com/p-ranav/hypergrep/assets/8450091/18aeff91-0c0b-4e1c-b7b9-628e377798e2"/>
 </p>
 
+## Highlights
+
+* Search files and directories for a regex pattern using [Intel Hyperscan](https://github.com/intel/hyperscan)
+* When a git repository is detected, the repository index is searched using [libgit2](https://github.com/libgit2/libgit2)
+* Print line numbers, search case insensitively, exclude git submodules, and filter paths with regex pattern  
+* Similar to `grep`, `ripgrep`, etc.
+
 ## Performance
 
 The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
