@@ -4,7 +4,7 @@
 
 ## Highlights
 
-* Search files and directories for a regex pattern using [Intel Hyperscan](https://github.com/intel/hyperscan)
+* Search recursively for a regex pattern using [Intel Hyperscan](https://github.com/intel/hyperscan)
 * When a git repository is detected, the repository index is searched using [libgit2](https://github.com/libgit2/libgit2)
 * Print line numbers, search case insensitively, exclude git submodules, and filter paths with regex pattern  
 * Similar to `grep`, `ripgrep`, etc.
