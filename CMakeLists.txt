@@ -3,7 +3,7 @@ project(hg)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-march=native -O3)
+add_compile_options(-march=native -O3 -Wall -Wpedantic)
 
 # ———————————————————————————
 # find 3rd party dependencies

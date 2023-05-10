@@ -30,6 +30,8 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
     pattern = "\\b" + pattern + "\\b";
   }
 
+  options.use_ucp = program.get<bool>("--ucp");
+
   options.is_stdout = isatty(STDOUT_FILENO) == 1;
 
   if (options.is_stdout) {
@@ -113,7 +115,7 @@ void directory_search::run(std::filesystem::path path) {
         database, scratch,
         file_search_options{options.is_stdout, options.show_line_numbers,
                             options.ignore_case, options.count_matching_lines,
-                            options.num_threads});
+			    options.use_ucp, options.num_threads});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -131,7 +133,9 @@ void directory_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
   auto error_code = hs_compile(pattern.data(),
                                (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-                                   HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
+			       HS_FLAG_UTF8 |
+			       (options.use_ucp ? HS_FLAG_UCP : 0) |
+			       HS_FLAG_SOM_LEFTMOST,
                                HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -249,7 +253,7 @@ bool directory_search::process_file(std::string &&filename,
     if (last_newline && bytes_read > search_size &&
         bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
 
-      if ((last_newline - buffer) == bytes_read - 1) {
+      if (static_cast<std::size_t>(last_newline - buffer) == bytes_read - 1) {
         // Chunk ends exactly at the newline
         // Do nothing
       } else {

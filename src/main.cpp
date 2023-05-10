@@ -46,6 +46,11 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--ucp")
+      .help("Use unicode properties, rather than the default ASCII interpretations, for character mnemonics like \\w and \\s as well as the POSIX character classes.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-w", "--word-regexp")
       .help(
           "Only show matches surrounded by word boundaries. This is equivalent "

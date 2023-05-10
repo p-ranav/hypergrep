@@ -17,6 +17,8 @@ file_search::file_search(argparse::ArgumentParser &program) {
     pattern = "\\b" + pattern + "\\b";
   }
 
+  options.use_ucp = program.get<bool>("--ucp");
+
   options.is_stdout = isatty(STDOUT_FILENO) == 1;
 
   if (options.is_stdout) {
@@ -49,7 +51,9 @@ void file_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
   auto error_code = hs_compile(pattern.data(),
                                (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-                                   HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
+			       HS_FLAG_UTF8 |
+			       (options.use_ucp ? HS_FLAG_UCP : 0) |
+			       HS_FLAG_SOM_LEFTMOST,
                                HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +

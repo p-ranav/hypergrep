@@ -30,6 +30,8 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
     pattern = "\\b" + pattern + "\\b";
   }
 
+  options.use_ucp = program.get<bool>("--ucp");
+
   options.is_stdout = isatty(STDOUT_FILENO) == 1;
 
   if (options.is_stdout) {
@@ -46,7 +48,6 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
 }
 
 git_index_search::~git_index_search() {
-  /*
   if (file_filter_scratch) {
     hs_free_scratch(file_filter_scratch);
   }
@@ -65,7 +66,6 @@ git_index_search::~git_index_search() {
     if (repo)
       git_repository_free(repo);
   }
-  */
 }
 
 void git_index_search::run(std::filesystem::path path) {
@@ -112,7 +112,9 @@ void git_index_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
   auto error_code = hs_compile(pattern.data(),
                                (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-                                   HS_FLAG_UTF8 | HS_FLAG_SOM_LEFTMOST,
+			       HS_FLAG_UTF8 |
+			       (options.use_ucp ? HS_FLAG_UCP : 0) |
+			       HS_FLAG_SOM_LEFTMOST,
                                HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -218,7 +220,7 @@ bool git_index_search::process_file(const char *filename,
     if (last_newline && bytes_read > search_size &&
         bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
 
-      if ((last_newline - buffer) == bytes_read - 1) {
+      if (static_cast<std::size_t>(last_newline - buffer) == bytes_read - 1) {
         // Chunk ends exactly at the newline
         // Do nothing
       } else {
