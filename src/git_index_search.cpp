@@ -46,6 +46,7 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
 }
 
 git_index_search::~git_index_search() {
+  /*
   if (file_filter_scratch) {
     hs_free_scratch(file_filter_scratch);
   }
@@ -53,33 +54,27 @@ git_index_search::~git_index_search() {
     hs_free_database(file_filter_database);
   }
   for (auto &iter : garbage_collect_index_iterator) {
-    git_index_iterator_free(iter);
+    if (iter)
+      git_index_iterator_free(iter);
   }
   for (auto &idx : garbage_collect_index) {
-    git_index_free(idx);
+    if (idx)
+      git_index_free(idx);
   }
   for (auto &repo : garbage_collect_repo) {
-    git_repository_free(repo);
+    if (repo)
+      git_repository_free(repo);
   }
+  */
 }
 
 void git_index_search::run(std::filesystem::path path) {
+  git_libgit2_init();
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
 
     consumer_threads[i] = std::thread([this, i = i]() {
-      if (i == 0) {
-        static bool libgit2_initialized = []() {
-          // Initialize libgit2
-          return git_libgit2_init() ==
-                 1; // returns number of initializations or error code
-        }();
-        if (!libgit2_initialized) {
-          throw std::runtime_error("Failed to initialize libgit2");
-        }
-      }
-
       char buffer[FILE_CHUNK_SIZE];
       std::string lines{};
 
@@ -309,7 +304,8 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
   git_index_iterator *iter{nullptr};
   if (git_index_iterator_new(&iter, index) == 0) {
 
-    garbage_collect_index_iterator.push_back(iter);
+    if (iter)
+      garbage_collect_index_iterator.push_back(iter);
 
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
@@ -337,7 +333,8 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
     }
   }
 
-  garbage_collect_repo.push_back(repo);
+  if (result)
+    garbage_collect_repo.push_back(repo);
 
   // Load the git index for this repository
   git_index *index = nullptr;
@@ -345,7 +342,8 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
     result = false;
   }
 
-  garbage_collect_index.push_back(index);
+  if (result)
+    garbage_collect_index.push_back(index);
 
   // Visit each entry in the index
   if (result && !visit_git_index(dir, index)) {
@@ -362,14 +360,17 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
 bool git_index_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
                                                     char *buffer,
                                                     std::string &lines) {
-  const char *entry;
-  auto found = queue.try_dequeue_from_producer(ptok, entry);
-  if (found) {
-    process_file(entry, local_scratch, buffer, lines);
-    num_files_dequeued += 1;
+  constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
+  const char* entries[BULK_DEQUEUE_SIZE];
+  auto count =
+      queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
+  if (count > 0) {
+    for (std::size_t j = 0; j < count; ++j) {
+      process_file(entries[j], local_scratch, buffer, lines);
+    }
+    num_files_dequeued += count;
     return true;
   }
-
   return false;
 }
 
