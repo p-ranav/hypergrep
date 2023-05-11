@@ -61,9 +61,17 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 | Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 4.642 | **2.182** |
 | Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 2.266 | 2.205 |
 
-## Workflow
+## How It Works
+
+`hypergrep` can search (1) a directory of files, (2) a git repository, or (3) a single file. The approach taken by `hypergrep` differs in small ways depending on what is being searched. 
+
+For any directory search, the approach is: Find files that needs to be searched. Enqueue these files onto a lock-free queue. Spawn N threads that read from the queue and scan for matches. Continue until all relevant files are searched.  
 
 ![Workflow](doc/workflow.png)
+
+When a `.git` directory is detected in any folder, `hypergrep` tries to use [libgit2](https://libgit2.org/libgit2/#HEAD) to [open](https://libgit2.org/libgit2/#HEAD/group/repository/git_repository_open) the git repository. If the git repository is successfully opened, the git index file is loaded using [git_repository_index](https://libgit2.org/libgit2/#HEAD/group/repository/git_repository_index) and then [iterated](https://libgit2.org/libgit2/#HEAD/group/index/git_index_iterator_next). Candidate files are enqueued onto the queue and then subsequently searched in one of the search threads. **NOTE** that when working with git repositories, `hypergrep` chooses to search the index instead of evaluating each file against every `ignore` rule in every `.gitignore` file. Performing the gitignore check for every path is wasteful and generally much slower than iterating over the index. When dealing with git repositories, additionally, `hypergrep` searches each submodule in the active repository using [git_submodule_foreach](https://libgit2.org/libgit2/#HEAD/group/submodule/git_submodule_foreach). **NOTE** Submodules can be excluded using the  `--exclude-submodules` flag, which will further speed up any repository search.
+
+When searching any directory that is not in itself a git repository, `hypergrep` might still encounter a nested directory that happens to be a git repository. So, for any directory search, `hypergrep` first uses [std::filesystem::recursive_directory_iterator](https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator) to iterate over all the files and directories. If git repositories are encountered, instead of iterating further into those directories, it reads and iterates the git index. Any further recursion into those directories is arrested. So when searching a top-level `~/projects` directory, `hypergrep` will essentially be searching every file in the git index of every git repository. For directories that are not git repositories, any candidate file that is discovered through recursive directory iteration is enqueued. 
 
 ## Build
 
