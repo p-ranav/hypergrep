@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
-project(hg)
+
+project(hypergrep VERSION 0.1.0
+        DESCRIPTION "Recursively search directories for a regex pattern using Intel HyperScan"
+        LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
