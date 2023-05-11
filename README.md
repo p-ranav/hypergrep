@@ -8,6 +8,7 @@
 * When a git repository is detected, the repository index is searched using [libgit2](https://github.com/libgit2/libgit2)
 * Print line numbers, search case insensitively, exclude git submodules, and filter paths with regex pattern  
 * Similar to `grep`, `ripgrep`, `ugrep`, `The Silver Searcher` etc.
+* C++17, Multi-threading, SIMD
 
 ## Performance
 
