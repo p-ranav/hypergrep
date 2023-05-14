@@ -72,6 +72,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   bool first{true};
   std::size_t previous_start_of_line{0};
   std::size_t previous_end_of_line{0};
+  std::pair<std::size_t, std::size_t> previous_match{};
 
   for (const auto &match : reduced_matches) {
 
@@ -91,13 +92,36 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       end_of_line = to;
     }
 
-    if (!first && start_of_line == previous_end_of_line) {
-      continue;
-    }
-
     if (start < buffer + from) {
       auto line_count = std::count(start, buffer + from, '\n');
       current_line_number = previous_line_number + line_count;
+
+      if (!first && current_line_number == previous_line_number) {
+        // Another match in the same line as the previous match
+        // 
+        // Remove from `lines` and re-add but now color next match as well
+
+        // lines already has the previous match
+        if (previous_match.second < from && to < end_of_line) {
+          // second match is on the same line and starts after 
+          // the first match (there's no intersection)
+
+          // remove everything from previous_match.to till end_of_line
+          const auto num_characters_to_remove = end_of_line - previous_match.second + 1 /* +1 for the newline character */;
+          lines = lines.substr(0, lines.size() - num_characters_to_remove);
+
+          lines += fmt::format("{}", chunk.substr(previous_match.second, from - previous_match.second));
+          lines += fmt::format(fg(fmt::color::red), chunk.substr(from, to - from));
+          lines += fmt::format("{}", chunk.substr(to, end_of_line - to));
+          lines += "\n";
+        }
+        
+        previous_start_of_line = start_of_line;
+        previous_end_of_line = end_of_line;
+        previous_match = match;
+        continue;
+      }
+
       previous_line_number = current_line_number;
       start = buffer + to;
     }
@@ -143,6 +167,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
 
     previous_start_of_line = start_of_line;
     previous_end_of_line = end_of_line;
+    previous_match = match;
     first = false;
   }
 }
