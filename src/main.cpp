@@ -87,9 +87,10 @@ int main(int argc, char **argv) {
 
     file_search s(program);
     std::string line;
+    std::size_t current_line_number{1};
     while (std::getline(std::cin, line)) {
       // Process line here
-      s.scan_line(line);
+      s.scan_line(line, current_line_number);
     }
   }
   else {

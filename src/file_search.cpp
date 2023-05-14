@@ -308,7 +308,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   return true;
 }
 
-bool file_search::scan_line(std::string& line) {
+bool file_search::scan_line(std::string& line, std::size_t& current_line_number) {
   static hs_scratch_t *local_scratch = NULL;
   static bool run_once = [this]() -> bool {
     if (!database) {
@@ -345,15 +345,16 @@ bool file_search::scan_line(std::string& line) {
   if (ctx.number_of_matches > 0) {
     std::string lines{};
     const std::string filename{""};
-    std::size_t previous_line_count{0};
     process_matches(filename.data(), line.data(), line.size(), ctx,
-                    previous_line_count, lines, false, options.is_stdout,
-                    false /* don't show line numbers when processing lines (stdin) */);
+                    current_line_number, lines, false, options.is_stdout,
+                    options.show_line_numbers);
 
     if (!options.count_matching_lines && result && !lines.empty()) {
       fmt::print("{}", lines);
     }
   }
+
+  current_line_number += 1;
 
   return result;
 }
