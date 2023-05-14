@@ -132,8 +132,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   // .
   // .
   // Thread 0 will check Thread N-0_Queue
-  moodycamel::ConcurrentQueue<std::size_t>
-      inter_thread_synchronization_line_count_queue[max_concurrency];
+  moodycamel::ConcurrentQueue<std::size_t> * 
+      inter_thread_synchronization_line_count_queue = new moodycamel::ConcurrentQueue<std::size_t>[max_concurrency];
 
   std::vector<std::thread> threads(max_concurrency);
   thread_local_scratch.reserve(max_concurrency);
@@ -295,6 +295,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   if (close(fd) == -1) {
     return false;
   }
+
+  delete[] inter_thread_synchronization_line_count_queue;
 
   return true;
 }
