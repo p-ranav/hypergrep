@@ -92,7 +92,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       end_of_line = to;
     }
 
-    if (start < buffer + from) {
+    if (start <= buffer + from) {
       auto line_count = std::count(start, buffer + from, '\n');
       current_line_number = previous_line_number + line_count;
 
@@ -102,9 +102,10 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
         // Remove from `lines` and re-add but now color next match as well
 
         // lines already has the previous match
-        if (previous_match.second < from && to < end_of_line) {
+        if (previous_match.second <= from && to <= end_of_line) {
           // second match is on the same line and starts after 
           // the first match (there's no intersection)
+
 
           // remove everything from previous_match.to till end_of_line
           const auto num_characters_to_remove = end_of_line - previous_match.second + 1 /* +1 for the newline character */;
