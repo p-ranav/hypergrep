@@ -161,12 +161,12 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
       std::size_t offset{i * max_searchable_size};
+      char* eof = buffer + file_size;
       while (true) {
 
         char *start = buffer + offset;
         if (start > buffer + file_size) {
           // stop here
-          // fmt::print("Thread {} done\n", i);
           break;
         }
 
@@ -205,6 +205,13 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           if (offset == 0) {
             end += 1;
           }
+        }
+
+        if (static_cast<std::size_t>(eof - end) < max_searchable_size) {
+          // If "end" and EOF are separated by less than
+          // a single chunk
+          // just set end to the EOF
+          end = eof;
         }
 
         // Perform the search
