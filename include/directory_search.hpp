@@ -17,7 +17,6 @@
 #include <limits>
 #include <match_handler.hpp>
 #include <numeric>
-#include <set>
 #include <size_to_bytes.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>

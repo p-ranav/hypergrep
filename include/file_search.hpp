@@ -16,7 +16,6 @@
 #include <limits>
 #include <match_handler.hpp>
 #include <numeric>
-#include <set>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <thread>

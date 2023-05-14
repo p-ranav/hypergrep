@@ -8,7 +8,7 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
 
   {
     std::lock_guard<std::mutex> lock{fctx->match_mutex};
-    fctx->matches.insert(std::make_pair(from, to));
+    fctx->matches.push_back(std::make_pair(from, to));
   }
 
   if (fctx->option_print_only_filenames) {
@@ -71,7 +71,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   auto previous_line_number = current_line_number;
   bool first{true};
   std::size_t previous_start_of_line{0};
-  std::size_t previous_end_of_line{0};
+  // std::size_t previous_end_of_line{0};
   std::pair<std::size_t, std::size_t> previous_match{};
 
   for (const auto &match : reduced_matches) {
@@ -117,7 +117,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
         }
         
         previous_start_of_line = start_of_line;
-        previous_end_of_line = end_of_line;
+        // previous_end_of_line = end_of_line;
         previous_match = match;
         continue;
       }
@@ -166,7 +166,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
     }
 
     previous_start_of_line = start_of_line;
-    previous_end_of_line = end_of_line;
+    // previous_end_of_line = end_of_line;
     previous_match = match;
     first = false;
   }

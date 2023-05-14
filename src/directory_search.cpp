@@ -224,7 +224,7 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     std::mutex match_mutex;
-    std::set<std::pair<unsigned long long, unsigned long long>> matches{};
+    std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
     std::atomic<size_t> number_of_matches = 0;
     file_context ctx{number_of_matches, matches, match_mutex,
                      options.print_only_filenames};
