@@ -77,6 +77,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   for (const auto &match : reduced_matches) {
 
     auto &[from, to] = match;
+    // fmt::print("MATCH {},{}\n", from, to);
 
     auto start_of_line = chunk.find_last_of('\n', from);
     if (start_of_line == std::string_view::npos) {
@@ -92,6 +93,8 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       end_of_line = to;
     }
 
+    // fmt::print("LINE {},{}\n", start_of_line, end_of_line);
+
     if (start <= buffer + from) {
       auto line_count = std::count(start, buffer + from, '\n');
       current_line_number = previous_line_number + line_count;
@@ -106,13 +109,29 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
           // second match is on the same line and starts after 
           // the first match (there's no intersection)
 
-
           // remove everything from previous_match.to till end_of_line
           const auto num_characters_to_remove = end_of_line - previous_match.second + 1 /* +1 for the newline character */;
           lines = lines.substr(0, lines.size() - num_characters_to_remove);
 
           lines += fmt::format("{}", chunk.substr(previous_match.second, from - previous_match.second));
-          lines += fmt::format(fg(fmt::color::red), chunk.substr(from, to - from));
+          if (is_stdout) {
+            lines += fmt::format(fg(fmt::color::red), chunk.substr(from, to - from));
+          } else {
+            lines += fmt::format(chunk.substr(from, to - from));
+          }
+          lines += fmt::format("{}", chunk.substr(to, end_of_line - to));
+          lines += "\n";
+        } else if (previous_match.first < from && previous_match.second > from && to <= end_of_line) {
+          // current match starts before previous match end
+          // Remove till current_match.from
+          // Re-add current_match.from -> current_match.to (colored RED)
+          const auto num_characters_to_remove = end_of_line - from + 1 /* +1 for the newline character */;
+          lines = lines.substr(0, lines.size() - num_characters_to_remove);
+          if (is_stdout) {
+            lines += fmt::format(fg(fmt::color::red), chunk.substr(from, to - from));
+          } else {
+            lines += fmt::format(chunk.substr(from, to - from));
+          }
           lines += fmt::format("{}", chunk.substr(to, end_of_line - to));
           lines += "\n";
         }
@@ -120,11 +139,38 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
         previous_start_of_line = start_of_line;
         // previous_end_of_line = end_of_line;
         previous_match = match;
+        previous_line_number = current_line_number;
+        start = buffer + to;
         continue;
       }
 
       previous_line_number = current_line_number;
       start = buffer + to;
+    }
+    else {
+      // start > buffer + from
+      // 
+      // current match starts before previous match end
+      // Remove till current_match.from
+      // Re-add current_match.from -> current_match.to (colored RED)
+
+      if (start <= buffer + to) {
+        const auto num_characters_to_remove = buffer + end_of_line - start + 1 /* +1 for the newline character */;
+        lines = lines.substr(0, lines.size() - num_characters_to_remove);
+        if (is_stdout) {
+          lines += fmt::format(fg(fmt::color::red), chunk.substr(start - buffer, buffer + to - start));
+        } else {
+          lines += fmt::format(chunk.substr(start - buffer, buffer + to - start));
+        }
+        lines += fmt::format("{}", chunk.substr(to, end_of_line - to));
+        lines += "\n";
+        previous_start_of_line = start_of_line;
+        // previous_end_of_line = end_of_line;
+        previous_match = match;
+        previous_line_number = current_line_number;
+        start = buffer + to;
+        continue;
+      }
     }
 
     if (first || start_of_line > previous_start_of_line) {
@@ -169,6 +215,8 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
     previous_start_of_line = start_of_line;
     // previous_end_of_line = end_of_line;
     previous_match = match;
-    first = false;
+    if (first) {
+      first = false;
+    }
   }
 }
