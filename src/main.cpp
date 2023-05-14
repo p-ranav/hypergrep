@@ -82,16 +82,28 @@ int main(int argc, char **argv) {
 
   auto path = program.get<std::string>("path");
 
-  if (std::filesystem::is_regular_file(path)) {
+  if (!isatty(fileno(stdin))) {
+    // Program was called from a pipe
+
     file_search s(program);
-    s.run(path);
-  } else {
-    if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
-      git_index_search s(program);
+    std::string line;
+    while (std::getline(std::cin, line)) {
+      // Process line here
+      s.scan_line(line);
+    }
+  }
+  else {
+    if (std::filesystem::is_regular_file(path)) {
+      file_search s(program);
       s.run(path);
     } else {
-      directory_search s(program);
-      s.run(path);
+      if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
+        git_index_search s(program);
+        s.run(path);
+      } else {
+        directory_search s(program);
+        s.run(path);
+      }
     }
   }
 

@@ -307,3 +307,53 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   return true;
 }
+
+bool file_search::scan_line(std::string& line) {
+  static hs_scratch_t *local_scratch = NULL;
+  static bool run_once = [this]() -> bool {
+    if (!database) {
+      throw std::runtime_error("Database is NULL");
+    }
+    // Set up the scratch space
+    hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
+    if (database_error != HS_SUCCESS) {
+      throw std::runtime_error("Error allocating scratch space");
+    }
+    thread_local_scratch.push_back(local_scratch);
+
+    return true;
+  }();
+
+  // Perform the search
+  bool result{false};
+  std::mutex match_mutex;
+  std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
+  std::atomic<size_t> number_of_matches = 0;
+  file_context ctx{number_of_matches, matches, match_mutex, false /* print_only_filenames is not relevant in a single file search */};
+
+  if (hs_scan(database, line.data(), line.size(), 0, local_scratch, on_match,
+              (void *)(&ctx)) != HS_SUCCESS) {
+    result = false;
+  } else {
+    if (ctx.number_of_matches > 0) {
+      result = true;
+    }
+  }
+
+  // Process matches with this line number as the start line number
+  // (for this chunk)
+  if (ctx.number_of_matches > 0) {
+    std::string lines{};
+    const std::string filename{""};
+    std::size_t previous_line_count{0};
+    process_matches(filename.data(), line.data(), line.size(), ctx,
+                    previous_line_count, lines, false, options.is_stdout,
+                    false /* don't show line numbers when processing lines (stdin) */);
+
+    if (!options.count_matching_lines && result && !lines.empty()) {
+      fmt::print("{}", lines);
+    }
+  }
+
+  return result;
+}
