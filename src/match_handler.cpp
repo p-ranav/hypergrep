@@ -23,38 +23,55 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      std::string &lines, bool print_filename, bool is_stdout,
                      bool show_line_numbers) {
   std::string_view chunk(buffer, bytes_read);
-  char *start = buffer;
-  auto previous_line_number = current_line_number;
-
-  bool first{true};
-  std::size_t previous_start_of_line{0};
-  std::size_t previous_end_of_line{0};
-  std::size_t index{0};
 
   // Pre process for entries with the same starting position
   // e.g., for the match list {{8192, 8214}, {8192, 8215}}
   // the list can be updated to {{8192, 8215}}
-  std::set<std::pair<std::size_t, std::size_t>> reduced_matches;
-  std::unordered_map<std::size_t, std::size_t> last_occurrence;
-
-  for (const auto &match : ctx.matches) {
-    const auto first = match.first;
-    if (last_occurrence.count(first) == 0) {
-      reduced_matches.insert(match);
-    } else {
-      reduced_matches.erase(reduced_matches.lower_bound({first, 0}),
-                            reduced_matches.end());
-      reduced_matches.insert(match);
-    }
-    last_occurrence[first] = match.second;
-  }
-
-  // TODO: Still need to handle the case where a second match
+  //
+  // Also handle the case where a second match
   // starts somewhere inside the first match
   // from              to
   // ^^^^^^^^^^^^^^^^^^^^
   //        from2            to2
   //        ^^^^^^^^^^^^^^^^^^^^
+  std::vector<std::pair<std::size_t, std::size_t>> reduced_matches{};
+  std::pair<std::size_t, std::size_t> previous{};
+  for (const auto &match : ctx.matches) {
+    if (!reduced_matches.empty()) {
+
+      auto previous = reduced_matches.back();
+
+      // previous has a value
+      // decide based on previous
+      if (match.first == previous.first) {
+        // current match has the same start as the previous match
+        reduced_matches.pop_back();
+        reduced_matches.push_back(match);
+      }
+      else if (previous.first < match.first && match.first < previous.second) {
+        // current match 'from' inside previous match
+        if (match.second < previous.second) {
+          // current match is entirely inside previous match
+          // ignore this mtach
+        } else if (match.second >= previous.second) {
+          // Keep the match
+          reduced_matches.push_back(match);
+        }
+      }
+      else {
+        // save this match
+        reduced_matches.push_back(match);
+      }
+    } else {
+      reduced_matches.push_back(match);
+    }
+  }
+  
+  char *start = buffer;
+  auto previous_line_number = current_line_number;
+  bool first{true};
+  std::size_t previous_start_of_line{0};
+  std::size_t previous_end_of_line{0};
 
   for (const auto &match : reduced_matches) {
 
@@ -70,28 +87,20 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
     auto end_of_line = chunk.find_first_of('\n', to);
     if (end_of_line == std::string_view::npos) {
       end_of_line = bytes_read;
+    } else if (end_of_line < to) {
+      end_of_line = to;
     }
 
-    if (first) {
-      index = start_of_line;
-    } else {
-      if (start_of_line > previous_end_of_line) {
-        // This is a different line
-        // Add the remainder of the previous match [start, from, to, end]
-        //                                                       ^^^^^^^ this
-        //                                                       bit
-        lines += fmt::format("{}\n",
-                             chunk.substr(index, previous_end_of_line - index));
-        index = start_of_line;
-      }
+    if (!first && start_of_line == previous_end_of_line) {
+      continue;
     }
 
-    auto line_count = std::count(start, buffer + from, '\n');
-    current_line_number = previous_line_number + line_count;
-    previous_line_number = current_line_number;
-    start = buffer + to;
-
-    // All characters up to the first match
+    if (start < buffer + from) {
+      auto line_count = std::count(start, buffer + from, '\n');
+      current_line_number = previous_line_number + line_count;
+      previous_line_number = current_line_number;
+      start = buffer + to;
+    }
 
     if (first || start_of_line > previous_start_of_line) {
       if (show_line_numbers) {
@@ -120,24 +129,20 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       previous_line_number = current_line_number;
     }
 
-    // index points to to
-    // Check if next match's from is AFTER the previous match's to
-    lines += fmt::format("{}", chunk.substr(index, from - index));
-    index = from;
+    lines += fmt::format("{}", chunk.substr(start_of_line, from - start_of_line));
     if (is_stdout) {
-      lines += fmt::format(fg(fmt::color::red), "{}",
-                           chunk.substr(index, to - from));
+      lines += fmt::format(fg(fmt::color::red), "{}", chunk.substr(from, to - from));
     } else {
-      lines += fmt::format("{}", chunk.substr(index, to - from));
+      lines += fmt::format("{}", chunk.substr(from, to - from));
     }
-    index = to;
+    if (end_of_line > to) {
+      lines += fmt::format("{}\n", chunk.substr(to, end_of_line - to));
+    } else {
+      lines += "\n";
+    }
 
     previous_start_of_line = start_of_line;
     previous_end_of_line = end_of_line;
-    if (first) {
-      first = false;
-    }
+    first = false;
   }
-  lines +=
-      fmt::format("{}\n", chunk.substr(index, previous_end_of_line - index));
 }
