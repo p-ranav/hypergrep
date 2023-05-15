@@ -123,7 +123,11 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       }
 
       lines += fmt::format("{}", chunk.substr(index, from - index));
-      lines += fmt::format(fg(fmt::color::red), "{}", chunk.substr(from, to - from));
+      if (is_stdout) {
+        lines += fmt::format(fg(fmt::color::red), "{}", chunk.substr(from, to - from));
+      } else {
+        lines += fmt::format("{}", chunk.substr(from, to - from));
+      }
       index = to;
     }
 

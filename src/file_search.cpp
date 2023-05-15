@@ -310,7 +310,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
 bool file_search::scan_line(std::string& line, std::size_t& current_line_number) {
   static hs_scratch_t *local_scratch = NULL;
-  static bool run_once = [this]() -> bool {
+  static bool scratch_allocated = [this]() -> bool {
     if (!database) {
       throw std::runtime_error("Database is NULL");
     }
@@ -323,6 +323,10 @@ bool file_search::scan_line(std::string& line, std::size_t& current_line_number)
 
     return true;
   }();
+
+  if (!scratch_allocated) {
+    return false;
+  }
 
   // Perform the search
   bool result{false};
