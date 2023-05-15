@@ -31,11 +31,11 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.209 | **0.152** |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.156** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.159** |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.417 | **0.162** |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 105 | 0.397 | **0.160** |
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.209 | **0.147** |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.150** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.151** |
+| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.410 | **0.156** |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.397 | **0.155** |
 
 ### Directory Search: `apple/swift`
 
@@ -48,7 +48,7 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 | Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2011521 | 0.711 | 0.708 |
 | Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.072 | **0.048** |
 
-### Single Lrage File Search: `OpenSubtitles.raw.en.txt`
+### Single Large File Search: `OpenSubtitles.raw.en.txt`
 
  The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
 
