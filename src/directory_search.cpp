@@ -345,6 +345,15 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
       if (entry && (!options.filter_files ||
                     (options.filter_files && filter_file(entry->path)))) {
         auto path = std::filesystem::path(dir) / entry->path;
+        const auto filename = path.filename();
+        const auto filename_cstr = filename.c_str();
+
+        if (!options.search_hidden_files) {
+          if (filename_cstr[0] == '.') {
+            continue;
+          }
+        }
+
         queue.enqueue(ptok, path.string());
         ++num_files_enqueued;
       }
