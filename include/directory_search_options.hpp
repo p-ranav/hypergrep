@@ -13,4 +13,5 @@ struct directory_search_options {
   bool filter_files{false};
   std::string filter_file_pattern{};
   std::optional<unsigned long long> max_file_size{};
+  bool search_hidden_files{false};
 };

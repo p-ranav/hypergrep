@@ -20,6 +20,11 @@ int main(int argc, char **argv) {
   program.add_argument("-f", "--filter")
       .help("Filter files based on a pattern");
 
+  program.add_argument("--hidden")
+      .help("Search hidden files and directories. By default, hidden files and directories are skipped.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-i", "--ignore-case")
       .help("When this flag is provided, the given patterns will be searched "
             "case insensitively.")

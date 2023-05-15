@@ -31,6 +31,7 @@ directory_search::directory_search(argparse::ArgumentParser &program) {
   }
 
   options.use_ucp = program.get<bool>("--ucp");
+  options.search_hidden_files = program.get<bool>("--hidden");
 
   options.is_stdout = isatty(STDOUT_FILENO) == 1;
 
@@ -342,8 +343,7 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
       if (entry && (!options.filter_files ||
-                    (options.filter_files && filter_file(entry->path))) 
-                && entry->path[0] != '.') {
+                    (options.filter_files && filter_file(entry->path)))) {
         auto path = std::filesystem::path(dir) / entry->path;
         queue.enqueue(ptok, path.string());
         ++num_files_enqueued;
@@ -400,7 +400,7 @@ void directory_search::visit_directory_and_enqueue(
 
     if (it->is_regular_file() && !it->is_symlink()) {
 
-      if (filename_cstr[0] == '.')
+      if (!options.search_hidden_files && filename_cstr[0] == '.')
         continue;
 
       if (!options.filter_files ||
@@ -409,7 +409,7 @@ void directory_search::visit_directory_and_enqueue(
         ++num_files_enqueued;
       }
     } else if (it->is_directory()) {
-      if (filename_cstr[0] == '.' || it->is_symlink()) {
+      if ((!options.search_hidden_files && filename_cstr[0] == '.') || it->is_symlink()) {
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
       } else if (std::filesystem::exists(path / ".git")) {
