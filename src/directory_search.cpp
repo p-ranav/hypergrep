@@ -342,7 +342,8 @@ bool directory_search::visit_git_index(const std::filesystem::path &dir,
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
       if (entry && (!options.filter_files ||
-                    (options.filter_files && filter_file(entry->path)))) {
+                    (options.filter_files && filter_file(entry->path))) 
+                && entry->path[0] != '.') {
         auto path = std::filesystem::path(dir) / entry->path;
         queue.enqueue(ptok, path.string());
         ++num_files_enqueued;

@@ -237,7 +237,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         if (offset == 0) {
           previous_line_count = 1;
         }
-        if (options.show_line_numbers && offset > 0) {
+        if (/*options.show_line_numbers && */offset > 0) {
           // If not the first chunk,
           // get the number of lines (computed) in the previous chunk
           auto thread_number = (i > 0) ? i - 1 : max_concurrency - 1;
@@ -265,12 +265,12 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           }
         }
 
-        if (options.show_line_numbers) {
+        // if (options.show_line_numbers) {
           // Count num lines in the chunk that was just searched
           const std::size_t num_lines_in_chunk = std::count(start, end, '\n');
           inter_thread_synchronization_line_count_queue[i].enqueue(
               line_count_at_start_of_chunk + num_lines_in_chunk);
-        }
+        // }
 
         offset += max_concurrency * max_searchable_size;
       }
