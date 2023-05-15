@@ -319,6 +319,23 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
       if (entry && (!options.filter_files ||
                     (options.filter_files && filter_file(entry->path)))) {
+
+        if (!options.search_hidden_files) {
+          if (entry->path[0] == '.') {
+            // fmt::print("Ignoring {}\n", entry->path);
+            continue;
+          }
+          std::string_view path(entry->path);
+          auto it = path.find_last_of("/");
+          if (it != std::string_view::npos) {
+            // Found a '/'
+            if (path[it] == '.') {
+              // fmt::print("Ignoring {}\n", path);
+              continue;
+            }
+          }
+        }
+
         queue.enqueue(ptok, entry->path);
         ++num_files_enqueued;
       }
