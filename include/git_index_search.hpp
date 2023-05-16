@@ -26,11 +26,13 @@
 
 class git_index_search {
 public:
-  git_index_search(const std::filesystem::path& path, argparse::ArgumentParser &program);
+  git_index_search(const std::filesystem::path &path,
+                   argparse::ArgumentParser &program);
   git_index_search(hs_database_t *database, hs_scratch_t *scratch,
-                   hs_database_t *file_filter_database, hs_scratch_t *file_filter_scratch,
+                   hs_database_t *file_filter_database,
+                   hs_scratch_t *file_filter_scratch,
                    const directory_search_options &options,
-                   const std::filesystem::path& path);
+                   const std::filesystem::path &path);
   ~git_index_search();
   void run(std::filesystem::path path);
 

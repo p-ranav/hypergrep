@@ -53,12 +53,11 @@ file_search::~file_search() {
 
 void file_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
-  auto error_code = hs_compile(pattern.data(),
-                               (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-			       HS_FLAG_UTF8 |
-			       (options.use_ucp ? HS_FLAG_UCP : 0) |
-			       HS_FLAG_SOM_LEFTMOST,
-                               HS_MODE_BLOCK, NULL, &database, &compile_error);
+  auto error_code =
+      hs_compile(pattern.data(),
+                 (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+                     (options.use_ucp ? HS_FLAG_UCP : 0) | HS_FLAG_SOM_LEFTMOST,
+                 HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
                              compile_error->message);
@@ -136,8 +135,9 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   // .
   // .
   // Thread 0 will check Thread N-0_Queue
-  moodycamel::ConcurrentQueue<std::size_t> * 
-      inter_thread_synchronization_line_count_queue = new moodycamel::ConcurrentQueue<std::size_t>[max_concurrency];
+  moodycamel::ConcurrentQueue<std::size_t>
+      *inter_thread_synchronization_line_count_queue =
+          new moodycamel::ConcurrentQueue<std::size_t>[max_concurrency];
 
   std::vector<std::thread> threads(max_concurrency);
   thread_local_scratch.reserve(max_concurrency);
@@ -165,7 +165,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
       std::size_t offset{i * max_searchable_size};
-      char* eof = buffer + file_size;
+      char *eof = buffer + file_size;
       while (true) {
 
         char *start = buffer + offset;
@@ -221,7 +221,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         // Perform the search
         bool result{false};
         std::mutex match_mutex;
-        std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
+        std::vector<std::pair<unsigned long long, unsigned long long>>
+            matches{};
         std::atomic<size_t> number_of_matches = 0;
         file_context
 	      ctx{number_of_matches, matches, match_mutex, false /* print_only_filenames is not relevant in a single file search */};
@@ -241,7 +242,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         if (offset == 0) {
           previous_line_count = 1;
         }
-        if (/*options.show_line_numbers && */offset > 0) {
+        if (/*options.show_line_numbers && */ offset > 0) {
           // If not the first chunk,
           // get the number of lines (computed) in the previous chunk
           auto thread_number = (i > 0) ? i - 1 : max_concurrency - 1;
@@ -270,10 +271,10 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         }
 
         // if (options.show_line_numbers) {
-          // Count num lines in the chunk that was just searched
-          const std::size_t num_lines_in_chunk = std::count(start, end, '\n');
-          inter_thread_synchronization_line_count_queue[i].enqueue(
-              line_count_at_start_of_chunk + num_lines_in_chunk);
+        // Count num lines in the chunk that was just searched
+        const std::size_t num_lines_in_chunk = std::count(start, end, '\n');
+        inter_thread_synchronization_line_count_queue[i].enqueue(
+            line_count_at_start_of_chunk + num_lines_in_chunk);
         // }
 
         offset += max_concurrency * max_searchable_size;
@@ -312,7 +313,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   return true;
 }
 
-bool file_search::scan_line(std::string& line, std::size_t& current_line_number) {
+bool file_search::scan_line(std::string &line,
+                            std::size_t &current_line_number) {
   static hs_scratch_t *local_scratch = NULL;
   static bool scratch_allocated = [this]() -> bool {
     if (!database) {
@@ -337,7 +339,9 @@ bool file_search::scan_line(std::string& line, std::size_t& current_line_number)
   std::mutex match_mutex;
   std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
   std::atomic<size_t> number_of_matches = 0;
-  file_context ctx{number_of_matches, matches, match_mutex, false /* print_only_filenames is not relevant in a single file search */};
+  file_context ctx{
+      number_of_matches, matches, match_mutex,
+      false /* print_only_filenames is not relevant in a single file search */};
 
   if (hs_scan(database, line.data(), line.size(), 0, local_scratch, on_match,
               (void *)(&ctx)) != HS_SUCCESS) {

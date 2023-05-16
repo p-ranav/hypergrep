@@ -1,7 +1,7 @@
+#include <map>
 #include <match_handler.hpp>
 #include <unordered_map>
 #include <vector>
-#include <map>
 
 int on_match(unsigned int id, unsigned long long from, unsigned long long to,
              unsigned int flags, void *ctx) {
@@ -26,26 +26,30 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      bool show_line_numbers) {
   std::string_view chunk(buffer, bytes_read);
 
-  std::map<std::size_t, std::vector<std::pair<std::size_t, std::size_t>>> line_number_match;
+  std::map<std::size_t, std::vector<std::pair<std::size_t, std::size_t>>>
+      line_number_match;
   {
-    char* index = buffer;
+    char *index = buffer;
     std::size_t previous_line_number = current_line_number;
-    for (auto& match: ctx.matches) {
+    for (auto &match : ctx.matches) {
 
-      auto& [from, to] = match;
+      auto &[from, to] = match;
       auto line_count = std::count(index, buffer + from, '\n');
       current_line_number = previous_line_number + line_count;
 
-      if (line_number_match.find(current_line_number) == line_number_match.end()) {
+      if (line_number_match.find(current_line_number) ==
+          line_number_match.end()) {
         // line number not in map
-        line_number_match.insert(std::make_pair(current_line_number, std::vector<std::pair<std::size_t, std::size_t>>{match}));
+        line_number_match.insert(std::make_pair(
+            current_line_number,
+            std::vector<std::pair<std::size_t, std::size_t>>{match}));
       } else {
-        auto& other_matches_in_line = line_number_match.at(current_line_number);
-        auto& most_recent_match = other_matches_in_line.back();
+        auto &other_matches_in_line = line_number_match.at(current_line_number);
+        auto &most_recent_match = other_matches_in_line.back();
 
         // Cover a few cases here:
 
-        // Case 1: Two matches have the same start 
+        // Case 1: Two matches have the same start
         if (most_recent_match.first == from) {
           if (to > most_recent_match.second) {
             most_recent_match.second = to; // update the to
@@ -53,12 +57,18 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
         }
 
         // Case 2: The second match is entirely inside the first match
-        else if (most_recent_match.first < from && most_recent_match.first < to && most_recent_match.second > from && most_recent_match.second > to) {
+        else if (most_recent_match.first < from &&
+                 most_recent_match.first < to &&
+                 most_recent_match.second > from &&
+                 most_recent_match.second > to) {
           // don't add this match
         }
 
-        // Case 3: 
-        else if (most_recent_match.first < from && most_recent_match.first < to && most_recent_match.second > from && most_recent_match.second < to) {
+        // Case 3:
+        else if (most_recent_match.first < from &&
+                 most_recent_match.first < to &&
+                 most_recent_match.second > from &&
+                 most_recent_match.second < to) {
           // amend the current match
           most_recent_match.second = to;
         }
@@ -73,15 +83,15 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
     }
   }
 
-  for (auto& matching_line: line_number_match) {
-    auto& current_line_number = matching_line.first;
-    auto& matches = matching_line.second;
+  for (auto &matching_line : line_number_match) {
+    auto &current_line_number = matching_line.first;
+    auto &matches = matching_line.second;
 
     bool first{true};
     std::size_t start_of_line{0}, end_of_line{0};
     std::size_t index{0};
 
-    for (auto& [from, to]: matches) {
+    for (auto &[from, to] : matches) {
 
       if (first) {
         start_of_line = chunk.find_last_of('\n', from);
@@ -124,7 +134,8 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
 
       lines += fmt::format("{}", chunk.substr(index, from - index));
       if (is_stdout) {
-        lines += fmt::format(fg(fmt::color::red), "{}", chunk.substr(from, to - from));
+        lines += fmt::format(fg(fmt::color::red), "{}",
+                             chunk.substr(from, to - from));
       } else {
         lines += fmt::format("{}", chunk.substr(from, to - from));
       }

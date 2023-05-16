@@ -1,7 +1,9 @@
 #include <directory_search.hpp>
 #include <is_binary.hpp>
 
-directory_search::directory_search(const std::filesystem::path& path, argparse::ArgumentParser &program) : search_path(path) {
+directory_search::directory_search(const std::filesystem::path &path,
+                                   argparse::ArgumentParser &program)
+    : search_path(path) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
@@ -105,9 +107,10 @@ void directory_search::run(std::filesystem::path path) {
   // Now search git repos one by one
   if (!git_repo_paths.empty()) {
     auto current_path = std::filesystem::current_path();
-    for (const auto& repo_path: git_repo_paths) {
+    for (const auto &repo_path : git_repo_paths) {
       git_index_search git_index_searcher(
-          database, scratch, file_filter_database, file_filter_scratch, options, repo_path);
+          database, scratch, file_filter_database, file_filter_scratch, options,
+          repo_path);
       if (chdir(repo_path.c_str()) == 0) {
         git_index_searcher.run(".");
         if (chdir(current_path.c_str()) != 0) {
@@ -123,7 +126,7 @@ void directory_search::run(std::filesystem::path path) {
         database, scratch,
         file_search_options{options.is_stdout, options.show_line_numbers,
                             options.ignore_case, options.count_matching_lines,
-			    options.use_ucp, options.num_threads});
+                            options.use_ucp, options.num_threads});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -139,12 +142,11 @@ void directory_search::run(std::filesystem::path path) {
 
 void directory_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
-  auto error_code = hs_compile(pattern.data(),
-                               (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-			       HS_FLAG_UTF8 |
-			       (options.use_ucp ? HS_FLAG_UCP : 0) |
-			       HS_FLAG_SOM_LEFTMOST,
-                               HS_MODE_BLOCK, NULL, &database, &compile_error);
+  auto error_code =
+      hs_compile(pattern.data(),
+                 (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+                     (options.use_ucp ? HS_FLAG_UCP : 0) | HS_FLAG_SOM_LEFTMOST,
+                 HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
                              compile_error->message);
@@ -325,7 +327,8 @@ void directory_search::visit_directory_and_enqueue(
         ++num_files_enqueued;
       }
     } else if (it->is_directory()) {
-      if ((!options.search_hidden_files && filename_cstr[0] == '.') || it->is_symlink()) {
+      if ((!options.search_hidden_files && filename_cstr[0] == '.') ||
+          it->is_symlink()) {
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
       } else if (std::filesystem::exists(path / ".git")) {

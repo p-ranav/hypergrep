@@ -21,7 +21,8 @@ int main(int argc, char **argv) {
       .help("Filter files based on a pattern");
 
   program.add_argument("--hidden")
-      .help("Search hidden files and directories. By default, hidden files and directories are skipped.")
+      .help("Search hidden files and directories. By default, hidden files and "
+            "directories are skipped.")
       .default_value(false)
       .implicit_value(true);
 
@@ -52,7 +53,9 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("--ucp")
-      .help("Use unicode properties, rather than the default ASCII interpretations, for character mnemonics like \\w and \\s as well as the POSIX character classes.")
+      .help("Use unicode properties, rather than the default ASCII "
+            "interpretations, for character mnemonics like \\w and \\s as well "
+            "as the POSIX character classes.")
       .default_value(false)
       .implicit_value(true);
 
@@ -97,8 +100,7 @@ int main(int argc, char **argv) {
       // Process line here
       s.scan_line(line, current_line_number);
     }
-  }
-  else {
+  } else {
     if (std::filesystem::is_regular_file(path)) {
       file_search s(program);
       s.run(path);
