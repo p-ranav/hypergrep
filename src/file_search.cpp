@@ -2,7 +2,9 @@
 
 file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
                          const file_search_options &options)
-    : database(database), scratch(scratch), options(options) {}
+    : database(database), scratch(scratch), options(options) {
+  non_owning_database = true;
+}
 
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
@@ -35,11 +37,13 @@ file_search::file_search(argparse::ArgumentParser &program) {
 }
 
 file_search::~file_search() {
-  if (scratch) {
-    hs_free_scratch(scratch);
-  }
-  if (database) {
-    hs_free_database(database);
+  if (!non_owning_database) {
+    if (scratch) {
+      hs_free_scratch(scratch);
+    }
+    if (database) {
+      hs_free_database(database);
+    }
   }
 
   for (const auto &s : thread_local_scratch) {

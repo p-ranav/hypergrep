@@ -27,6 +27,9 @@
 class git_index_search {
 public:
   git_index_search(argparse::ArgumentParser &program);
+  git_index_search(hs_database_t *database, hs_scratch_t *scratch,
+                   hs_database_t *file_filter_database, hs_scratch_t *file_filter_scratch,
+                   const directory_search_options &options);
   ~git_index_search();
   void run(std::filesystem::path path);
 
@@ -63,6 +66,7 @@ private:
   void visit_directory_and_enqueue(const std::filesystem::path &path);
 
 private:
+  static inline bool libgit2_initialized{false};
   moodycamel::ConcurrentQueue<const char *> queue;
   moodycamel::ProducerToken ptok{queue};
 
@@ -70,6 +74,7 @@ private:
   std::atomic<std::size_t> num_files_enqueued{0};
   std::atomic<std::size_t> num_files_dequeued{0};
 
+  bool non_owning_database{false};
   hs_database_t *database = NULL;
   hs_scratch_t *scratch = NULL;
   hs_database_t *file_filter_database = NULL;
@@ -79,4 +84,7 @@ private:
   std::vector<git_repository *> garbage_collect_repo;
   std::vector<git_index *> garbage_collect_index;
   std::vector<git_index_iterator *> garbage_collect_index_iterator;
+
+  // Backlog
+  std::vector<std::filesystem::path> submodule_paths;
 };

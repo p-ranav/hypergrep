@@ -55,13 +55,11 @@ directory_search::~directory_search() {
   if (file_filter_database) {
     hs_free_database(file_filter_database);
   }
-  if (!large_file_searcher_used) {
-    if (scratch) {
-      hs_free_scratch(scratch);
-    }
-    if (database) {
-      hs_free_database(database);
-    }
+  if (scratch) {
+    hs_free_scratch(scratch);
+  }
+  if (database) {
+    hs_free_database(database);
   }
 }
 
@@ -94,11 +92,7 @@ void directory_search::run(std::filesystem::path path) {
     });
   }
 
-  // Try to visit as a git repo
-  // If it fails, visit normally
-  if (!visit_git_repo(path)) {
-    visit_directory_and_enqueue(path);
-  }
+  visit_directory_and_enqueue(path);
 
   running = false;
 
@@ -108,10 +102,23 @@ void directory_search::run(std::filesystem::path path) {
 
   // All threads are done processing the file queue
 
+  // Now search git repos one by one
+  if (!git_repo_paths.empty()) {
+    auto current_path = std::filesystem::current_path();
+    for (const auto& repo_path: git_repo_paths) {
+      git_index_search git_index_searcher(
+          database, scratch, file_filter_database, file_filter_scratch, options);
+      if (chdir(repo_path.c_str()) == 0) {
+        git_index_searcher.run(".");
+        if (chdir(current_path.c_str()) != 0) {
+          throw std::runtime_error("Failed to restore path");
+        }
+      }
+    }
+  }
+
   // Now search large files one by one using the large_file_searcher
   if (num_large_files_enqueued > 0) {
-
-    large_file_searcher_used = true;
     file_search large_file_searcher(
         database, scratch,
         file_search_options{options.is_stdout, options.show_line_numbers,
@@ -298,106 +305,6 @@ bool directory_search::process_file(std::string &&filename,
   return result;
 }
 
-bool directory_search::search_submodules(const char *dir,
-                                         git_repository *this_repo) {
-
-  if (options.exclude_submodules) {
-    return true;
-  }
-
-  struct context {
-    directory_search *ptr;
-    const char *dir;
-  };
-
-  context ctx{this, dir};
-
-  if (git_submodule_foreach(
-          this_repo,
-          [](git_submodule *sm, const char *name, void *payload) -> int {
-            context *ctx = (context *)(payload);
-            auto self = ctx->ptr;
-            auto dir = ctx->dir;
-
-            auto path = std::filesystem::path(dir);
-
-            git_repository *sm_repo = nullptr;
-            if (git_submodule_open(&sm_repo, sm) == 0) {
-              auto submodule_path = path / name;
-              self->visit_git_repo(std::move(submodule_path), sm_repo);
-            }
-            return 0;
-          },
-          (void *)&ctx) != 0) {
-    return false;
-  } else {
-    return true;
-  }
-}
-
-bool directory_search::visit_git_index(const std::filesystem::path &dir,
-                                       git_index *index) {
-  git_index_iterator *iter = nullptr;
-  if (git_index_iterator_new(&iter, index) == 0) {
-
-    const git_index_entry *entry = nullptr;
-    while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
-      if (entry && (!options.filter_files ||
-                    (options.filter_files && filter_file(entry->path)))) {
-        auto path = std::filesystem::path(dir) / entry->path;
-        const auto filename = path.filename();
-        const auto filename_cstr = filename.c_str();
-
-        if (!options.search_hidden_files) {
-          if (filename_cstr[0] == '.') {
-            continue;
-          }
-        }
-
-        queue.enqueue(ptok, path.string());
-        ++num_files_enqueued;
-      }
-    }
-    git_index_iterator_free(iter);
-    return true;
-  } else {
-    return false;
-  }
-}
-
-bool directory_search::visit_git_repo(const std::filesystem::path &dir,
-                                      git_repository *repo) {
-
-  bool result{true};
-
-  if (!repo) {
-    // Open the repository
-    if (git_repository_open(&repo, dir.c_str()) != 0) {
-      result = false;
-    }
-  }
-
-  // Load the git index for this repository
-  git_index *index = nullptr;
-  if (result && git_repository_index(&index, repo) != 0) {
-    result = false;
-  }
-
-  // Visit each entry in the index
-  if (result && !visit_git_index(dir, index)) {
-    result = false;
-  }
-
-  // Search the submodules inside this submodule
-  if (result && !search_submodules(dir.c_str(), repo)) {
-    result = false;
-  }
-
-  git_index_free(index);
-  git_repository_free(repo);
-  return result;
-}
-
 void directory_search::visit_directory_and_enqueue(
     const std::filesystem::path &path) {
   for (auto it = std::filesystem::recursive_directory_iterator(
@@ -422,8 +329,7 @@ void directory_search::visit_directory_and_enqueue(
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
       } else if (std::filesystem::exists(path / ".git")) {
-        // Search this path as a git repo
-        visit_git_repo(path, nullptr);
+        git_repo_paths.push_back(path.string());
 
         // Stop processing this directory and its contents
         it.disable_recursion_pending();

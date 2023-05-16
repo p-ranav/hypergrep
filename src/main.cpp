@@ -103,9 +103,17 @@ int main(int argc, char **argv) {
       file_search s(program);
       s.run(path);
     } else {
+
+      const auto current_path = std::filesystem::current_path();
+
       if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
-        git_index_search s(program);
-        s.run(path);
+        if (chdir(path.c_str()) == 0) {
+          git_index_search s(program);
+          s.run(".");
+          if (chdir(current_path.c_str()) != 0) {
+            throw std::runtime_error("Failed to restore path");
+          }
+        }
       } else {
         directory_search s(program);
         s.run(path);

@@ -38,6 +38,7 @@ private:
   bool mmap_and_scan(std::string &&filename);
 
 private:
+  bool non_owning_database{false};
   hs_database_t *database = NULL;
   hs_scratch_t *scratch = NULL;
   std::vector<hs_scratch *> thread_local_scratch;

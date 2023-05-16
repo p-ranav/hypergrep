@@ -48,13 +48,29 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
   compile_hs_database(pattern);
 }
 
+git_index_search::git_index_search(hs_database_t *database, hs_scratch_t *scratch,
+  hs_database_t *file_filter_database, hs_scratch_t *file_filter_scratch,
+  const directory_search_options &options) : 
+  database(database), scratch(scratch), file_filter_database(file_filter_database), file_filter_scratch(file_filter_scratch), options(options) {
+  non_owning_database = true;
+}
+
 git_index_search::~git_index_search() {
-  if (file_filter_scratch) {
-    hs_free_scratch(file_filter_scratch);
+  if (!non_owning_database) {
+    if (scratch) {
+      hs_free_scratch(scratch);
+    }
+    if (database) {
+      hs_free_database(database);
+    }
+    if (file_filter_scratch) {
+      hs_free_scratch(file_filter_scratch);
+    }
+    if (file_filter_database) {
+      hs_free_database(file_filter_database);
+    }
   }
-  if (file_filter_database) {
-    hs_free_database(file_filter_database);
-  }
+
   for (auto &iter : garbage_collect_index_iterator) {
     if (iter)
       git_index_iterator_free(iter);
@@ -70,7 +86,11 @@ git_index_search::~git_index_search() {
 }
 
 void git_index_search::run(std::filesystem::path path) {
-  git_libgit2_init();
+  if (!libgit2_initialized) {
+    git_libgit2_init();
+    libgit2_initialized = true;
+  }
+
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
@@ -98,14 +118,25 @@ void git_index_search::run(std::filesystem::path path) {
     });
   }
 
-  // Try to visit as a git repo
-  // If it fails, visit normally
   visit_git_repo(path);
 
   running = false;
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
     consumer_threads[i].join();
+  }
+
+  // Process submodules
+  const auto current_path = std::filesystem::current_path();
+  for (const auto& sm_path: submodule_paths) {
+    git_index_search git_index_searcher(
+        database, scratch, file_filter_database, file_filter_scratch, options);
+    if (chdir(sm_path.c_str()) == 0) {
+      git_index_searcher.run(".");
+      if (chdir(current_path.c_str()) != 0) {
+        throw std::runtime_error("Failed to restore path");
+      }
+    }
   }
 }
 
@@ -133,6 +164,7 @@ bool git_index_search::process_file(const char *filename,
                                     std::string &lines) {
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
+    throw std::runtime_error(fmt::format("Failed to open {}\n", filename));
     return false;
   }
   bool result{false};
@@ -286,18 +318,14 @@ bool git_index_search::search_submodules(const char *dir,
             auto self = ctx->ptr;
             auto dir = ctx->dir;
 
-            auto current_path = std::filesystem::current_path();
-            auto path = std::filesystem::path(dir);
-
-            if (chdir(path.c_str()) == 0) {
-              git_repository *sm_repo = nullptr;
-              if (git_submodule_open(&sm_repo, sm) == 0) {
-                auto submodule_path = path / name;
-                self->visit_git_repo(std::move(submodule_path), sm_repo);
-              }
-
-              chdir(current_path.c_str());
+            auto path = std::filesystem::path(dir) / name;
+            if (std::filesystem::exists(path / ".git")) {
+              self->submodule_paths.push_back(path);
+            } else {
+              // submodule not recursively cloned
+              // ignore
             }
+
             return 0;
           },
           (void *)&ctx) != 0) {
@@ -322,7 +350,6 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
 
         if (!options.search_hidden_files) {
           if (entry->path[0] == '.') {
-            // fmt::print("Ignoring {}\n", entry->path);
             continue;
           }
           std::string_view path(entry->path);
@@ -330,7 +357,6 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
           if (it != std::string_view::npos) {
             // Found a '/'
             if (path[it] == '.') {
-              // fmt::print("Ignoring {}\n", path);
               continue;
             }
           }
@@ -348,12 +374,12 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
 
 bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
                                       git_repository *repo) {
-
   bool result{true};
 
   // Open the repository
   if (!repo) {
     if (git_repository_open(&repo, dir.c_str()) != 0) {
+      throw std::runtime_error(fmt::format("Failed to open git repo {}", dir.c_str()));
       result = false;
     }
   }
@@ -364,6 +390,7 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
   // Load the git index for this repository
   git_index *index = nullptr;
   if (result && git_repository_index(&index, repo) != 0) {
+    throw std::runtime_error(fmt::format("Failed to load git repo index {}", dir.c_str()));
     result = false;
   }
 
@@ -372,6 +399,7 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
 
   // Visit each entry in the index
   if (result && !visit_git_index(dir, index)) {
+    throw std::runtime_error(fmt::format("Failed to visit git index {}", dir.c_str()));
     result = false;
   }
 

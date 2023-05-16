@@ -12,6 +12,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <git2.h>
+#include <git_index_search.hpp>
 #include <hs/hs.h>
 #include <is_binary.hpp>
 #include <limits>
@@ -42,13 +43,6 @@ private:
   bool process_file(std::string &&filename, hs_scratch_t *local_scratch,
                     char *buffer, std::string &lines);
 
-  bool search_submodules(const char *dir, git_repository *this_repo);
-
-  bool visit_git_index(const std::filesystem::path &dir, git_index *index);
-
-  bool visit_git_repo(const std::filesystem::path &dir,
-                      git_repository *repo = nullptr);
-
   bool try_dequeue_and_process_path(hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines);
 
@@ -77,7 +71,9 @@ private:
   directory_search_options options;
 
   // Optimizations for large files
-  bool large_file_searcher_used{false};
   moodycamel::ConcurrentQueue<std::string> large_file_backlog;
   std::atomic<std::size_t> num_large_files_enqueued{0};
+
+  // Optimizations for git repos
+  std::vector<std::string> git_repo_paths;
 };
