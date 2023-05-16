@@ -48,10 +48,14 @@ git_index_search::git_index_search(argparse::ArgumentParser &program) {
   compile_hs_database(pattern);
 }
 
-git_index_search::git_index_search(hs_database_t *database, hs_scratch_t *scratch,
-  hs_database_t *file_filter_database, hs_scratch_t *file_filter_scratch,
-  const directory_search_options &options) : 
-  database(database), scratch(scratch), file_filter_database(file_filter_database), file_filter_scratch(file_filter_scratch), options(options) {
+git_index_search::git_index_search(hs_database_t *database,
+                                   hs_scratch_t *scratch,
+                                   hs_database_t *file_filter_database,
+                                   hs_scratch_t *file_filter_scratch,
+                                   const directory_search_options &options)
+    : database(database), scratch(scratch),
+      file_filter_database(file_filter_database),
+      file_filter_scratch(file_filter_scratch), options(options) {
   non_owning_database = true;
 }
 
@@ -128,9 +132,9 @@ void git_index_search::run(std::filesystem::path path) {
 
   // Process submodules
   const auto current_path = std::filesystem::current_path();
-  for (const auto& sm_path: submodule_paths) {
-    git_index_search git_index_searcher(
-        database, scratch, file_filter_database, file_filter_scratch, options);
+  for (const auto &sm_path : submodule_paths) {
+    git_index_search git_index_searcher(database, scratch, file_filter_database,
+                                        file_filter_scratch, options);
     if (chdir(sm_path.c_str()) == 0) {
       git_index_searcher.run(".");
       if (chdir(current_path.c_str()) != 0) {
@@ -142,12 +146,11 @@ void git_index_search::run(std::filesystem::path path) {
 
 void git_index_search::compile_hs_database(std::string &pattern) {
   hs_compile_error_t *compile_error = NULL;
-  auto error_code = hs_compile(pattern.data(),
-                               (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-			       HS_FLAG_UTF8 |
-			       (options.use_ucp ? HS_FLAG_UCP : 0) |
-			       HS_FLAG_SOM_LEFTMOST,
-                               HS_MODE_BLOCK, NULL, &database, &compile_error);
+  auto error_code =
+      hs_compile(pattern.data(),
+                 (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+                     (options.use_ucp ? HS_FLAG_UCP : 0) | HS_FLAG_SOM_LEFTMOST,
+                 HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
                              compile_error->message);
@@ -164,7 +167,6 @@ bool git_index_search::process_file(const char *filename,
                                     std::string &lines) {
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
-    throw std::runtime_error(fmt::format("Failed to open {}\n", filename));
     return false;
   }
   bool result{false};
@@ -212,7 +214,7 @@ bool git_index_search::process_file(const char *filename,
         result = false;
         break;
       }
-    }  
+    }
 
     // Find the position of the last newline in the buffer
     // In order to catch matches between chunks, need to amend the buffer
@@ -379,7 +381,6 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
   // Open the repository
   if (!repo) {
     if (git_repository_open(&repo, dir.c_str()) != 0) {
-      throw std::runtime_error(fmt::format("Failed to open git repo {}", dir.c_str()));
       result = false;
     }
   }
@@ -390,7 +391,6 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
   // Load the git index for this repository
   git_index *index = nullptr;
   if (result && git_repository_index(&index, repo) != 0) {
-    throw std::runtime_error(fmt::format("Failed to load git repo index {}", dir.c_str()));
     result = false;
   }
 
@@ -399,7 +399,6 @@ bool git_index_search::visit_git_repo(const std::filesystem::path &dir,
 
   // Visit each entry in the index
   if (result && !visit_git_index(dir, index)) {
-    throw std::runtime_error(fmt::format("Failed to visit git index {}", dir.c_str()));
     result = false;
   }
 
@@ -414,7 +413,7 @@ bool git_index_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
                                                     char *buffer,
                                                     std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
-  const char* entries[BULK_DEQUEUE_SIZE];
+  const char *entries[BULK_DEQUEUE_SIZE];
   auto count =
       queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
