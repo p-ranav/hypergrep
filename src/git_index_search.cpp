@@ -1,7 +1,7 @@
 #include <git_index_search.hpp>
 #include <is_binary.hpp>
 
-git_index_search::git_index_search(argparse::ArgumentParser &program) {
+git_index_search::git_index_search(const std::filesystem::path& path, argparse::ArgumentParser &program) : basepath(std::filesystem::relative(path)) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
@@ -52,8 +52,10 @@ git_index_search::git_index_search(hs_database_t *database,
                                    hs_scratch_t *scratch,
                                    hs_database_t *file_filter_database,
                                    hs_scratch_t *file_filter_scratch,
-                                   const directory_search_options &options)
-    : database(database), scratch(scratch),
+                                   const directory_search_options &options,
+                                   const std::filesystem::path& path)
+    : basepath(path), 
+      database(database), scratch(scratch),
       file_filter_database(file_filter_database),
       file_filter_scratch(file_filter_scratch), options(options) {
   non_owning_database = true;
@@ -134,7 +136,7 @@ void git_index_search::run(std::filesystem::path path) {
   const auto current_path = std::filesystem::current_path();
   for (const auto &sm_path : submodule_paths) {
     git_index_search git_index_searcher(database, scratch, file_filter_database,
-                                        file_filter_scratch, options);
+                                        file_filter_scratch, options, basepath / std::filesystem::relative(std::filesystem::canonical(sm_path)));
     if (chdir(sm_path.c_str()) == 0) {
       git_index_searcher.run(".");
       if (chdir(current_path.c_str()) != 0) {
@@ -270,24 +272,27 @@ bool git_index_search::process_file(const char *filename,
   close(fd);
 
   if (result && options.count_matching_lines) {
+    auto result_path = basepath / filename;
     if (options.is_stdout) {
       fmt::print("{}:{}\n",
-                 fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                 fmt::format(fg(fmt::color::steel_blue), "{}", result_path.c_str()),
                  num_matching_lines);
     } else {
-      fmt::print("{}:{}\n", filename, num_matching_lines);
+      fmt::print("{}:{}\n", result_path.c_str(), num_matching_lines);
     }
   } else {
+    auto result_path = basepath / filename;
+
     if (result && options.print_only_filenames) {
       if (options.is_stdout) {
-        fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+        fmt::print(fg(fmt::color::steel_blue), "{}\n", result_path.c_str());
       } else {
-        fmt::print("{}\n", filename);
+        fmt::print("{}\n", result_path.c_str());
       }
     } else if (result && !lines.empty()) {
       if (options.is_stdout) {
         lines =
-            fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+            fmt::format(fg(fmt::color::steel_blue), "\n{}\n", result_path.c_str()) + lines;
         fmt::print("{}", lines);
       } else {
         fmt::print("{}", lines);

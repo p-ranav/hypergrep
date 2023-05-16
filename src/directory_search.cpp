@@ -1,7 +1,7 @@
 #include <directory_search.hpp>
 #include <is_binary.hpp>
 
-directory_search::directory_search(argparse::ArgumentParser &program) {
+directory_search::directory_search(const std::filesystem::path& path, argparse::ArgumentParser &program) : search_path(path) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
@@ -107,7 +107,7 @@ void directory_search::run(std::filesystem::path path) {
     auto current_path = std::filesystem::current_path();
     for (const auto& repo_path: git_repo_paths) {
       git_index_search git_index_searcher(
-          database, scratch, file_filter_database, file_filter_scratch, options);
+          database, scratch, file_filter_database, file_filter_scratch, options, repo_path);
       if (chdir(repo_path.c_str()) == 0) {
         git_index_searcher.run(".");
         if (chdir(current_path.c_str()) != 0) {

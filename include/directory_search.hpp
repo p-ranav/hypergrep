@@ -27,7 +27,7 @@
 
 class directory_search {
 public:
-  directory_search(argparse::ArgumentParser &program);
+  directory_search(const std::filesystem::path& path, argparse::ArgumentParser &program);
   ~directory_search();
   void run(std::filesystem::path path);
 
@@ -57,6 +57,8 @@ private:
   void visit_directory_and_enqueue(const std::filesystem::path &path);
 
 private:
+  std::filesystem::path search_path;
+
   moodycamel::ConcurrentQueue<std::string> queue;
   moodycamel::ProducerToken ptok{queue};
 
