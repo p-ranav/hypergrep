@@ -27,6 +27,8 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 
 ### Vcpkg Installed Libraries
 
+[vcpkg](https://github.com/microsoft/vcpkg) commit: [6a3dd0874f153f8b375ec26210ea6d41dee3bb26](https://github.com/microsoft/vcpkg/commit/6a3dd0874f153f8b375ec26210ea6d41dee3bb26)
+
 | Library | Version | 
 |:---|:---|
 | **argparse** | 2.9 |
