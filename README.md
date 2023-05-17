@@ -25,6 +25,16 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 | OS              | Ubuntu 20.04 LTS |
 | C++ Compiler    | g++ (Ubuntu 11.1.0-1ubuntu1-20.04) 11.1.0 |
 
+### Vcpkg Installed Libraries
+
+| Library | Version | 
+|:---|:---|
+| **argparse** | 2.9 |
+| **concurrentqueue** | 1.0.3#1 |
+| **fmt** | 9.1.0#1 |
+| **hyperscan** | 5.4.2 |
+| **libgit2** | 1.4.2 |
+
 ### Directory Search: `torvalds/linux`
 
 The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`).
