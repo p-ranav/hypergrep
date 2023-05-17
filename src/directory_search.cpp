@@ -197,7 +197,7 @@ bool directory_search::process_file(std::string &&filename,
       // File size limit reached
       close(fd);
       return false;
-    } else if (true /*total_bytes_read > LARGE_FILE_SIZE*/) {
+    } else if (total_bytes_read > LARGE_FILE_SIZE) {
       // This file is a bit large
       // Add it to the backlog and process it later with a file_search object
       // instead of using a single thread to read in chunks
