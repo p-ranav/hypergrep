@@ -27,7 +27,7 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 
 ### Vcpkg Installed Libraries
 
-[vcpkg](https://github.com/microsoft/vcpkg) commit: [6a3dd0874f153f8b375ec26210ea6d41dee3bb26](https://github.com/microsoft/vcpkg/commit/6a3dd0874f153f8b375ec26210ea6d41dee3bb26)
+[vcpkg](https://github.com/microsoft/vcpkg) commit: [6a3dd](https://github.com/microsoft/vcpkg/commit/6a3dd0874f153f8b375ec26210ea6d41dee3bb26)
 
 | Library | Version | 
 |:---|:---|
@@ -39,7 +39,7 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 
 ### Directory Search: `torvalds/linux`
 
-The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
@@ -51,7 +51,7 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 ### Directory Search: `apple/swift`
 
-The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift). The commit used is [3865b5de6f2f56043e21895f65bd0d873e004ed9](https://github.com/apple/swift/commit/3865b5de6f2f56043e21895f65bd0d873e004ed9).
+The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift). The commit used is [3865b](https://github.com/apple/swift/commit/3865b5de6f2f56043e21895f65bd0d873e004ed9).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
