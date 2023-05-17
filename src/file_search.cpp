@@ -143,6 +143,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   thread_local_scratch.reserve(max_concurrency);
   std::atomic<size_t> num_matching_lines{0};
 
+  std::atomic<bool> filename_printed{false};
+
   for (std::size_t i = 0; i < max_concurrency; ++i) {
 
     // Set up the scratch space
@@ -160,7 +162,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
                               buffer = buffer, file_size = file_size,
                               max_searchable_size = max_searchable_size,
                               &inter_thread_synchronization_line_count_queue,
-                              &filename, &num_matching_lines]() {
+                              &filename, &num_matching_lines,
+                              &filename_printed]() {
       // Set up the scratch space
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
@@ -261,11 +264,19 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         if (ctx.number_of_matches > 0) {
           std::string lines{};
           process_matches(filename.data(), start, end - start, ctx,
-                          previous_line_count, lines, false, options.is_stdout,
-                          options.show_line_numbers);
+                          previous_line_count, lines, options.print_filename,
+                          options.is_stdout, options.show_line_numbers);
           num_matching_lines += ctx.number_of_matches;
 
           if (!options.count_matching_lines && result && !lines.empty()) {
+
+            if (options.print_filename && !filename_printed) {
+              if (options.is_stdout) {
+                fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+              }
+              filename_printed = true;
+            }
+
             fmt::print("{}", lines);
           }
         }

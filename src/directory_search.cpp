@@ -122,11 +122,15 @@ void directory_search::run(std::filesystem::path path) {
 
   // Now search large files one by one using the large_file_searcher
   if (num_large_files_enqueued > 0) {
-    file_search large_file_searcher(
-        database, scratch,
-        file_search_options{options.is_stdout, options.show_line_numbers,
-                            options.ignore_case, options.count_matching_lines,
-                            options.use_ucp, options.num_threads});
+    file_search large_file_searcher(database, scratch,
+                                    file_search_options{options.is_stdout,
+                                                        options
+                                                            .show_line_numbers,
+                                                        options.ignore_case,
+                                                        options
+                                                            .count_matching_lines,
+                                                        options.use_ucp,
+                                                        options.num_threads, true /* when performing a directory search, always print filename */});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -193,7 +197,7 @@ bool directory_search::process_file(std::string &&filename,
       // File size limit reached
       close(fd);
       return false;
-    } else if (total_bytes_read > LARGE_FILE_SIZE) {
+    } else if (true /*total_bytes_read > LARGE_FILE_SIZE*/) {
       // This file is a bit large
       // Add it to the backlog and process it later with a file_search object
       // instead of using a single thread to read in chunks
