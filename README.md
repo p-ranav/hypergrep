@@ -31,11 +31,11 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.209 | **0.147** |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.150** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.151** |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.410 | **0.156** |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.397 | **0.155** |
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.199 | **0.145** |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.203 | **0.145** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.198 | **0.147** |
+| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.407 | **0.153** |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.386 | **0.147** |
 
 ### Directory Search: `apple/swift`
 
