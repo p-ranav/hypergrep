@@ -258,7 +258,7 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_matches(filename.data(), buffer, search_size, ctx,
+      process_matches(filename.data(), buffer, search_size, ctx.matches,
                       current_line_number, lines, true, options.is_stdout,
                       options.show_line_numbers);
       num_matching_lines += ctx.number_of_matches;

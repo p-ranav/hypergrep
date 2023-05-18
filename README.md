@@ -66,12 +66,12 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | 2.654 | **2.056** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 1.839 | 2.056 |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 2.353 | **2.072** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 1.813 | 2.049 |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 3.922 | **2.061** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 1.816 | 2.050 |
+| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | 2.654 | **0.948** |
+| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 1.839 | **0.759** |
+| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 2.298 | **0.766** |
+| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 1.813 | **0.803** |
+| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 3.922 | **0.892** |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 1.816 | **0.738** |
 
 ## How It Works
 
