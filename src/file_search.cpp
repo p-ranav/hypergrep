@@ -89,6 +89,7 @@ struct chunk_result {
   char* start{nullptr};
   char* end{nullptr};
   std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
+  std::size_t line_count{0};
 };
 
 bool file_search::mmap_and_scan(std::string &&filename) {
@@ -235,7 +236,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         }
 
         // Save result
-        chunk_result local_chunk_result { start, end, std::move(matches) };
+        std::size_t line_count_at_end_of_chunk = std::count(start, end, '\n');
+        chunk_result local_chunk_result { start, end, std::move(matches), line_count_at_end_of_chunk };
         output_queues[i].enqueue(std::move(local_chunk_result));
         num_results_enqueued += 1;
 
@@ -251,7 +253,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   // and print output
   std::size_t num_matching_lines{0};
   bool filename_printed{false};
-  std::size_t previous_line_count = 1;
+  std::size_t current_line_number = 1;
   std::size_t i = 0;
   while (!(num_threads_finished == max_concurrency && num_results_enqueued == num_results_dequeued)) {
     chunk_result next_result{};
@@ -266,8 +268,9 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       auto end = next_result.end;
       auto& matches = next_result.matches;
       if (!matches.empty()) {
+        std::size_t previous_line_number = current_line_number;
         num_matching_lines += process_matches(filename.data(), start, end - start, next_result.matches,
-          previous_line_count, lines, options.print_filename,
+          previous_line_number, lines, options.print_filename,
           options.is_stdout, options.show_line_numbers);
 
         if (!options.count_matching_lines && !lines.empty()) {
@@ -281,10 +284,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
           fmt::print("{}", lines);
         }
-      } else {
-        // No matches, just count lines
-        previous_line_count += std::count(start, end, '\n');
       }
+      current_line_number += next_result.line_count;
 
       num_results_dequeued += 1;
 
