@@ -12,7 +12,7 @@
 
 ## Performance
 
-The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
+The following tests compare the performance of `hypergrep` against `ripgrep 11.0.2` and `ag 2.2.0 (The Silver Searcher)`.
 
 ### System Details
 
@@ -41,28 +41,30 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 
 The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
 
-| Regex | Line Count | ripgrep | hypergrep |
-| :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.198 | **0.145** |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.203 | **0.145** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.198 | **0.147** |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.407 | **0.153** |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.386 | **0.147** |
+| Regex | Line Count | ag | ripgrep | hypergrep |
+| :---| ---:| ---:| ---:| ---:|
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 2.807 | 0.198 | **0.145** |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 2.904 | 0.203 | **0.145** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 3.080 | 0.198 | **0.147** |
+| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.407 | **0.148** |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 3.762 | 0.386 | **0.147** |
 
 ### Directory Search: `apple/swift`
 
 The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift). The commit used is [3865b](https://github.com/apple/swift/commit/3865b5de6f2f56043e21895f65bd0d873e004ed9).
 
-| Regex | Line Count | ripgrep | hypergrep |
-| :---| ---:| ---:| ---:|
-| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59069 | 0.184 | **0.099** |
-| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 0.186 | **0.145** |
-| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012265 | 0.673 | **0.566** |
-| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.072 | **0.048** |
+| Regex | Line Count | ag | ripgrep | hypergrep |
+| :---| ---:| ---:| ---:| ---:|
+| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59069 | 1.148 | 0.184 | **0.094** |
+| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 1.169 | 0.186 | **0.145** |
+| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012265 | 3.131 | 0.673 | **0.563** |
+| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.828 | 0.072 | **0.048** |
 
 ### Single Large File Search: `OpenSubtitles.raw.en.txt`
 
  The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
+
+NOTE: `ag` (The Silver Searcher) can't handle files larger than 2147483647 bytes.
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
