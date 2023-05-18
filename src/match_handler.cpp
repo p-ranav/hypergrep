@@ -20,8 +20,8 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
   }
 }
 
-void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
-                     file_context &ctx, std::size_t &current_line_number,
+std::size_t process_matches(const char *filename, char *buffer, std::size_t bytes_read,
+                     std::vector<std::pair<unsigned long long, unsigned long long>> &matches, std::size_t &current_line_number,
                      std::string &lines, bool print_filename, bool is_stdout,
                      bool show_line_numbers) {
   std::string_view chunk(buffer, bytes_read);
@@ -31,7 +31,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
   {
     char *index = buffer;
     std::size_t previous_line_number = current_line_number;
-    for (auto &match : ctx.matches) {
+    for (auto &match : matches) {
 
       auto &[from, to] = match;
       auto line_count = std::count(index, buffer + from, '\n');
@@ -147,4 +147,7 @@ void process_matches(const char *filename, char *buffer, std::size_t bytes_read,
       lines += "\n";
     }
   }
+
+  // Return the number of matching lines
+  return line_number_match.size();
 }

@@ -140,7 +140,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   std::atomic<std::size_t> num_threads_finished{0};
   std::atomic<std::size_t> num_results_enqueued{0}, num_results_dequeued{0};
-  std::atomic<std::size_t> num_matches{0};
 
   for (std::size_t i = 0; i < max_concurrency; ++i) {
 
@@ -158,7 +157,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     threads[i] = std::thread([this, i = i, max_concurrency = max_concurrency,
                               buffer = buffer, file_size = file_size,
                               max_searchable_size = max_searchable_size,
-                              &output_queues, &num_matches,
+                              &output_queues,
                               &num_results_enqueued,
                               &num_threads_finished]() {
 
@@ -235,13 +234,10 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           break;
         }
 
-        if (ctx.number_of_matches > 0) {
-          num_matches += ctx.number_of_matches;
-          // Save result
-          chunk_result local_chunk_result { start, end, std::move(matches) };
-          output_queues[i].enqueue(std::move(local_chunk_result));
-          num_results_enqueued += 1;
-        }
+        // Save result
+        chunk_result local_chunk_result { start, end, std::move(matches) };
+        output_queues[i].enqueue(std::move(local_chunk_result));
+        num_results_enqueued += 1;
 
         offset += max_concurrency * max_searchable_size;
       }
@@ -253,6 +249,9 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   // In this main thread
   // Dequeue from output_queues, process matches
   // and print output
+  std::size_t num_matching_lines{0};
+  bool filename_printed{false};
+  std::size_t previous_line_count = 1;
   std::size_t i = 0;
   while (!(num_threads_finished == max_concurrency && num_results_enqueued == num_results_dequeued)) {
     chunk_result next_result{};
@@ -262,9 +261,32 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
       // Do something with result
       // Print it
+      std::string lines{};
+      auto start = next_result.start;
+      auto end = next_result.end;
+      auto& matches = next_result.matches;
+      if (!matches.empty()) {
+        num_matching_lines += process_matches(filename.data(), start, end - start, next_result.matches,
+          previous_line_count, lines, options.print_filename,
+          options.is_stdout, options.show_line_numbers);
+
+        if (!options.count_matching_lines && !lines.empty()) {
+
+          if (options.print_filename && !filename_printed) {
+            if (options.is_stdout) {
+              fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+            }
+            filename_printed = true;
+          }
+
+          fmt::print("{}", lines);
+        }
+      } else {
+        // No matches, just count lines
+        previous_line_count += std::count(start, end, '\n');
+      }
 
       num_results_dequeued += 1;
-      fmt::print("{} {}/{} {}/{}\n", i, num_threads_finished, max_concurrency, num_results_dequeued, num_results_enqueued);
 
       i += 1;
       if (i == max_concurrency) {
@@ -277,7 +299,15 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     t.join();
   }
 
-  fmt::print("{}\n", num_matches);
+  if (options.count_matching_lines) {
+    if (options.is_stdout) {
+      fmt::print("{}:{}\n",
+                 fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                 num_matching_lines);
+    } else {
+      fmt::print("{}:{}\n", filename, num_matching_lines);
+    }
+  }
 
   // Unmap the file
   if (munmap(buffer, file_size) == -1) {
@@ -579,7 +609,7 @@ bool file_search::scan_line(std::string &line,
   if (ctx.number_of_matches > 0) {
     std::string lines{};
     const std::string filename{""};
-    process_matches(filename.data(), line.data(), line.size(), ctx,
+    process_matches(filename.data(), line.data(), line.size(), ctx.matches,
                     current_line_number, lines, false, options.is_stdout,
                     options.show_line_numbers);
 
