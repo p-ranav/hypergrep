@@ -25,21 +25,33 @@ The following tests compare the performance of `hypergrep` with `ripgrep 11.0.2`
 | OS              | Ubuntu 20.04 LTS |
 | C++ Compiler    | g++ (Ubuntu 11.1.0-1ubuntu1-20.04) 11.1.0 |
 
+### Vcpkg Installed Libraries
+
+[vcpkg](https://github.com/microsoft/vcpkg) commit: [6a3dd](https://github.com/microsoft/vcpkg/commit/6a3dd0874f153f8b375ec26210ea6d41dee3bb26)
+
+| Library | Version | 
+|:---|:---|
+| **argparse** | 2.9 |
+| **concurrentqueue** | 1.0.3#1 |
+| **fmt** | 9.1.0#1 |
+| **hyperscan** | 5.4.2 |
+| **libgit2** | 1.4.2 |
+
 ### Directory Search: `torvalds/linux`
 
-The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`).
+The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.209 | **0.147** |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.209 | **0.150** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.216 | **0.151** |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.410 | **0.156** |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.397 | **0.155** |
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 0.199 | **0.145** |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 0.203 | **0.145** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 0.198 | **0.147** |
+| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 0.407 | **0.153** |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 0.386 | **0.147** |
 
 ### Directory Search: `apple/swift`
 
-The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift).
+The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift). The commit used is [3865b](https://github.com/apple/swift/commit/3865b5de6f2f56043e21895f65bd0d873e004ed9).
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
@@ -54,13 +66,12 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:|
-| Literal with Regex Suffix<br/>`hg -w 'Sherlock [A-Z]\w+' en.txt` | 7882 | 2.514 | **0.640** |
-| Literal with Regex Suffix (with line number)<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | 3.272 | **2.102** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 2.411 | **2.083** |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 2.773 | **2.112** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 2.542 | **2.116** |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 4.642 | **2.120** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 2.266 | 2.110 |
+| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | 2.654 | **0.948** |
+| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 1.839 | **0.759** |
+| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 2.298 | **0.766** |
+| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 1.813 | **0.803** |
+| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 3.922 | **0.892** |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 1.816 | **0.738** |
 
 ## How It Works
 
