@@ -76,7 +76,7 @@ NOTE: `ag` (The Silver Searcher) can't handle files larger than 2147483647 bytes
 | Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 6.945 | 2.139 | **0.709** |
 | Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | 6.886 | 1.808 | **0.732** |
 | Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | 7.029 | 3.880 | **0.808** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | too long | 1.812 | **0.679** |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | 6m 11s | 1.812 | **0.679** |
 
 ## How It Works
 
