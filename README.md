@@ -35,8 +35,8 @@ The following tests compare the performance of `hypergrep` against:
 | Library | Version | 
 |:---|:---|
 | **argparse** | 2.9 |
-| **concurrentqueue** | 1.0.3#1 |
-| **fmt** | 9.1.0#1 |
+| **concurrentqueue** | 1.0.3 |
+| **fmt** | 9.1.0 |
 | **hyperscan** | 5.4.2 |
 | **libgit2** | 1.4.2 |
 
