@@ -276,8 +276,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             filename.data(), start, end - start, next_result.matches,
             previous_line_number, lines, options.print_filename,
             options.is_stdout, options.show_line_numbers,
-            options.print_only_matching_parts,
-            options.max_column_limit);
+            options.print_only_matching_parts, options.max_column_limit);
 
         if (!options.count_matching_lines && !lines.empty()) {
 

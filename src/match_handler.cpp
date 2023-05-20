@@ -24,7 +24,8 @@ std::size_t process_matches(
     const char *filename, char *buffer, std::size_t bytes_read,
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
-    bool is_stdout, bool show_line_numbers, bool print_only_matching_parts, const std::optional<std::size_t> &max_column_limit) {
+    bool is_stdout, bool show_line_numbers, bool print_only_matching_parts,
+    const std::optional<std::size_t> &max_column_limit) {
   std::string_view chunk(buffer, bytes_read);
 
   static bool apply_column_limit = max_column_limit.has_value();
@@ -116,20 +117,25 @@ std::size_t process_matches(
       }
 
       if (apply_column_limit) {
-        static std::size_t column_limit = apply_column_limit ? max_column_limit.value() : 0;
+        static std::size_t column_limit =
+            apply_column_limit ? max_column_limit.value() : 0;
         const auto line_length = end_of_line - start_of_line;
         if (line_length > column_limit) {
           // with line number: [Omitted long line with 2 matches]
           // without line number: [Omitted long matching line]
           if (show_line_numbers) {
             if (is_stdout) {
-              lines += fmt::format(fg(fmt::color::green), "{}:", current_line_number);
-              lines += fmt::format("[Omitted long line with {} matches]\n", matches.size());
+              lines += fmt::format(fg(fmt::color::green),
+                                   "{}:", current_line_number);
+              lines += fmt::format("[Omitted long line with {} matches]\n",
+                                   matches.size());
             } else {
-              lines += fmt::format("{}:[Omitted long line with {} matches]\n", current_line_number, matches.size());
+              lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                                   current_line_number, matches.size());
             }
           } else {
-            lines += fmt::format("[Omitted long line with {} matches]\n", matches.size());
+            lines += fmt::format("[Omitted long line with {} matches]\n",
+                                 matches.size());
           }
           line_too_long = true;
           break;
