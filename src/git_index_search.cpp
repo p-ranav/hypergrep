@@ -10,6 +10,7 @@ git_index_search::git_index_search(const std::filesystem::path &path,
   auto hide_line_number = program.get<bool>("-N");
   options.exclude_submodules = program.get<bool>("--exclude-submodules");
   options.ignore_case = program.get<bool>("-i");
+  options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
   if (program.is_used("-f")) {
     options.filter_file_pattern = program.get<std::string>("-f");
@@ -259,7 +260,7 @@ bool git_index_search::process_file(const char *filename,
     if (ctx.number_of_matches > 0) {
       process_matches(
           filename, buffer, search_size, ctx.matches, current_line_number,
-          lines, true, options.is_stdout, options.show_line_numbers,
+          lines, options.print_filenames, options.is_stdout, options.show_line_numbers,
           options.print_only_matching_parts, options.max_column_limit);
       num_matching_lines += ctx.number_of_matches;
     }
@@ -283,13 +284,17 @@ bool git_index_search::process_file(const char *filename,
 
   if (result && options.count_matching_lines) {
     auto result_path = basepath / filename;
-    if (options.is_stdout) {
-      fmt::print(
-          "{}:{}\n",
-          fmt::format(fg(fmt::color::steel_blue), "{}", result_path.c_str()),
-          num_matching_lines);
+    if (options.print_filenames) {
+      if (options.is_stdout) {
+        fmt::print(
+            "{}:{}\n",
+            fmt::format(fg(fmt::color::steel_blue), "{}", result_path.c_str()),
+            num_matching_lines);
+      } else {
+        fmt::print("{}:{}\n", result_path.c_str(), num_matching_lines);
+      } 
     } else {
-      fmt::print("{}:{}\n", result_path.c_str(), num_matching_lines);
+      fmt::print("{}\n", num_matching_lines);
     }
   } else {
     auto result_path = basepath / filename;
@@ -302,9 +307,13 @@ bool git_index_search::process_file(const char *filename,
       }
     } else if (result && !lines.empty()) {
       if (options.is_stdout) {
-        lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",
-                            result_path.c_str()) +
-                lines;
+        if (options.print_filenames) {
+          lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",
+                              result_path.c_str()) +
+                  lines;
+        } else {
+          lines += "\n";
+        }
         fmt::print("{}", lines);
       } else {
         fmt::print("{}", lines);

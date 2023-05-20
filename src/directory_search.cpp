@@ -10,6 +10,7 @@ directory_search::directory_search(const std::filesystem::path &path,
   auto hide_line_number = program.get<bool>("-N");
   options.exclude_submodules = program.get<bool>("--exclude-submodules");
   options.ignore_case = program.get<bool>("-i");
+  options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
   if (program.is_used("-f")) {
     options.filter_file_pattern = program.get<std::string>("-f");
@@ -132,8 +133,7 @@ void directory_search::run(std::filesystem::path path) {
         file_search_options{
             options.is_stdout, options.show_line_numbers, options.ignore_case,
             options.count_matching_lines, options.use_ucp, options.num_threads,
-            true /* when performing a directory search, always print filename */
-            ,
+            options.print_filenames,
             options.print_only_matching_parts});
 
     // Memory map + multi-threaded search
@@ -263,7 +263,7 @@ bool directory_search::process_file(std::string &&filename,
 
     if (ctx.number_of_matches > 0) {
       process_matches(filename.data(), buffer, search_size, ctx.matches,
-                      current_line_number, lines, true, options.is_stdout,
+                      current_line_number, lines, options.print_filenames, options.is_stdout,
                       options.show_line_numbers,
                       options.print_only_matching_parts,
                       options.max_column_limit);
@@ -288,12 +288,16 @@ bool directory_search::process_file(std::string &&filename,
   close(fd);
 
   if (result && options.count_matching_lines) {
-    if (options.is_stdout) {
-      fmt::print("{}:{}\n",
-                 fmt::format(fg(fmt::color::steel_blue), "{}", filename),
-                 num_matching_lines);
+    if (options.print_filenames) {
+      if (options.is_stdout) {
+        fmt::print("{}:{}\n",
+                  fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                  num_matching_lines);
+      } else {
+        fmt::print("{}:{}\n", filename, num_matching_lines);
+      }
     } else {
-      fmt::print("{}:{}\n", filename, num_matching_lines);
+      fmt::print("{}\n", num_matching_lines);
     }
   } else {
     if (result && options.print_only_filenames) {
@@ -304,8 +308,12 @@ bool directory_search::process_file(std::string &&filename,
       }
     } else if (result && !lines.empty()) {
       if (options.is_stdout) {
-        lines =
-            fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+        if (options.print_filenames) {
+          lines =
+              fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+        } else {
+          lines += "\n";
+        }
         fmt::print("{}", lines);
       } else {
         fmt::print("{}", lines);

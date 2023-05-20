@@ -16,4 +16,5 @@ struct directory_search_options {
   bool search_hidden_files{false};
   bool print_only_matching_parts{false};
   std::optional<std::size_t> max_column_limit{};
+  bool print_filenames{true};
 };
