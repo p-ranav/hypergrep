@@ -122,9 +122,9 @@ void git_index_search::run(std::filesystem::path path) {
       while (true) {
         if (num_files_enqueued > 0) {
           try_dequeue_and_process_path(local_scratch, buffer, lines);
-          if (!running && num_files_dequeued == num_files_enqueued) {
-            break;
-          }
+        }
+        if (!running && num_files_dequeued == num_files_enqueued) {
+          break;
         }
       }
 
@@ -177,6 +177,7 @@ void git_index_search::compile_hs_database(std::string &pattern) {
 bool git_index_search::process_file(const char *filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
+  static bool first_file{true};
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -308,7 +309,12 @@ bool git_index_search::process_file(const char *filename,
     } else if (result && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
-          lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",
+          if (!first_file) {
+            lines += "\n";
+          } else {
+            first_file = false;
+          }
+          lines = fmt::format(fg(fmt::color::steel_blue), "{}\n",
                               result_path.c_str()) +
                   lines;
         } else {

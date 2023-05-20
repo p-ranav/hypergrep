@@ -90,9 +90,9 @@ void directory_search::run(std::filesystem::path path) {
       while (true) {
         if (num_files_enqueued > 0) {
           try_dequeue_and_process_path(local_scratch, buffer, lines);
-          if (!running && num_files_dequeued == num_files_enqueued) {
-            break;
-          }
+        }
+        if (!running && num_files_dequeued == num_files_enqueued) {
+          break;
         }
       }
 
