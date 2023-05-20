@@ -11,4 +11,5 @@ struct file_search_options {
   bool print_filename{false};
   bool print_only_matching_parts{false};
   std::optional<std::size_t> max_column_limit{};
+  bool print_only_filenames{false};
 };

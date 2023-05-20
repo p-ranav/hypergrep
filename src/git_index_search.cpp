@@ -283,7 +283,7 @@ bool git_index_search::process_file(const char *filename,
 
   close(fd);
 
-  if (result && options.count_matching_lines) {
+  if (result && options.count_matching_lines && !options.print_only_filenames) {
     auto result_path = basepath / filename;
     if (options.print_filenames) {
       if (options.is_stdout) {
@@ -306,7 +306,7 @@ bool git_index_search::process_file(const char *filename,
       } else {
         fmt::print("{}\n", result_path.c_str());
       }
-    } else if (result && !lines.empty()) {
+    } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
           if (!first_file) {

@@ -278,7 +278,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             options.is_stdout, options.show_line_numbers,
             options.print_only_matching_parts, options.max_column_limit);
 
-        if (!options.count_matching_lines && !lines.empty()) {
+        if (!options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
 
           if (options.print_filename && !filename_printed) {
             if (options.is_stdout) {
@@ -316,6 +316,12 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       }
     } else {
       fmt::print("{}\n", num_matching_lines);
+    }
+  } else if (options.print_only_filenames) {
+    if (options.is_stdout) {
+      fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+    } else {
+      fmt::print("{}\n", filename);
     }
   }
 
@@ -384,7 +390,7 @@ bool file_search::scan_line(std::string &line,
                     options.print_only_matching_parts,
                     options.max_column_limit);
 
-    if (!options.count_matching_lines && result && !lines.empty()) {
+    if (!options.count_matching_lines && !options.print_only_filenames && result && !lines.empty()) {
       fmt::print("{}", lines);
     }
   }

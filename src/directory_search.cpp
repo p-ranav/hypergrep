@@ -134,7 +134,9 @@ void directory_search::run(std::filesystem::path path) {
             options.is_stdout, options.show_line_numbers, options.ignore_case,
             options.count_matching_lines, options.use_ucp, options.num_threads,
             options.print_filenames,
-            options.print_only_matching_parts});
+            options.print_only_matching_parts,
+            options.max_column_limit,
+            options.print_only_filenames});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -288,7 +290,7 @@ bool directory_search::process_file(std::string &&filename,
 
   close(fd);
 
-  if (result && options.count_matching_lines) {
+  if (result && options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -307,7 +309,7 @@ bool directory_search::process_file(std::string &&filename,
       } else {
         fmt::print("{}\n", filename);
       }
-    } else if (result && !lines.empty()) {
+    } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
           if (!first_file) {
