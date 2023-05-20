@@ -45,12 +45,12 @@ The following tests compare the performance of `hypergrep` against:
 The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
-| :---| ---:| ---:| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 2.807 | 0.316 | 0.198 | **0.145** |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 2.904 | 0.435 | 0.203 | **0.145** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 3.080 | 1.452 | 0.198 | **0.147** |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.410 | 0.407 | **0.148** |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 3.762 | 0.484 | 0.386 | **0.147** |
+| ---| ---| ---| ---| ---| ---|
+| Simple Literal<br/>`hg -nw 'PM_RESUME'` |  <h3>$${9}$$</h3> |  <h3>$${2.807}$$</h3> |  <h3>$${0.316}$$</h3> | <h3>$${0.198}$$</h3> | <h3>$${\color{greenyellow}0.145}$$</h3> |
+| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` |  <h3>$${39}$$</h3> |  <h3>$${2.904}$$</h3> |  <h3>$${0.435}$$</h3> |  <h3>$${0.203}$$</h3> | <h3>$${\color{greenyellow}0.145}$$</h3> |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` |  <h3>$${538}$$</h3> |  <h3>$${3.080}$$</h3> |  <h3>$${1.452}$$</h3> |  <h3>$${0.198}$$</h3> | <h3>$${\color{greenyellow}0.147}$$</h3> |
+| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` |  <h3>$${16}$$</h3> |  <h3>$${3.085}$$</h3> |  <h3>$${0.410}$$</h3> |  <h3>$${0.407}$$</h3> |<h3>$${\color{greenyellow}0.148}$$</h3> |
+| Unicode Greek<br/>`hg -n '\p{Greek}'` |  <h3>$${111}$$</h3> |  <h3>$${3.762}$$</h3> |  <h3>$${0.484}$$</h3> |  <h3>$${0.386}$$</h3> | <h3>$${\color{greenyellow}0.147}$$</h3> |
 
 ### Directory Search: `apple/swift`
 
@@ -58,10 +58,10 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59069 | 1.148 | 0.954 | 0.184 | **0.094** |
-| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 1.169 | 1.238 | 0.186 | **0.145** |
-| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012265 | 3.131 | 2.598 | 0.673 | **0.563** |
-| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.828 | 0.174 | 0.072 | **0.048** |
+| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | <h3>$${59069}$$</h3> | <h3>$${1.148}$$</h3> | <h3>$${0.954}$$</h3> | <h3>$${0.184}$$</h3> | <h3>$${\color{greenyellow}0.094}$$</h3> |
+| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | <h3>$${127855}$$</h3> | <h3>$${1.169}$$</h3> | <h3>$${1.238}$$</h3> | <h3>$${0.186}$$</h3> | <h3>$${\color{greenyellow}0.145}$$</h3> |
+| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | <h3>$${2012265}$$</h3> | <h3>$${3.131}$$</h3> | <h3>$${2.598}$$</h3> | <h3>$${0.673}$$</h3> | <h3>$${\color{greenyellow}0.563}$$</h3> |
+| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | <h3>$${857}$$</h3> | <h3>$${0.828}$$</h3> | <h3>$${0.174}$$</h3> | <h3>$${0.072}$$</h3> | <h3>$${\color{greenyellow}0.048}$$</h3> |
 
 ### Single Large File Search: `OpenSubtitles.raw.en.txt`
 
@@ -69,13 +69,13 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Count number of times Holmes did something<br/>`hg -c 'Holmes did \w'` | 27 | n/a | 1.820 | 1.400 | **0.782**  |
-| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | n/a | 1.812 | 2.654 | **0.876** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 15.764 | 1.888 | 1.813 | **0.697** |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 15.599 | 6.945 | 2.139 | **0.709** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | n/a | 6.886 | 1.808 | **0.732** |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.880 | **0.808** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.812 | **0.679** |
+| Count number of times Holmes did something<br/>`hg -c 'Holmes did \w'` | <h3>$${27}$$</h3> | <h3>$${n/a}$$</h3> | <h3>$${1.820}$$</h3> | <h3>$${1.400}$$</h3> | <h3>$${\color{greenyellow}0.782}$$</h3>  |
+| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | <h3>$${7882}$$</h3> | <h3>$${n/a}$$</h3> | <h3>$${1.812}$$</h3> | <h3>$${2.654}$$</h3> | <h3>$${\color{greenyellow}0.876}$$</h3> |
+| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | <h3>$${7653}$$</h3> | <h3>$${15.764}$$</h3> | <h3>$${1.888}$$</h3> | <h3>$${1.813}$$</h3> | <h3>$${\color{greenyellow}0.697}$$</h3> |
+| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | <h3>$${7871}$$</h3> | <h3>$${15.599}$$</h3> | <h3>$${6.945}$$</h3> | <h3>$${2.139}$$</h3> | <h3>$${\color{greenyellow}0.709}$$</h3> |
+| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | <h3>$${10078}$$</h3> | <h3>$${n/a}$$</h3> | <h3>$${6.886}$$</h3> | <h3>$${1.808}$$</h3> | <h3>$${\color{greenyellow}0.732}$$</h3> |
+| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | <h3>$${10333}$$</h3> | <h3>$${n/a}$$</h3> | <h3>$${7.029}$$</h3> | <h3>$${3.880}$$</h3> | <h3>$${\color{greenyellow}0.808}$$</h3> |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | <h3>$${5020}$$</h3> | <h3>$${n/a}$$</h3> | <h3>$${6m 11s}$$</h3> | <h3>$${1.812}$$</h3> | <h3>$${\color{greenyellow}0.679}$$</h3> |
 
 ## How It Works
 
