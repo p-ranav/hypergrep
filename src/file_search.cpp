@@ -301,12 +301,16 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   }
 
   if (options.count_matching_lines) {
-    if (options.is_stdout) {
-      fmt::print("{}:{}\n",
-                 fmt::format(fg(fmt::color::steel_blue), "{}", filename),
-                 num_matching_lines);
+    if (options.print_filename) {
+      if (options.is_stdout) {
+        fmt::print("{}:{}\n",
+                  fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                  num_matching_lines);
+      } else {
+        fmt::print("{}:{}\n", filename, num_matching_lines);
+      }
     } else {
-      fmt::print("{}:{}\n", filename, num_matching_lines);
+      fmt::print("{}\n", num_matching_lines);
     }
   }
 
