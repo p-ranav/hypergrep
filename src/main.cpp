@@ -37,6 +37,10 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("-M", "--max-columns")
+      .help("Don't print lines longer than this limit")
+      .scan<'d', std::size_t>();
+
   program.add_argument("--max-file-size")
       .help("Ignore files above a certain size");
 

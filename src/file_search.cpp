@@ -9,6 +9,11 @@ file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
+
+  if (program.is_used("-M")) {
+    options.max_column_limit = program.get<std::size_t>("-M");
+  }
+
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
   options.ignore_case = program.get<bool>("-i");
@@ -271,7 +276,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             filename.data(), start, end - start, next_result.matches,
             previous_line_number, lines, options.print_filename,
             options.is_stdout, options.show_line_numbers,
-            options.print_only_matching_parts);
+            options.print_only_matching_parts,
+            options.max_column_limit);
 
         if (!options.count_matching_lines && !lines.empty()) {
 
@@ -376,7 +382,8 @@ bool file_search::scan_line(std::string &line,
     process_matches(filename.data(), line.data(), line.size(), ctx.matches,
                     current_line_number, lines, false, options.is_stdout,
                     options.show_line_numbers,
-                    options.print_only_matching_parts);
+                    options.print_only_matching_parts,
+                    options.max_column_limit);
 
     if (!options.count_matching_lines && result && !lines.empty()) {
       fmt::print("{}", lines);

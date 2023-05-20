@@ -20,6 +20,10 @@ git_index_search::git_index_search(const std::filesystem::path &path,
     }
   }
 
+  if (program.is_used("-M")) {
+    options.max_column_limit = program.get<std::size_t>("-M");
+  }
+
   if (program.is_used("--max-file-size")) {
     const auto max_file_size_spec = program.get<std::string>("--max-file-size");
     options.max_file_size = size_to_bytes(max_file_size_spec);
@@ -256,7 +260,8 @@ bool git_index_search::process_file(const char *filename,
       process_matches(filename, buffer, search_size, ctx.matches,
                       current_line_number, lines, true, options.is_stdout,
                       options.show_line_numbers,
-                      options.print_only_matching_parts);
+                      options.print_only_matching_parts,
+                      options.max_column_limit);
       num_matching_lines += ctx.number_of_matches;
     }
 
