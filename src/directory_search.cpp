@@ -34,6 +34,7 @@ directory_search::directory_search(const std::filesystem::path &path,
 
   options.use_ucp = program.get<bool>("--ucp");
   options.search_hidden_files = program.get<bool>("--hidden");
+  options.print_only_matching_parts = program.get<bool>("-o");
 
   options.is_stdout = isatty(STDOUT_FILENO) == 1;
 
@@ -130,7 +131,8 @@ void directory_search::run(std::filesystem::path path) {
                                                         options
                                                             .count_matching_lines,
                                                         options.use_ucp,
-                                                        options.num_threads, true /* when performing a directory search, always print filename */});
+                                                        options.num_threads, true /* when performing a directory search, always print filename */,
+                                                        options.print_only_matching_parts});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -260,7 +262,7 @@ bool directory_search::process_file(std::string &&filename,
     if (ctx.number_of_matches > 0) {
       process_matches(filename.data(), buffer, search_size, ctx.matches,
                       current_line_number, lines, true, options.is_stdout,
-                      options.show_line_numbers);
+                      options.show_line_numbers, options.print_only_matching_parts);
       num_matching_lines += ctx.number_of_matches;
     }
 

@@ -16,4 +16,4 @@ int print_match_in_red_color(unsigned int id, unsigned long long from,
 std::size_t process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      std::vector<std::pair<unsigned long long, unsigned long long>> &matches, std::size_t &current_line_number,
                      std::string &lines, bool print_filename, bool is_stdout,
-                     bool show_line_numbers);
+                     bool show_line_numbers, bool print_only_matching_parts);

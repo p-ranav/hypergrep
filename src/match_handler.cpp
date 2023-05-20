@@ -23,7 +23,7 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
 std::size_t process_matches(const char *filename, char *buffer, std::size_t bytes_read,
                      std::vector<std::pair<unsigned long long, unsigned long long>> &matches, std::size_t &current_line_number,
                      std::string &lines, bool print_filename, bool is_stdout,
-                     bool show_line_numbers) {
+                     bool show_line_numbers, bool print_only_matching_parts) {
   std::string_view chunk(buffer, bytes_read);
 
   std::map<std::size_t, std::vector<std::pair<std::size_t, std::size_t>>>
@@ -109,7 +109,9 @@ std::size_t process_matches(const char *filename, char *buffer, std::size_t byte
         } else if (end_of_line < to) {
           end_of_line = to;
         }
+      }
 
+      if (first || print_only_matching_parts) {
         if (show_line_numbers) {
           if (is_stdout) {
             lines +=
@@ -128,23 +130,34 @@ std::size_t process_matches(const char *filename, char *buffer, std::size_t byte
             }
           }
         }
-
         first = false;
       }
 
-      lines += fmt::format("{}", chunk.substr(index, from - index));
-      if (is_stdout) {
-        lines += fmt::format(fg(fmt::color::red), "{}",
-                             chunk.substr(from, to - from));
-      } else {
-        lines += fmt::format("{}", chunk.substr(from, to - from));
+      if (print_only_matching_parts) {
+        if (is_stdout) {
+          lines += fmt::format(fg(fmt::color::red), "{}\n",
+                              chunk.substr(from, to - from));
+        } else {
+          lines += fmt::format("{}\n", chunk.substr(from, to - from));
+        }
       }
-      index = to;
+      else {
+        lines += fmt::format("{}", chunk.substr(index, from - index));
+        if (is_stdout) {
+          lines += fmt::format(fg(fmt::color::red), "{}",
+                              chunk.substr(from, to - from));
+        } else {
+          lines += fmt::format("{}", chunk.substr(from, to - from));
+        }
+        index = to;
+      }
     }
 
-    if (index <= end_of_line) {
-      lines += fmt::format("{}", chunk.substr(index, end_of_line - index));
-      lines += "\n";
+    if (!print_only_matching_parts) {
+      if (index <= end_of_line) {
+        lines += fmt::format("{}", chunk.substr(index, end_of_line - index));
+        lines += "\n";
+      }
     }
   }
 

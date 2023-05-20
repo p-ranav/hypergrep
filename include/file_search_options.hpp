@@ -8,4 +8,5 @@ struct file_search_options {
   bool use_ucp{false};
   std::size_t num_threads{0};
   bool print_filename{false};
+  bool print_only_matching_parts{false};
 };

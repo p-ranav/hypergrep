@@ -25,6 +25,8 @@ git_index_search::git_index_search(const std::filesystem::path &path,
     options.max_file_size = size_to_bytes(max_file_size_spec);
   }
 
+  options.print_only_matching_parts = program.get<bool>("-o");
+
   auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
@@ -253,7 +255,7 @@ bool git_index_search::process_file(const char *filename,
     if (ctx.number_of_matches > 0) {
       process_matches(filename, buffer, search_size, ctx.matches, current_line_number,
                       lines, true, options.is_stdout,
-                      options.show_line_numbers);
+                      options.show_line_numbers, options.print_only_matching_parts);
       num_matching_lines += ctx.number_of_matches;
     }
 

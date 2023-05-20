@@ -52,6 +52,11 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("-o", "--only-matching")
+      .help("Print only matched parts of a line.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("--ucp")
       .help("Use unicode properties, rather than the default ASCII "
             "interpretations, for character mnemonics like \\w and \\s as well "
