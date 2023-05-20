@@ -192,9 +192,15 @@ bool directory_search::process_file(std::string &&filename,
   bool first{true};
   while (true) {
 
-    bytes_read = read(fd, buffer, FILE_CHUNK_SIZE);
+    auto ret = read(fd, buffer, FILE_CHUNK_SIZE);
 
-    if (bytes_read <= 0 || bytes_read > FILE_CHUNK_SIZE) {
+    if (ret > 0) {
+      bytes_read = ret;
+    } else {
+      break;
+    }
+
+    if (bytes_read > FILE_CHUNK_SIZE) {
       break;
     }
 
@@ -282,7 +288,12 @@ bool directory_search::process_file(std::string &&filename,
       } else {
         // Backtrack "remainder" number of characters
         if (bytes_read > search_size) {
-          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+          if ((bytes_read - search_size) < FILE_CHUNK_SIZE) {
+            lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+          } else {
+            // Don't lseek back the entire chunk
+            // because that's an infinite loop
+          }
         }
       }
     }
