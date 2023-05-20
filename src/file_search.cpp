@@ -87,8 +87,8 @@ void file_search::run(std::filesystem::path path) {
 }
 
 struct chunk_result {
-  char* start{nullptr};
-  char* end{nullptr};
+  char *start{nullptr};
+  char *end{nullptr};
   std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
   std::size_t line_count{0};
 };
@@ -133,9 +133,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   }
 
   // Each thread will enqueue its results into its queue
-  moodycamel::ConcurrentQueue<chunk_result>
-      *output_queues =
-          new moodycamel::ConcurrentQueue<chunk_result>[max_concurrency];
+  moodycamel::ConcurrentQueue<chunk_result> *output_queues =
+      new moodycamel::ConcurrentQueue<chunk_result>[max_concurrency];
 
   std::vector<std::thread> threads(max_concurrency);
   thread_local_scratch.reserve(max_concurrency);
@@ -159,10 +158,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     threads[i] = std::thread([this, i = i, max_concurrency = max_concurrency,
                               buffer = buffer, file_size = file_size,
                               max_searchable_size = max_searchable_size,
-                              &output_queues,
-                              &num_results_enqueued,
+                              &output_queues, &num_results_enqueued,
                               &num_threads_finished]() {
-
       // Set up the scratch space
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
@@ -238,15 +235,14 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
         // Save result
         std::size_t line_count_at_end_of_chunk = std::count(start, end, '\n');
-        chunk_result local_chunk_result { start, end, std::move(matches), line_count_at_end_of_chunk };
+        chunk_result local_chunk_result{start, end, std::move(matches),
+                                        line_count_at_end_of_chunk};
         output_queues[i].enqueue(std::move(local_chunk_result));
         num_results_enqueued += 1;
 
         offset += max_concurrency * max_searchable_size;
       }
-
     });
-
   }
 
   // In this main thread
@@ -256,7 +252,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   bool filename_printed{false};
   std::size_t current_line_number = 1;
   std::size_t i = 0;
-  while (!(num_threads_finished == max_concurrency && num_results_enqueued == num_results_dequeued)) {
+  while (!(num_threads_finished == max_concurrency &&
+           num_results_enqueued == num_results_dequeued)) {
     chunk_result next_result{};
 
     auto found = output_queues[i].try_dequeue(next_result);
@@ -267,12 +264,14 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       std::string lines{};
       auto start = next_result.start;
       auto end = next_result.end;
-      auto& matches = next_result.matches;
+      auto &matches = next_result.matches;
       if (!matches.empty()) {
         std::size_t previous_line_number = current_line_number;
-        num_matching_lines += process_matches(filename.data(), start, end - start, next_result.matches,
-          previous_line_number, lines, options.print_filename,
-          options.is_stdout, options.show_line_numbers, options.print_only_matching_parts);
+        num_matching_lines += process_matches(
+            filename.data(), start, end - start, next_result.matches,
+            previous_line_number, lines, options.print_filename,
+            options.is_stdout, options.show_line_numbers,
+            options.print_only_matching_parts);
 
         if (!options.count_matching_lines && !lines.empty()) {
 
@@ -305,8 +304,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
-                  fmt::format(fg(fmt::color::steel_blue), "{}", filename),
-                  num_matching_lines);
+                   fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                   num_matching_lines);
       } else {
         fmt::print("{}:{}\n", filename, num_matching_lines);
       }
@@ -323,7 +322,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   // Close the file
   if (close(fd) == -1) {
     return false;
-  } 
+  }
 
   delete[] output_queues;
 
@@ -376,7 +375,8 @@ bool file_search::scan_line(std::string &line,
     const std::string filename{""};
     process_matches(filename.data(), line.data(), line.size(), ctx.matches,
                     current_line_number, lines, false, options.is_stdout,
-                    options.show_line_numbers, options.print_only_matching_parts);
+                    options.show_line_numbers,
+                    options.print_only_matching_parts);
 
     if (!options.count_matching_lines && result && !lines.empty()) {
       fmt::print("{}", lines);

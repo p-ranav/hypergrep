@@ -253,9 +253,10 @@ bool git_index_search::process_file(const char *filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_matches(filename, buffer, search_size, ctx.matches, current_line_number,
-                      lines, true, options.is_stdout,
-                      options.show_line_numbers, options.print_only_matching_parts);
+      process_matches(filename, buffer, search_size, ctx.matches,
+                      current_line_number, lines, true, options.is_stdout,
+                      options.show_line_numbers,
+                      options.print_only_matching_parts);
       num_matching_lines += ctx.number_of_matches;
     }
 
