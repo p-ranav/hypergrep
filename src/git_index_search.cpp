@@ -1,5 +1,6 @@
 #include <git_index_search.hpp>
 #include <is_binary.hpp>
+#include <unordered_set>
 
 git_index_search::git_index_search(const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
@@ -451,6 +452,21 @@ bool git_index_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
       queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
+
+      // auto path = std::string_view(entries[j]);
+      // auto dot_pos = path.find_last_of(".", 0);
+      // if (dot_pos != std::string_view::npos) {
+      //   // Check extension
+      //   auto extension = path.substr(dot_pos);
+      //   static const std::unordered_set<std::string_view> blacklist{
+      //     ".o", ".so", ".jpg", ".png", ".jpeg", ".svg",
+      //     ".pyc", ".mp3", ".mp4"
+      //   };
+      //   if (blacklist.find(extension) != blacklist.end()) {
+      //     continue;
+      //   }
+      // }
+
       process_file(entries[j], local_scratch, buffer, lines);
     }
     num_files_dequeued += count;
