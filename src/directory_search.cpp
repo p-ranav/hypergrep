@@ -200,10 +200,6 @@ bool directory_search::process_file(std::string &&filename,
       break;
     }
 
-    if (bytes_read > FILE_CHUNK_SIZE) {
-      break;
-    }
-
     total_bytes_read += bytes_read;
 
     if (max_file_size_provided && total_bytes_read > max_file_size) {

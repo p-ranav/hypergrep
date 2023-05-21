@@ -140,6 +140,29 @@ void git_index_search::run(std::filesystem::path path) {
     consumer_threads[i].join();
   }
 
+  // Now search large files one by one using the large_file_searcher
+  if (num_large_files_enqueued > 0) {
+    file_search large_file_searcher(
+        database, scratch,
+        file_search_options{
+            options.is_stdout, options.show_line_numbers, options.ignore_case,
+            options.count_matching_lines, options.use_ucp, options.num_threads,
+            options.print_filenames,
+            options.print_only_matching_parts,
+            options.max_column_limit,
+            options.print_only_filenames});
+
+    // Memory map + multi-threaded search
+    while (num_large_files_enqueued > 0) {
+      std::string path{};
+      auto found = large_file_backlog.try_dequeue(path);
+      if (found) {
+        large_file_searcher.run(path);
+        --num_large_files_enqueued;
+      }
+    }
+  }
+
   // Process submodules
   const auto current_path = std::filesystem::current_path();
   for (const auto &sm_path : submodule_paths) {
@@ -206,14 +229,22 @@ bool git_index_search::process_file(const char *filename,
       break;
     }
 
-    if (bytes_read > FILE_CHUNK_SIZE) {
-      break;
-    }
-
     total_bytes_read += bytes_read;
 
     if (max_file_size_provided && total_bytes_read > max_file_size) {
       // File size limit reached
+      close(fd);
+      return false;
+    } else if (total_bytes_read > LARGE_FILE_SIZE) {
+      // This file is a bit large
+      // Add it to the backlog and process it later with a file_search object
+      // instead of using a single thread to read in chunks
+      // The file_search object will memory map and search this large file
+      // in multiple threads
+
+      large_file_backlog.enqueue(std::move(filename));
+      ++num_large_files_enqueued;
+
       close(fd);
       return false;
     }
