@@ -55,6 +55,8 @@ private:
 
   bool filter_file(const char *path);
 
+  void search_thread_function();
+
   void visit_directory_and_enqueue(const std::filesystem::path &path);
 
 private:

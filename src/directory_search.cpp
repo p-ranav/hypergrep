@@ -71,38 +71,45 @@ directory_search::~directory_search() {
   }
 }
 
+void directory_search::search_thread_function() {
+  char buffer[FILE_CHUNK_SIZE];
+  std::string lines{};
+
+  hs_scratch_t *local_scratch = NULL;
+  hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
+  if (database_error != HS_SUCCESS) {
+    throw std::runtime_error("Error allocating scratch space\n");
+  }
+
+  while (true) {
+    if (num_files_enqueued > 0) {
+      try_dequeue_and_process_path(local_scratch, buffer, lines);
+    }
+    if (!running && num_files_dequeued == num_files_enqueued) {
+      break;
+    }
+  }
+
+  hs_free_scratch(local_scratch);
+}
+
 void directory_search::run(std::filesystem::path path) {
   git_libgit2_init();
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
 
-    consumer_threads[i] = std::thread([this, i = i]() {
-      char buffer[FILE_CHUNK_SIZE];
-      std::string lines{};
-
-      hs_scratch_t *local_scratch = NULL;
-      hs_error_t database_error = hs_alloc_scratch(database, &local_scratch);
-      if (database_error != HS_SUCCESS) {
-        throw std::runtime_error("Error allocating scratch space\n");
-      }
-
-      while (true) {
-        if (num_files_enqueued > 0) {
-          try_dequeue_and_process_path(local_scratch, buffer, lines);
-        }
-        if (!running && num_files_dequeued == num_files_enqueued) {
-          break;
-        }
-      }
-
-      hs_free_scratch(local_scratch);
-    });
+    consumer_threads[i] = std::thread(std::bind(&directory_search::search_thread_function, this));
   }
 
   visit_directory_and_enqueue(path);
 
   running = false;
+
+  // Done enqueuing files for search
+
+  // Help with the search now:
+  search_thread_function();
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
     consumer_threads[i].join();
