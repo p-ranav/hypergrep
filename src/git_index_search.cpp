@@ -177,7 +177,6 @@ void git_index_search::compile_hs_database(std::string &pattern) {
 bool git_index_search::process_file(const char *filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
-  static bool first_file{true};
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -316,12 +315,7 @@ bool git_index_search::process_file(const char *filename,
     } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
-          if (!first_file) {
-            lines += "\n";
-          } else {
-            first_file = false;
-          }
-          lines = fmt::format(fg(fmt::color::steel_blue), "{}\n",
+          lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",
                               result_path.c_str()) +
                   lines;
         } else {

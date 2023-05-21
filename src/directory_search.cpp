@@ -171,7 +171,6 @@ void directory_search::compile_hs_database(std::string &pattern) {
 bool directory_search::process_file(std::string &&filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
-  static bool first_file{true};
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -319,13 +318,8 @@ bool directory_search::process_file(std::string &&filename,
     } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
-          if (!first_file) {
-            lines += "\n";
-          } else {
-            first_file = false;
-          }
           lines =
-              fmt::format(fg(fmt::color::steel_blue), "{}\n", filename) + lines;
+              fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
         } else {
           lines += "\n";
         }
