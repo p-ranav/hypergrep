@@ -90,10 +90,6 @@ private:
   std::vector<git_index *> garbage_collect_index;
   std::vector<git_index_iterator *> garbage_collect_index_iterator;
 
-  // Optimizations for large files
-  moodycamel::ConcurrentQueue<std::string> large_file_backlog;
-  std::atomic<std::size_t> num_large_files_enqueued{0};
-
   // Backlog
   std::vector<std::filesystem::path> submodule_paths;
 };
