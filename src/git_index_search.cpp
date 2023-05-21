@@ -384,6 +384,11 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
       if (entry && (!options.filter_files ||
                     (options.filter_files && filter_file(entry->path)))) {
 
+        // Skip directories and symlinks
+        if ((entry->mode & S_IFMT) == S_IFDIR || (entry->mode & S_IFMT) == S_IFLNK) {
+          continue;
+        }
+
         if (!options.search_hidden_files) {
           if (entry->path[0] == '.') {
             continue;
