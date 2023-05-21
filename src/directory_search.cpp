@@ -175,9 +175,38 @@ void directory_search::compile_hs_database(std::string &pattern) {
   }
 }
 
+bool is_blacklisted(const std::string& str)
+{
+  const std::vector<std::string> substrings {
+    ".o",
+    ".so",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".mp3",
+    ".mp4",
+    ".gz",
+    ".xz",
+    ".zip"
+  };
+
+  for (const auto& substring : substrings) {
+    if (str.size() >= substring.size() &&
+        str.compare(str.size() - substring.size(), substring.size(), substring) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool directory_search::process_file(std::string &&filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
+
+  if (is_blacklisted(filename)) {
+    return false;
+  }
+
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;

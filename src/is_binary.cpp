@@ -58,14 +58,7 @@ bool is_pdf(const char* buffer) {
 }
 
 bool starts_with_magic_bytes(const char* buffer, const std::size_t& bytes_read) {
-  return is_elf_header(buffer) ||
-    is_archive_header(buffer) ||
-    is_jpeg(buffer) ||
-    is_png(buffer) ||
-    is_zip(buffer) || 
-    is_gzip(buffer) || 
-    is_tar(buffer, bytes_read) || 
-    is_pdf(buffer);
+  return is_elf_header(buffer) || is_archive_header(buffer);
 }
 
 bool has_null_bytes(char *buffer, std::size_t search_size) {
