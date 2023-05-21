@@ -228,8 +228,7 @@ bool directory_search::process_file(std::string &&filename,
 
     if (first) {
       first = false;
-      if (bytes_read >= 4 &&
-          (is_elf_header(buffer) || is_archive_header(buffer))) {
+      if (starts_with_magic_bytes(buffer, bytes_read)) {
         result = false;
         break;
       }

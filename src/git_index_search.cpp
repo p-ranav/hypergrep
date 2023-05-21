@@ -222,8 +222,7 @@ bool git_index_search::process_file(const char *filename,
 
     if (first) {
       first = false;
-      if (bytes_read >= 4 &&
-          (is_elf_header(buffer) || is_archive_header(buffer))) {
+      if (starts_with_magic_bytes(buffer, bytes_read)) {
         result = false;
         break;
       }
