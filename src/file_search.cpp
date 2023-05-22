@@ -10,6 +10,10 @@ file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.num_threads = program.get<unsigned>("-j");
 
+  if (!program.is_used("-j")) {
+    options.num_threads += 1;
+  }
+
   if (program.is_used("-M")) {
     options.max_column_limit = program.get<std::size_t>("-M");
   }
