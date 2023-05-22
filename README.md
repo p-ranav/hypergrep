@@ -91,7 +91,7 @@ When a `.git` directory is detected in any folder, `hypergrep` tries to use [lib
 
 ### Directory Search
 
-When searching any directory that is not in itself a git repository, `hypergrep` might still encounter a nested directory that happens to be a git repository. So, for any directory search, `hypergrep` first uses [std::filesystem::recursive_directory_iterator](https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator) to iterate over all the files and directories. If git repositories are encountered, instead of iterating further into those directories, it reads and iterates the git index. Any further recursion into those directories is arrested. So when searching a top-level `~/projects` directory, `hypergrep` will essentially be searching every file in the git index of every git repository. For directories that are not git repositories, any candidate file that is discovered through recursive directory iteration is enqueued. 
+When searching any directory that is not in itself a git repository, `hypergrep` might still encounter a nested directory that happens to be a git repository. So, for any directory search, `hypergrep` first uses [std::filesystem::recursive_directory_iterator](https://en.cppreference.com/w/cpp/filesystem/recursive_directory_iterator) to iterate over all the files and directories. If git repositories are encountered, instead of iterating further into those directories, it reads and iterates the git index. Any further recursion into those directories is arrested.For directories that are not git repositories, any candidate file that is discovered through recursive directory iteration is enqueued. 
 
 ### Large File Search
 
