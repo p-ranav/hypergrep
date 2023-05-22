@@ -108,7 +108,7 @@ cd vcpkg
 ./vcpkg install concurrentqueue fmt argparse libgit2 hyperscan
 ```
 
-### Build `hypergrep` using CMake
+### Build `hypergrep` using `cmake` and `vcpkg`
 
 ```
 git clone https://github.com/p-ranav/hypergrep
