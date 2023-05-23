@@ -12,7 +12,7 @@
 ## Example Output
 
 <p>
-  <img height="500" src="doc/example_output.png"/>
+  <img src="doc/example_output.png"/>
 </p>
 
 ## Performance
