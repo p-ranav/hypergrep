@@ -214,20 +214,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           // TODO: This could be an error scenario, check
         } else {
           end = start + last_newline;
-          // fmt::print("Thread {} initial {},{}, Last newline:{}\n", i, start - buffer, end - buffer, last_newline);
-          // if (offset == 0) {
-          //   end += 1;
-          // }
         }
-
-        // if (static_cast<std::size_t>(eof - end) < max_searchable_size) {
-        //   // If "end" and EOF are separated by less than
-        //   // a single chunk
-        //   // just set end to the EOF
-        //   end = eof;
-        // }
-
-        // fmt::print("Thread {}: HS_SCAN {},{}, END={}\n", i, start - buffer, end - buffer, file_size);
 
         // Perform the search
         std::mutex match_mutex;
