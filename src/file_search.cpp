@@ -201,9 +201,9 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           }
         }
 
-        char *end = start + max_searchable_size;
-        if (end > buffer + file_size) {
-          end = buffer + file_size;
+        char *end = buffer + offset + max_searchable_size;
+        if (end > eof) {
+          end = eof;
         }
 
         // Update end to stop at a newline boundary
@@ -218,10 +218,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           // if (offset == 0) {
           //   end += 1;
           // }
-        }
-
-        if (end > eof) {
-          end = eof;
         }
 
         // if (static_cast<std::size_t>(eof - end) < max_searchable_size) {
