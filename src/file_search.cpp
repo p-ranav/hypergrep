@@ -66,7 +66,8 @@ void file_search::compile_hs_database(std::string &pattern) {
   auto error_code =
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                     (options.use_ucp ? HS_FLAG_UCP : 0) | HS_FLAG_SOM_LEFTMOST,
+                  (options.use_ucp ? HS_FLAG_UCP : 0) | 
+                  (options.is_stdout ? HS_FLAG_SOM_LEFTMOST : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -120,6 +121,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   if (buffer == MAP_FAILED) {
     return false;
   }
+
+  const auto process_fn = options.is_stdout ? process_matches : process_matches_nocolor_nostdout;
 
   // Use the data
 
@@ -178,34 +181,29 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       while (true) {
 
         char *start = buffer + offset;
-        if (start > buffer + file_size) {
+        if (start >= buffer + file_size) {
           // stop here
           num_threads_finished += 1;
           break;
         }
 
-        char *end = start + max_searchable_size;
-        if (end > buffer + file_size) {
-          end = buffer + file_size;
-        }
-
         if (offset > 0) {
           // Adjust start to go back to a newline boundary
           // Adjust end as well to go back to a newline boundary
-          auto previous_start = start - max_searchable_size;
-          if (previous_start > buffer) {
-            std::string_view chunk(previous_start, max_searchable_size);
+          std::string_view chunk(buffer, start - buffer);
 
-            auto last_newline = chunk.find_last_of('\n', max_searchable_size);
-            if (last_newline == std::string_view::npos) {
-              // No newline found, do nothing?
-              // TODO: This could be an error scenario, check
-            } else {
-              start = previous_start + last_newline;
-            }
+          auto last_newline = chunk.find_last_of('\n', start - buffer);
+          if (last_newline == std::string_view::npos) {
+            // No newline found, do nothing?
+            // TODO: This could be an error scenario, check
           } else {
-            // Something wrong, don't update start
+            start = buffer + last_newline;
           }
+        }
+
+        char *end = buffer + offset + max_searchable_size;
+        if (end > eof) {
+          end = eof;
         }
 
         // Update end to stop at a newline boundary
@@ -216,16 +214,6 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           // TODO: This could be an error scenario, check
         } else {
           end = start + last_newline;
-          if (offset == 0) {
-            end += 1;
-          }
-        }
-
-        if (static_cast<std::size_t>(eof - end) < max_searchable_size) {
-          // If "end" and EOF are separated by less than
-          // a single chunk
-          // just set end to the EOF
-          end = eof;
         }
 
         // Perform the search
@@ -276,7 +264,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       auto &matches = next_result.matches;
       if (!matches.empty()) {
         std::size_t previous_line_number = current_line_number;
-        num_matching_lines += process_matches(
+        num_matching_lines += process_fn(
             filename.data(), start, end - start, next_result.matches,
             previous_line_number, lines, options.print_filename,
             options.is_stdout, options.show_line_numbers,
@@ -365,6 +353,8 @@ bool file_search::scan_line(std::string &line,
     return false;
   }
 
+  const auto process_fn = options.is_stdout ? process_matches : process_matches_nocolor_nostdout;
+
   // Perform the search
   bool result{false};
   std::mutex match_mutex;
@@ -388,7 +378,7 @@ bool file_search::scan_line(std::string &line,
   if (ctx.number_of_matches > 0) {
     std::string lines{};
     const std::string filename{""};
-    process_matches(filename.data(), line.data(), line.size(), ctx.matches,
+    process_fn(filename.data(), line.data(), line.size(), ctx.matches,
                     current_line_number, lines, false, options.is_stdout,
                     options.show_line_numbers,
                     options.print_only_matching_parts,
