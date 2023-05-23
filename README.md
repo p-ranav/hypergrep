@@ -9,6 +9,12 @@
 * Similar to `grep`, `ripgrep`, `ugrep`, `The Silver Searcher` etc.
 * C++17, Multi-threading, SIMD
 
+## Example Output
+
+<p>
+  <img height="500" src="doc/example_output.png"/>
+</p>
+
 ## Performance
 
 The following tests compare the performance of `hypergrep` against:
