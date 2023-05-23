@@ -162,7 +162,8 @@ void directory_search::compile_hs_database(std::string &pattern) {
   auto error_code =
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                     (options.use_ucp ? HS_FLAG_UCP : 0) | HS_FLAG_SOM_LEFTMOST,
+                  (options.use_ucp ? HS_FLAG_UCP : 0) |
+                  (options.is_stdout ? HS_FLAG_SOM_LEFTMOST : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -212,6 +213,8 @@ bool directory_search::process_file(std::string &&filename,
     return false;
   }
   bool result{false};
+
+  const auto process_fn = options.is_stdout ? process_matches : process_matches_nocolor_nostdout;
 
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
@@ -301,7 +304,7 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_matches(filename.data(), buffer, search_size, ctx.matches,
+      process_fn(filename.data(), buffer, search_size, ctx.matches,
                       current_line_number, lines, options.print_filenames, options.is_stdout,
                       options.show_line_numbers,
                       options.print_only_matching_parts,

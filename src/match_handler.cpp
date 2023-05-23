@@ -194,3 +194,110 @@ std::size_t process_matches(
   // Return the number of matching lines
   return line_number_match.size();
 }
+
+// NOTE:
+// Only call this function when:
+// 
+//   is_stdout = false
+//   print_only_matching_parts = false
+// 
+// This function is optimized for this case
+// and assumes that HS_FLAG_SOM_LEFTMOST is not used 
+// when compiling the HyperScan database
+std::size_t process_matches_nocolor_nostdout(
+    const char *filename, char *buffer, std::size_t bytes_read,
+    std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
+    std::size_t &current_line_number, std::string &lines, bool print_filename,
+    bool is_stdout, bool show_line_numbers, bool print_only_matching_parts,
+    const std::optional<std::size_t> &max_column_limit) {
+  std::string_view chunk(buffer, bytes_read);
+  static bool apply_column_limit = max_column_limit.has_value();
+
+  // This map is of the form:
+  // {
+  //    line_number_1: to_1,
+  //    line_number_2: to_2
+  // }
+  std::map<std::size_t, std::size_t> line_number_match;
+  {
+    char *index = buffer;
+    std::size_t previous_line_number = current_line_number;
+    for (auto &match : matches) {
+
+      auto &[_, to] = match;
+      if (index > buffer + to) {
+        continue;
+      }
+      auto line_count = std::count(index, buffer + to, '\n');
+      current_line_number = previous_line_number + line_count;
+      // fmt::print("{},{}\n", current_line_number, to);
+
+      if (line_number_match.find(current_line_number) ==
+          line_number_match.end()) {
+        // line number not in map
+        // save the match
+        line_number_match.insert(std::make_pair(
+            current_line_number, to));
+      }
+      previous_line_number = current_line_number;
+      index = buffer + to;
+    }
+  }
+
+  for (auto &matching_line : line_number_match) {
+    auto &current_line_number = matching_line.first;
+    auto &to = matching_line.second;
+
+    std::size_t start_of_line{0}, end_of_line{0};
+
+    const auto from = to > 0 ? to - 1 : to;
+    start_of_line = chunk.find_last_of('\n', from);
+    if (start_of_line == std::string_view::npos) {
+      start_of_line = 0;
+    } else {
+      start_of_line += 1;
+    }
+
+    end_of_line = chunk.find_first_of('\n', to);
+    if (end_of_line == std::string_view::npos) {
+      end_of_line = bytes_read;
+    } else if (end_of_line < to) {
+      end_of_line = to;
+    }
+
+    if (apply_column_limit) {
+      static std::size_t column_limit =
+          apply_column_limit ? max_column_limit.value() : 0;
+      const auto line_length = end_of_line - start_of_line;
+      if (line_length > column_limit) {
+        // with line number: [Omitted long line with 2 matches]
+        // without line number: [Omitted long matching line]
+        if (show_line_numbers) {
+          lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                                current_line_number, matches.size());
+        } else {
+          lines += fmt::format("[Omitted long line with {} matches]\n",
+                                matches.size());
+        }
+        continue;
+      }
+    }
+
+    if (show_line_numbers) {
+      if (print_filename) {
+        lines += fmt::format("{}:{}:", filename, current_line_number);
+      } else {
+        lines += fmt::format("{}:", current_line_number);
+      }
+    } else {
+      if (print_filename) {
+        lines += fmt::format("{}:", filename);
+      }
+    }
+
+    lines += fmt::format("{}\n", chunk.substr(start_of_line, end_of_line - start_of_line));
+  }
+
+  // Return the number of matching lines
+  return line_number_match.size();
+}
