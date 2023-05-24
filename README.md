@@ -36,7 +36,7 @@ The following tests compare the performance of `hypergrep` against:
 
 ### Vcpkg Installed Libraries
 
-[vcpkg](https://github.com/microsoft/vcpkg) commit: [6a3dd](https://github.com/microsoft/vcpkg/commit/6a3dd0874f153f8b375ec26210ea6d41dee3bb26)
+[vcpkg](https://github.com/microsoft/vcpkg) commit: [2718aa52](https://github.com/microsoft/vcpkg/commit/2718aa52a31977b792af7e9c2f83eaf4ddcd932d)
 
 | Library | Version | 
 |:---|:---|
