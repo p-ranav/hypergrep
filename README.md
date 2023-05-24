@@ -46,6 +46,20 @@ The following tests compare the performance of `hypergrep` against:
 | **hyperscan** | 5.4.2 |
 | **libgit2** | 1.4.2 |
 
+### Single Large File Search: `OpenSubtitles.raw.en.txt`
+
+ The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
+
+| Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
+| :---| ---:| ---:| ---:| ---:| ---:|
+| Count number of times Holmes did something<br/>`hg -c 'Holmes did \w'` | 27 | n/a | 1.820 | 1.400 | **0.696**  |
+| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | n/a | 1.812 | 2.654 | **0.803** |
+| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 15.764 | 1.888 | 1.813 | **0.658** |
+| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 15.599 | 6.945 | 2.139 | **0.650** |
+| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | n/a | 6.886 | 1.808 | **0.689** |
+| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.880 | **0.770** |
+| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.812 | **0.638** |
+
 ### Directory Search: `torvalds/linux`
 
 The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
@@ -68,20 +82,6 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 | Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 1.169 | 1.238 | 0.186 | **0.095** |
 | Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012263 | 3.131 | 2.598 | 0.673 | **0.482** |
 | Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.828 | 0.174 | 0.072 | **0.047** |
-
-### Single Large File Search: `OpenSubtitles.raw.en.txt`
-
- The following searches are performed on a single large file cached in memory (~13GB, [`OpenSubtitles.raw.en.gz`](http://opus.nlpl.eu/download.php?f=OpenSubtitles/v2018/mono/OpenSubtitles.raw.en.gz)).
-
-| Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
-| :---| ---:| ---:| ---:| ---:| ---:|
-| Count number of times Holmes did something<br/>`hg -c 'Holmes did \w'` | 27 | n/a | 1.820 | 1.400 | **0.696**  |
-| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | n/a | 1.812 | 2.654 | **0.803** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 15.764 | 1.888 | 1.813 | **0.658** |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 15.599 | 6.945 | 2.139 | **0.650** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | n/a | 6.886 | 1.808 | **0.689** |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.880 | **0.770** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.812 | **0.638** |
 
 ## How It Works
 
