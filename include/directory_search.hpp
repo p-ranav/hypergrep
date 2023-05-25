@@ -62,6 +62,10 @@ private:
 private:
   std::filesystem::path search_path;
 
+  // If false, hypergrep will instead simply print the files
+  // that _will_ be searched
+  bool perform_search{true};
+
   moodycamel::ConcurrentQueue<std::string> queue;
   moodycamel::ProducerToken ptok{queue};
 

@@ -56,17 +56,21 @@ git_index_search::git_index_search(const std::filesystem::path &path,
     options.show_line_numbers = show_line_number;
   }
 
-  compile_hs_database(pattern);
+  perform_search = !program.get<bool>("--files");
+  if (perform_search) {
+    compile_hs_database(pattern);
+  }
 }
 
 git_index_search::git_index_search(hs_database_t *database,
                                    hs_scratch_t *scratch,
                                    hs_database_t *file_filter_database,
                                    hs_scratch_t *file_filter_scratch,
+                                   bool perform_search,
                                    const directory_search_options &options,
                                    const std::filesystem::path &path)
-    : basepath(path), database(database), scratch(scratch),
-      file_filter_database(file_filter_database),
+    : basepath(path), perform_search(perform_search), database(database),
+      scratch(scratch), file_filter_database(file_filter_database),
       file_filter_scratch(file_filter_scratch), options(options) {
   non_owning_database = true;
 }
@@ -130,10 +134,11 @@ void git_index_search::run(std::filesystem::path path) {
   }
 
   std::vector<std::thread> consumer_threads(options.num_threads);
-
-  for (std::size_t i = 0; i < options.num_threads; ++i) {
-    consumer_threads[i] =
-        std::thread(std::bind(&git_index_search::search_thread_function, this));
+  if (perform_search) {
+    for (std::size_t i = 0; i < options.num_threads; ++i) {
+      consumer_threads[i] = std::thread(
+          std::bind(&git_index_search::search_thread_function, this));
+    }
   }
 
   visit_git_repo(path);
@@ -143,17 +148,20 @@ void git_index_search::run(std::filesystem::path path) {
   // Done enqueuing files for search
 
   // Help with the search now:
-  search_thread_function();
+  if (perform_search) {
+    search_thread_function();
 
-  for (std::size_t i = 0; i < options.num_threads; ++i) {
-    consumer_threads[i].join();
+    for (std::size_t i = 0; i < options.num_threads; ++i) {
+      consumer_threads[i].join();
+    }
   }
 
   // Process submodules
   const auto current_path = std::filesystem::current_path();
   for (const auto &sm_path : submodule_paths) {
     git_index_search git_index_searcher(
-        database, scratch, file_filter_database, file_filter_scratch, options,
+        database, scratch, file_filter_database, file_filter_scratch,
+        perform_search, options,
         basepath /
             std::filesystem::relative(std::filesystem::canonical(sm_path)));
     if (chdir(sm_path.c_str()) == 0) {
@@ -437,8 +445,16 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
           }
         }
 
-        queue.enqueue(ptok, entry->path);
-        ++num_files_enqueued;
+        if (perform_search) {
+          queue.enqueue(ptok, entry->path);
+          ++num_files_enqueued;
+        } else {
+          if (options.is_stdout) {
+            fmt::print(fg(fmt::color::steel_blue), "./{}\n", entry->path);
+          } else {
+            fmt::print("./{}\n", entry->path);
+          }
+        }
       }
     }
     return true;

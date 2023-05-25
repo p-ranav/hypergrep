@@ -30,7 +30,7 @@ public:
                    argparse::ArgumentParser &program);
   git_index_search(hs_database_t *database, hs_scratch_t *scratch,
                    hs_database_t *file_filter_database,
-                   hs_scratch_t *file_filter_scratch,
+                   hs_scratch_t *file_filter_scratch, bool perform_search,
                    const directory_search_options &options,
                    const std::filesystem::path &path);
   ~git_index_search();
@@ -73,6 +73,10 @@ private:
 private:
   static inline bool libgit2_initialized{false};
   std::filesystem::path basepath{};
+
+  // If false, hypergrep will instead simply print the files
+  // that _will_ be searched
+  bool perform_search{true};
 
   moodycamel::ConcurrentQueue<const char *> queue;
   moodycamel::ProducerToken ptok{queue};

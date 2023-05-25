@@ -1,5 +1,7 @@
 #pragma once
+#include <cstdint>
 #include <optional>
+#include <string>
 
 struct directory_search_options {
   bool is_stdout{true};

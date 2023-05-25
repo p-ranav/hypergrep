@@ -54,7 +54,10 @@ directory_search::directory_search(const std::filesystem::path &path,
     options.show_line_numbers = show_line_number;
   }
 
-  compile_hs_database(pattern);
+  perform_search = !program.get<bool>("--files");
+  if (perform_search) {
+    compile_hs_database(pattern);
+  }
 }
 
 directory_search::~directory_search() {
@@ -96,12 +99,14 @@ void directory_search::search_thread_function() {
 
 void directory_search::run(std::filesystem::path path) {
   git_libgit2_init();
+
   std::vector<std::thread> consumer_threads(options.num_threads);
+  if (perform_search) {
+    for (std::size_t i = 0; i < options.num_threads; ++i) {
 
-  for (std::size_t i = 0; i < options.num_threads; ++i) {
-
-    consumer_threads[i] =
-        std::thread(std::bind(&directory_search::search_thread_function, this));
+      consumer_threads[i] = std::thread(
+          std::bind(&directory_search::search_thread_function, this));
+    }
   }
 
   visit_directory_and_enqueue(path);
@@ -111,10 +116,12 @@ void directory_search::run(std::filesystem::path path) {
   // Done enqueuing files for search
 
   // Help with the search now:
-  search_thread_function();
+  if (perform_search) {
+    search_thread_function();
 
-  for (std::size_t i = 0; i < options.num_threads; ++i) {
-    consumer_threads[i].join();
+    for (std::size_t i = 0; i < options.num_threads; ++i) {
+      consumer_threads[i].join();
+    }
   }
 
   // All threads are done processing the file queue
@@ -124,8 +131,8 @@ void directory_search::run(std::filesystem::path path) {
     auto current_path = std::filesystem::current_path();
     for (const auto &repo_path : git_repo_paths) {
       git_index_search git_index_searcher(
-          database, scratch, file_filter_database, file_filter_scratch, options,
-          repo_path);
+          database, scratch, file_filter_database, file_filter_scratch,
+          perform_search, options, repo_path);
       if (chdir(repo_path.c_str()) == 0) {
         git_index_searcher.run(".");
         if (chdir(current_path.c_str()) != 0) {
@@ -135,24 +142,26 @@ void directory_search::run(std::filesystem::path path) {
     }
   }
 
-  // Now search large files one by one using the large_file_searcher
-  if (num_large_files_enqueued > 0) {
-    file_search large_file_searcher(
-        database, scratch,
-        file_search_options{
-            options.is_stdout, options.show_line_numbers, options.ignore_case,
-            options.count_matching_lines, options.count_matches,
-            options.use_ucp, options.num_threads, options.print_filenames,
-            options.print_only_matching_parts, options.max_column_limit,
-            options.print_only_filenames});
+  if (perform_search) {
+    // Now search large files one by one using the large_file_searcher
+    if (num_large_files_enqueued > 0) {
+      file_search large_file_searcher(
+          database, scratch,
+          file_search_options{
+              options.is_stdout, options.show_line_numbers, options.ignore_case,
+              options.count_matching_lines, options.count_matches,
+              options.use_ucp, options.num_threads, options.print_filenames,
+              options.print_only_matching_parts, options.max_column_limit,
+              options.print_only_filenames});
 
-    // Memory map + multi-threaded search
-    while (num_large_files_enqueued > 0) {
-      std::string path{};
-      auto found = large_file_backlog.try_dequeue(path);
-      if (found) {
-        large_file_searcher.run(path);
-        --num_large_files_enqueued;
+      // Memory map + multi-threaded search
+      while (num_large_files_enqueued > 0) {
+        std::string path{};
+        auto found = large_file_backlog.try_dequeue(path);
+        if (found) {
+          large_file_searcher.run(path);
+          --num_large_files_enqueued;
+        }
       }
     }
   }
@@ -400,8 +409,16 @@ void directory_search::visit_directory_and_enqueue(
 
       if (!options.filter_files ||
           (options.filter_files && filter_file(path.c_str()))) {
-        queue.enqueue(ptok, path.native());
-        ++num_files_enqueued;
+        if (perform_search) {
+          queue.enqueue(ptok, path.native());
+          ++num_files_enqueued;
+        } else {
+          if (options.is_stdout) {
+            fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
+          } else {
+            fmt::print("{}\n", path.c_str());
+          }
+        }
       }
     } else if (it->is_directory()) {
       if ((!options.search_hidden_files && filename_cstr[0] == '.') ||

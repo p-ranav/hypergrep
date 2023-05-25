@@ -24,6 +24,12 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--files")
+      .help("Print each file that would be searched without actually "
+            "performing the search")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-f", "--filter")
       .help("Filter files based on a pattern");
 
@@ -96,7 +102,9 @@ int main(int argc, char **argv) {
       .default_value(default_num_threads)
       .scan<'d', unsigned>();
 
-  program.add_argument("pattern").required().help("regular expression pattern");
+  program.add_argument("pattern")
+      .default_value(std::string{".*"})
+      .help("regular expression pattern");
 
   program.add_argument("path")
       .default_value(std::string{"."})
