@@ -102,9 +102,7 @@ int main(int argc, char **argv) {
       .default_value(default_num_threads)
       .scan<'d', unsigned>();
 
-  program.add_argument("pattern")
-      .default_value(std::string{"."})
-      .help("regular expression pattern");
+  program.add_argument("pattern").required().help("regular expression pattern");
 
   program.add_argument("path")
       .default_value(std::string{"."})
