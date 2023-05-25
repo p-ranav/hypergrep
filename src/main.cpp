@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
   program.add_argument("-w", "--word-regexp")
       .help(
           "Only show matches surrounded by word boundaries. This is equivalent "
-          "to putting \b before and after all of the search patterns.")
+          "to putting \\b before and after all of the search patterns.")
       .default_value(false)
       .implicit_value(true);
 
