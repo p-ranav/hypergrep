@@ -6,6 +6,11 @@ int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
 
+  program.add_argument("--binary")
+      .help("Include binary files in the search")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-c", "--count")
       .help("This flag suppresses normal output and shows the number of lines "
             "that match the given patterns for each file searched.")

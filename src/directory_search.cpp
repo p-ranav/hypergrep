@@ -4,6 +4,7 @@
 directory_search::directory_search(const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
+  options.search_binary_files = program.get<bool>("--binary");
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
   options.num_threads = program.get<unsigned>("-j");
@@ -207,7 +208,7 @@ bool directory_search::process_file(std::string &&filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
 
-  if (is_blacklisted(filename)) {
+  if (!options.search_binary_files && is_blacklisted(filename)) {
     return false;
   }
 
@@ -265,7 +266,7 @@ bool directory_search::process_file(std::string &&filename,
       return false;
     }
 
-    if (first) {
+    if (first && !options.search_binary_files) {
       first = false;
       if (starts_with_magic_bytes(buffer, bytes_read)) {
         result = false;
@@ -279,6 +280,8 @@ bool directory_search::process_file(std::string &&filename,
         result = false;
         break;
       }
+    } else if (first) {
+      first = false;
     }
 
     // Find the position of the last newline in the buffer

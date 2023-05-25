@@ -20,4 +20,5 @@ struct directory_search_options {
   bool print_only_matching_parts{false};
   std::optional<std::size_t> max_column_limit{};
   bool print_filenames{true};
+  bool search_binary_files{false};
 };
