@@ -33,7 +33,8 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("-I", "--no-filename")
-      .help("Never print the file path with the matched lines. This is the default when searching one file or stdin.")
+      .help("Never print the file path with the matched lines. This is the "
+            "default when searching one file or stdin.")
       .default_value(false)
       .implicit_value(true);
 

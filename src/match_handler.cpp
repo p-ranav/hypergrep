@@ -197,12 +197,12 @@ std::size_t process_matches(
 
 // NOTE:
 // Only call this function when:
-// 
+//
 //   is_stdout = false
 //   print_only_matching_parts = false
-// 
+//
 // This function is optimized for this case
-// and assumes that HS_FLAG_SOM_LEFTMOST is not used 
+// and assumes that HS_FLAG_SOM_LEFTMOST is not used
 // when compiling the HyperScan database
 std::size_t process_matches_nocolor_nostdout(
     const char *filename, char *buffer, std::size_t bytes_read,
@@ -236,8 +236,7 @@ std::size_t process_matches_nocolor_nostdout(
           line_number_match.end()) {
         // line number not in map
         // save the match
-        line_number_match.insert(std::make_pair(
-            current_line_number, to));
+        line_number_match.insert(std::make_pair(current_line_number, to));
       }
       previous_line_number = current_line_number;
       index = buffer + to;
@@ -274,10 +273,10 @@ std::size_t process_matches_nocolor_nostdout(
         // without line number: [Omitted long matching line]
         if (show_line_numbers) {
           lines += fmt::format("{}:[Omitted long line with {} matches]\n",
-                                current_line_number, matches.size());
+                               current_line_number, matches.size());
         } else {
           lines += fmt::format("[Omitted long line with {} matches]\n",
-                                matches.size());
+                               matches.size());
         }
         continue;
       }
@@ -295,7 +294,8 @@ std::size_t process_matches_nocolor_nostdout(
       }
     }
 
-    lines += fmt::format("{}\n", chunk.substr(start_of_line, end_of_line - start_of_line));
+    lines += fmt::format(
+        "{}\n", chunk.substr(start_of_line, end_of_line - start_of_line));
   }
 
   // Return the number of matching lines

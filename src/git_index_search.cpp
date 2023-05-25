@@ -131,7 +131,8 @@ void git_index_search::run(std::filesystem::path path) {
   std::vector<std::thread> consumer_threads(options.num_threads);
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
-    consumer_threads[i] = std::thread(std::bind(&git_index_search::search_thread_function, this));
+    consumer_threads[i] =
+        std::thread(std::bind(&git_index_search::search_thread_function, this));
   }
 
   visit_git_repo(path);
@@ -168,8 +169,10 @@ void git_index_search::compile_hs_database(std::string &pattern) {
   auto error_code =
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                  (options.use_ucp ? HS_FLAG_UCP : 0) |
-                  (options.is_stdout || options.print_only_matching_parts ? HS_FLAG_SOM_LEFTMOST : 0),
+                     (options.use_ucp ? HS_FLAG_UCP : 0) |
+                     (options.is_stdout || options.print_only_matching_parts
+                          ? HS_FLAG_SOM_LEFTMOST
+                          : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -191,7 +194,10 @@ bool git_index_search::process_file(const char *filename,
   }
   bool result{false};
 
-  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn =
+      (options.is_stdout || options.print_only_matching_parts)
+          ? process_matches
+          : process_matches_nocolor_nostdout;
 
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
@@ -269,10 +275,10 @@ bool git_index_search::process_file(const char *filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_fn(
-          filename, buffer, search_size, ctx.matches, current_line_number,
-          lines, options.print_filenames, options.is_stdout, options.show_line_numbers,
-          options.print_only_matching_parts, options.max_column_limit);
+      process_fn(filename, buffer, search_size, ctx.matches,
+                 current_line_number, lines, options.print_filenames,
+                 options.is_stdout, options.show_line_numbers,
+                 options.print_only_matching_parts, options.max_column_limit);
       num_matching_lines += ctx.number_of_matches;
     }
 
@@ -308,7 +314,7 @@ bool git_index_search::process_file(const char *filename,
             num_matching_lines);
       } else {
         fmt::print("{}:{}\n", result_path.c_str(), num_matching_lines);
-      } 
+      }
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
@@ -321,7 +327,8 @@ bool git_index_search::process_file(const char *filename,
       } else {
         fmt::print("{}\n", result_path.c_str());
       }
-    } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
+    } else if (result && !options.count_matching_lines &&
+               !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
           lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",
@@ -393,7 +400,8 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
                     (options.filter_files && filter_file(entry->path)))) {
 
         // Skip directories and symlinks
-        if ((entry->mode & S_IFMT) == S_IFDIR || (entry->mode & S_IFMT) == S_IFLNK) {
+        if ((entry->mode & S_IFMT) == S_IFDIR ||
+            (entry->mode & S_IFMT) == S_IFLNK) {
           continue;
         }
 

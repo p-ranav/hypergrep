@@ -68,8 +68,10 @@ void file_search::compile_hs_database(std::string &pattern) {
   auto error_code =
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                  (options.use_ucp ? HS_FLAG_UCP : 0) | 
-                  (options.is_stdout || options.print_only_matching_parts ? HS_FLAG_SOM_LEFTMOST : 0),
+                     (options.use_ucp ? HS_FLAG_UCP : 0) |
+                     (options.is_stdout || options.print_only_matching_parts
+                          ? HS_FLAG_SOM_LEFTMOST
+                          : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -124,7 +126,10 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     return false;
   }
 
-  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn =
+      (options.is_stdout || options.print_only_matching_parts)
+          ? process_matches
+          : process_matches_nocolor_nostdout;
 
   // Use the data
 
@@ -174,8 +179,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
                               buffer = buffer, file_size = file_size,
                               max_searchable_size = max_searchable_size,
                               &output_queues, &num_results_enqueued,
-                              &num_threads_finished,
-                              &single_match_found]() {
+                              &num_threads_finished, &single_match_found]() {
       // Set up the scratch space
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
@@ -225,8 +229,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
         std::vector<std::pair<unsigned long long, unsigned long long>>
             matches{};
         std::atomic<size_t> number_of_matches = 0;
-        file_context
-	      ctx{number_of_matches, matches, match_mutex, options.print_only_filenames};
+        file_context ctx{number_of_matches, matches, match_mutex,
+                         options.print_only_filenames};
 
         if (hs_scan(database, start, end - start, 0, local_scratch, on_match,
                     (void *)(&ctx)) != HS_SUCCESS) {
@@ -277,7 +281,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             options.is_stdout, options.show_line_numbers,
             options.print_only_matching_parts, options.max_column_limit);
 
-        if (!options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
+        if (!options.count_matching_lines && !options.print_only_filenames &&
+            !lines.empty()) {
 
           if (options.print_filename && !filename_printed) {
             if (options.is_stdout) {
@@ -339,9 +344,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   return true;
 }
 
-bool file_search::scan_line(std::string &line,
-                            std::size_t &current_line_number,
-                            bool& break_loop) {
+bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
+                            bool &break_loop) {
   static hs_scratch_t *local_scratch = NULL;
   static bool scratch_allocated = [this]() -> bool {
     if (!database) {
@@ -361,16 +365,18 @@ bool file_search::scan_line(std::string &line,
     return false;
   }
 
-  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn =
+      (options.is_stdout || options.print_only_matching_parts)
+          ? process_matches
+          : process_matches_nocolor_nostdout;
 
   // Perform the search
   bool result{false};
   std::mutex match_mutex;
   std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
   std::atomic<size_t> number_of_matches = 0;
-  file_context ctx{
-      number_of_matches, matches, match_mutex,
-      options.print_only_filenames};
+  file_context ctx{number_of_matches, matches, match_mutex,
+                   options.print_only_filenames};
 
   if (hs_scan(database, line.data(), line.size(), 0, local_scratch, on_match,
               (void *)(&ctx)) != HS_SUCCESS) {
@@ -390,15 +396,14 @@ bool file_search::scan_line(std::string &line,
     std::string lines{};
     const std::string filename{""};
     process_fn(filename.data(), line.data(), line.size(), ctx.matches,
-                    current_line_number, lines, false, options.is_stdout,
-                    options.show_line_numbers,
-                    options.print_only_matching_parts,
-                    options.max_column_limit);
+               current_line_number, lines, false, options.is_stdout,
+               options.show_line_numbers, options.print_only_matching_parts,
+               options.max_column_limit);
 
-    if (!options.count_matching_lines && !options.print_only_filenames && result && !lines.empty()) {
+    if (!options.count_matching_lines && !options.print_only_filenames &&
+        result && !lines.empty()) {
       fmt::print("{}", lines);
-    }
-    else if (options.print_only_filenames) {
+    } else if (options.print_only_filenames) {
       if (options.is_stdout) {
         fmt::print(fg(fmt::color::steel_blue), "<stdin>\n");
       } else {

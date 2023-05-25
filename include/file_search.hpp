@@ -30,7 +30,8 @@ public:
   ~file_search();
 
   void run(std::filesystem::path path);
-  bool scan_line(std::string &line, std::size_t &current_line_number, bool& break_loop);
+  bool scan_line(std::string &line, std::size_t &current_line_number,
+                 bool &break_loop);
 
 private:
   void compile_hs_database(std::string &pattern);

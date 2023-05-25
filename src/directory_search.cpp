@@ -99,7 +99,8 @@ void directory_search::run(std::filesystem::path path) {
 
   for (std::size_t i = 0; i < options.num_threads; ++i) {
 
-    consumer_threads[i] = std::thread(std::bind(&directory_search::search_thread_function, this));
+    consumer_threads[i] =
+        std::thread(std::bind(&directory_search::search_thread_function, this));
   }
 
   visit_directory_and_enqueue(path);
@@ -140,10 +141,8 @@ void directory_search::run(std::filesystem::path path) {
         file_search_options{
             options.is_stdout, options.show_line_numbers, options.ignore_case,
             options.count_matching_lines, options.use_ucp, options.num_threads,
-            options.print_filenames,
-            options.print_only_matching_parts,
-            options.max_column_limit,
-            options.print_only_filenames});
+            options.print_filenames, options.print_only_matching_parts,
+            options.max_column_limit, options.print_only_filenames});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -162,8 +161,10 @@ void directory_search::compile_hs_database(std::string &pattern) {
   auto error_code =
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                  (options.use_ucp ? HS_FLAG_UCP : 0) |
-                  (options.is_stdout || options.print_only_matching_parts ? HS_FLAG_SOM_LEFTMOST : 0),
+                     (options.use_ucp ? HS_FLAG_UCP : 0) |
+                     (options.is_stdout || options.print_only_matching_parts
+                          ? HS_FLAG_SOM_LEFTMOST
+                          : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -176,24 +177,15 @@ void directory_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-bool is_blacklisted(const std::string& str)
-{
-  const std::vector<std::string> substrings {
-    ".o",
-    ".so",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".mp3",
-    ".mp4",
-    ".gz",
-    ".xz",
-    ".zip"
-  };
+bool is_blacklisted(const std::string &str) {
+  const std::vector<std::string> substrings{".o",    ".so",  ".png", ".jpg",
+                                            ".jpeg", ".mp3", ".mp4", ".gz",
+                                            ".xz",   ".zip"};
 
-  for (const auto& substring : substrings) {
+  for (const auto &substring : substrings) {
     if (str.size() >= substring.size() &&
-        str.compare(str.size() - substring.size(), substring.size(), substring) == 0) {
+        str.compare(str.size() - substring.size(), substring.size(),
+                    substring) == 0) {
       return true;
     }
   }
@@ -214,7 +206,10 @@ bool directory_search::process_file(std::string &&filename,
   }
   bool result{false};
 
-  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn =
+      (options.is_stdout || options.print_only_matching_parts)
+          ? process_matches
+          : process_matches_nocolor_nostdout;
 
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
@@ -305,10 +300,9 @@ bool directory_search::process_file(std::string &&filename,
 
     if (ctx.number_of_matches > 0) {
       process_fn(filename.data(), buffer, search_size, ctx.matches,
-                      current_line_number, lines, options.print_filenames, options.is_stdout,
-                      options.show_line_numbers,
-                      options.print_only_matching_parts,
-                      options.max_column_limit);
+                 current_line_number, lines, options.print_filenames,
+                 options.is_stdout, options.show_line_numbers,
+                 options.print_only_matching_parts, options.max_column_limit);
       num_matching_lines += ctx.number_of_matches;
     }
 
@@ -338,8 +332,8 @@ bool directory_search::process_file(std::string &&filename,
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
-                  fmt::format(fg(fmt::color::steel_blue), "{}", filename),
-                  num_matching_lines);
+                   fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                   num_matching_lines);
       } else {
         fmt::print("{}:{}\n", filename, num_matching_lines);
       }
@@ -353,11 +347,12 @@ bool directory_search::process_file(std::string &&filename,
       } else {
         fmt::print("{}\n", filename);
       }
-    } else if (result && !options.count_matching_lines && !options.print_only_filenames && !lines.empty()) {
+    } else if (result && !options.count_matching_lines &&
+               !options.print_only_filenames && !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
-          lines =
-              fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) + lines;
+          lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) +
+                  lines;
         } else {
           lines += "\n";
         }
