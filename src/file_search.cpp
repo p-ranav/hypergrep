@@ -340,7 +340,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 }
 
 bool file_search::scan_line(std::string &line,
-                            std::size_t &current_line_number) {
+                            std::size_t &current_line_number,
+                            bool& break_loop) {
   static hs_scratch_t *local_scratch = NULL;
   static bool scratch_allocated = [this]() -> bool {
     if (!database) {
@@ -369,10 +370,13 @@ bool file_search::scan_line(std::string &line,
   std::atomic<size_t> number_of_matches = 0;
   file_context ctx{
       number_of_matches, matches, match_mutex,
-      false /* print_only_filenames is not relevant in a single file search */};
+      options.print_only_filenames};
 
   if (hs_scan(database, line.data(), line.size(), 0, local_scratch, on_match,
               (void *)(&ctx)) != HS_SUCCESS) {
+    if (options.print_only_filenames && ctx.number_of_matches > 0) {
+      break_loop = true;
+    }
     result = false;
   } else {
     if (ctx.number_of_matches > 0) {
@@ -393,6 +397,13 @@ bool file_search::scan_line(std::string &line,
 
     if (!options.count_matching_lines && !options.print_only_filenames && result && !lines.empty()) {
       fmt::print("{}", lines);
+    }
+    else if (options.print_only_filenames) {
+      if (options.is_stdout) {
+        fmt::print(fg(fmt::color::steel_blue), "<stdin>\n");
+      } else {
+        fmt::print("<stdin>\n");
+      }
     }
   }
 

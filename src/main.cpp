@@ -112,7 +112,11 @@ int main(int argc, char **argv) {
     std::size_t current_line_number{1};
     while (std::getline(std::cin, line)) {
       // Process line here
-      s.scan_line(line, current_line_number);
+      bool break_loop{false};
+      s.scan_line(line, current_line_number, break_loop);
+      if (break_loop) {
+        break;
+      }
     }
   } else {
     if (std::filesystem::is_regular_file(path)) {
