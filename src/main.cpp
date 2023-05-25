@@ -107,7 +107,9 @@ int main(int argc, char **argv) {
       .default_value(default_num_threads)
       .scan<'d', unsigned>();
 
-  program.add_argument("pattern").required().help("regular expression pattern");
+  program.add_argument("pattern")
+      .default_value(std::string{"."})
+      .help("regular expression pattern");
 
   program.add_argument("path")
       .default_value(std::string{"."})
@@ -119,6 +121,13 @@ int main(int argc, char **argv) {
     std::cerr << err.what() << std::endl;
     std::cerr << program;
     return 1;
+  }
+
+  // If --files is not used
+  // pattern is required
+  const auto files_used = program.get<bool>("--files");
+  if (!files_used && !program.is_used("pattern")) {
+    throw std::runtime_error("1 argument(s) expected. 0 provided.");
   }
 
   auto path = program.get<std::string>("path");
