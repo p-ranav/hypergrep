@@ -5,7 +5,7 @@
 git_index_search::git_index_search(const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : basepath(std::filesystem::relative(path)) {
-  options.search_binary_files = program.get<bool>("--binary");
+  options.search_binary_files = program.get<bool>("--text");
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
   options.num_threads = program.get<unsigned>("-j");

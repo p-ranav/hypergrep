@@ -6,11 +6,6 @@ int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
 
-  program.add_argument("--binary")
-      .help("Include binary files in the search")
-      .default_value(false)
-      .implicit_value(true);
-
   program.add_argument("-c", "--count")
       .help("This flag suppresses normal output and shows the number of lines "
             "that match the given patterns for each file searched.")
@@ -83,6 +78,15 @@ int main(int argc, char **argv) {
 
   program.add_argument("-o", "--only-matching")
       .help("Print only matched parts of a line.")
+      .default_value(false)
+      .implicit_value(true);
+
+  program.add_argument("-a", "--text")
+      .help("Search binary files as if they were text. When this flag is "
+            "present, binary file detection is disabled. This "
+            "means that when a binary file is searched, its contents may be "
+            "printed if there is a match. This may cause escape codes to be "
+            "printed that alter the behavior of your terminal.")
       .default_value(false)
       .implicit_value(true);
 
