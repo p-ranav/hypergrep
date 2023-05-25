@@ -188,6 +188,10 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
       while (true) {
 
+        if (options.print_only_filenames && single_match_found) {
+          break;
+        }
+
         char *start = buffer + offset;
         if (start >= buffer + file_size) {
           // stop here
@@ -253,54 +257,57 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     });
   }
 
-  // In this main thread
-  // Dequeue from output_queues, process matches
-  // and print output
   std::size_t num_matching_lines{0};
   bool filename_printed{false};
   std::size_t current_line_number = 1;
   std::size_t i = 0;
-  while (!(num_threads_finished == max_concurrency &&
-           num_results_enqueued == num_results_dequeued)) {
-    chunk_result next_result{};
 
-    auto found = output_queues[i].try_dequeue(next_result);
-    if (found) {
+  if (!options.print_only_filenames) {
+    // In this main thread
+    // Dequeue from output_queues, process matches
+    // and print output
+    while (!(num_threads_finished == max_concurrency &&
+            num_results_enqueued == num_results_dequeued)) {
+      chunk_result next_result{};
 
-      // Do something with result
-      // Print it
-      std::string lines{};
-      auto start = next_result.start;
-      auto end = next_result.end;
-      auto &matches = next_result.matches;
-      if (!matches.empty()) {
-        std::size_t previous_line_number = current_line_number;
-        num_matching_lines += process_fn(
-            filename.data(), start, end - start, next_result.matches,
-            previous_line_number, lines, options.print_filename,
-            options.is_stdout, options.show_line_numbers,
-            options.print_only_matching_parts, options.max_column_limit);
+      auto found = output_queues[i].try_dequeue(next_result);
+      if (found) {
 
-        if (!options.count_matching_lines && !options.print_only_filenames &&
-            !lines.empty()) {
+        // Do something with result
+        // Print it
+        std::string lines{};
+        auto start = next_result.start;
+        auto end = next_result.end;
+        auto &matches = next_result.matches;
+        if (!matches.empty()) {
+          std::size_t previous_line_number = current_line_number;
+          num_matching_lines += process_fn(
+              filename.data(), start, end - start, next_result.matches,
+              previous_line_number, lines, options.print_filename,
+              options.is_stdout, options.show_line_numbers,
+              options.print_only_matching_parts, options.max_column_limit);
 
-          if (options.print_filename && !filename_printed) {
-            if (options.is_stdout) {
-              fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+          if (!options.count_matching_lines && !options.print_only_filenames &&
+              !lines.empty()) {
+
+            if (options.print_filename && !filename_printed) {
+              if (options.is_stdout) {
+                fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
+              }
+              filename_printed = true;
             }
-            filename_printed = true;
+
+            fmt::print("{}", lines);
           }
-
-          fmt::print("{}", lines);
         }
-      }
-      current_line_number += next_result.line_count;
+        current_line_number += next_result.line_count;
 
-      num_results_dequeued += 1;
+        num_results_dequeued += 1;
 
-      i += 1;
-      if (i == max_concurrency) {
-        i = 0;
+        i += 1;
+        if (i == max_concurrency) {
+          i = 0;
+        }
       }
     }
   }
@@ -309,7 +316,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     t.join();
   }
 
-  if (options.count_matching_lines) {
+  if (options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
