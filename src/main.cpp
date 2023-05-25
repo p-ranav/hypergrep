@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
       .scan<'d', unsigned>();
 
   program.add_argument("pattern")
-      .default_value(std::string{".*"})
+      .default_value(std::string{"."})
       .help("regular expression pattern");
 
   program.add_argument("path")
