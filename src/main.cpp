@@ -127,7 +127,9 @@ int main(int argc, char **argv) {
   // pattern is required
   const auto files_used = program.get<bool>("--files");
   if (!files_used && !program.is_used("pattern")) {
-    throw std::runtime_error("1 argument(s) expected. 0 provided.");
+    std::cerr << "1 argument(s) expected. 0 provided." << std::endl;
+    std::cerr << program;
+    return 1;
   }
 
   auto path = program.get<std::string>("path");
