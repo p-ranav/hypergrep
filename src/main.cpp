@@ -36,7 +36,8 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("-f", "--filter")
-      .help("Filter files based on a pattern");
+      .help(
+          "Filter files based on a pattern, e.g., --filter '\\.(c|cpp|h|hpp)'");
 
   program.add_argument("--hidden")
       .help("Search hidden files and directories. By default, hidden files and "
