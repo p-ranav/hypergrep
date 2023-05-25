@@ -14,6 +14,8 @@ file_search::file_search(argparse::ArgumentParser &program) {
     options.num_threads += 1;
   }
 
+  options.print_only_filenames = program.get<bool>("-l");
+
   if (program.is_used("-M")) {
     options.max_column_limit = program.get<std::size_t>("-M");
   }
@@ -153,6 +155,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   std::atomic<std::size_t> num_threads_finished{0};
   std::atomic<std::size_t> num_results_enqueued{0}, num_results_dequeued{0};
+  std::atomic<bool> single_match_found{false};
 
   for (std::size_t i = 0; i < max_concurrency; ++i) {
 
@@ -171,7 +174,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
                               buffer = buffer, file_size = file_size,
                               max_searchable_size = max_searchable_size,
                               &output_queues, &num_results_enqueued,
-                              &num_threads_finished]() {
+                              &num_threads_finished,
+                              &single_match_found]() {
       // Set up the scratch space
       hs_scratch_t *local_scratch = thread_local_scratch[i];
 
@@ -222,10 +226,13 @@ bool file_search::mmap_and_scan(std::string &&filename) {
             matches{};
         std::atomic<size_t> number_of_matches = 0;
         file_context
-	      ctx{number_of_matches, matches, match_mutex, false /* print_only_filenames is not relevant in a single file search */};
+	      ctx{number_of_matches, matches, match_mutex, options.print_only_filenames};
 
         if (hs_scan(database, start, end - start, 0, local_scratch, on_match,
                     (void *)(&ctx)) != HS_SUCCESS) {
+          if (options.print_only_filenames && ctx.number_of_matches > 0) {
+            single_match_found = true;
+          }
           num_threads_finished += 1;
           break;
         }
@@ -309,7 +316,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if (options.print_only_filenames) {
+  } else if (options.print_only_filenames && single_match_found) {
     if (options.is_stdout) {
       fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
     } else {
