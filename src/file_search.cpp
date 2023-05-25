@@ -69,7 +69,7 @@ void file_search::compile_hs_database(std::string &pattern) {
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
                   (options.use_ucp ? HS_FLAG_UCP : 0) | 
-                  (options.is_stdout ? HS_FLAG_SOM_LEFTMOST : 0),
+                  (options.is_stdout || options.print_only_matching_parts ? HS_FLAG_SOM_LEFTMOST : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
@@ -124,7 +124,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     return false;
   }
 
-  const auto process_fn = options.is_stdout ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
 
   // Use the data
 
@@ -360,7 +360,7 @@ bool file_search::scan_line(std::string &line,
     return false;
   }
 
-  const auto process_fn = options.is_stdout ? process_matches : process_matches_nocolor_nostdout;
+  const auto process_fn = (options.is_stdout || options.print_only_matching_parts) ? process_matches : process_matches_nocolor_nostdout;
 
   // Perform the search
   bool result{false};
