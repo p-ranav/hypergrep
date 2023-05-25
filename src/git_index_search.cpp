@@ -208,6 +208,7 @@ bool git_index_search::process_file(const char *filename,
       (options.is_stdout || options.print_only_matching_parts)
           ? process_matches
           : process_matches_nocolor_nostdout;
+  auto result_path = basepath / filename;
 
   // Process the file in chunks
   std::size_t total_bytes_read = 0;
@@ -287,10 +288,10 @@ bool git_index_search::process_file(const char *filename,
 
     if (ctx.number_of_matches > 0) {
       num_matching_lines += process_fn(
-          filename, buffer, search_size, ctx.matches, current_line_number,
-          lines, options.print_filenames, options.is_stdout,
-          options.show_line_numbers, options.print_only_matching_parts,
-          options.max_column_limit);
+          result_path.c_str(), buffer, search_size, ctx.matches,
+          current_line_number, lines, options.print_filenames,
+          options.is_stdout, options.show_line_numbers,
+          options.print_only_matching_parts, options.max_column_limit);
       num_matches += ctx.number_of_matches;
     }
 
@@ -317,7 +318,6 @@ bool git_index_search::process_file(const char *filename,
   close(fd);
 
   if (result && options.count_matching_lines && !options.print_only_filenames) {
-    auto result_path = basepath / filename;
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(
@@ -331,7 +331,6 @@ bool git_index_search::process_file(const char *filename,
       fmt::print("{}\n", num_matching_lines);
     }
   } else if (result && options.count_matches && !options.print_only_filenames) {
-    auto result_path = basepath / filename;
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(
@@ -345,8 +344,6 @@ bool git_index_search::process_file(const char *filename,
       fmt::print("{}\n", num_matches);
     }
   } else {
-    auto result_path = basepath / filename;
-
     if (result && options.print_only_filenames) {
       if (options.is_stdout) {
         fmt::print(fg(fmt::color::steel_blue), "{}\n", result_path.c_str());
