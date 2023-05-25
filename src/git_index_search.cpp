@@ -6,6 +6,7 @@ git_index_search::git_index_search(const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : basepath(std::filesystem::relative(path)) {
   options.count_matching_lines = program.get<bool>("-c");
+  options.count_matches = program.get<bool>("--count-matches");
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
@@ -208,6 +209,7 @@ bool git_index_search::process_file(const char *filename,
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
   std::size_t num_matching_lines{0};
+  std::size_t num_matches{0};
 
   // Read the file in chunks and perform search
   bool first{true};
@@ -275,11 +277,12 @@ bool git_index_search::process_file(const char *filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_fn(filename, buffer, search_size, ctx.matches,
-                 current_line_number, lines, options.print_filenames,
-                 options.is_stdout, options.show_line_numbers,
-                 options.print_only_matching_parts, options.max_column_limit);
-      num_matching_lines += ctx.number_of_matches;
+      num_matching_lines += process_fn(
+          filename, buffer, search_size, ctx.matches, current_line_number,
+          lines, options.print_filenames, options.is_stdout,
+          options.show_line_numbers, options.print_only_matching_parts,
+          options.max_column_limit);
+      num_matches += ctx.number_of_matches;
     }
 
     if (last_newline && bytes_read > search_size &&
@@ -318,6 +321,20 @@ bool git_index_search::process_file(const char *filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
+  } else if (result && options.count_matches && !options.print_only_filenames) {
+    auto result_path = basepath / filename;
+    if (options.print_filenames) {
+      if (options.is_stdout) {
+        fmt::print(
+            "{}:{}\n",
+            fmt::format(fg(fmt::color::steel_blue), "{}", result_path.c_str()),
+            num_matches);
+      } else {
+        fmt::print("{}:{}\n", result_path.c_str(), num_matches);
+      }
+    } else {
+      fmt::print("{}\n", num_matches);
+    }
   } else {
     auto result_path = basepath / filename;
 
@@ -328,7 +345,8 @@ bool git_index_search::process_file(const char *filename,
         fmt::print("{}\n", result_path.c_str());
       }
     } else if (result && !options.count_matching_lines &&
-               !options.print_only_filenames && !lines.empty()) {
+               !options.count_matches && !options.print_only_filenames &&
+               !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
           lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n",

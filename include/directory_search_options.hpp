@@ -7,6 +7,7 @@ struct directory_search_options {
   bool ignore_case{false};
   bool print_only_filenames{false};
   bool count_matching_lines{false};
+  bool count_matches{false};
   bool use_ucp{false};
   bool exclude_submodules{false};
   std::size_t num_threads{0};

@@ -5,6 +5,7 @@ directory_search::directory_search(const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
   options.count_matching_lines = program.get<bool>("-c");
+  options.count_matches = program.get<bool>("--count-matches");
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
@@ -140,9 +141,10 @@ void directory_search::run(std::filesystem::path path) {
         database, scratch,
         file_search_options{
             options.is_stdout, options.show_line_numbers, options.ignore_case,
-            options.count_matching_lines, options.use_ucp, options.num_threads,
-            options.print_filenames, options.print_only_matching_parts,
-            options.max_column_limit, options.print_only_filenames});
+            options.count_matching_lines, options.count_matches,
+            options.use_ucp, options.num_threads, options.print_filenames,
+            options.print_only_matching_parts, options.max_column_limit,
+            options.print_only_filenames});
 
     // Memory map + multi-threaded search
     while (num_large_files_enqueued > 0) {
@@ -220,6 +222,7 @@ bool directory_search::process_file(std::string &&filename,
   std::atomic<std::size_t> max_line_number{0};
   std::size_t current_line_number{1};
   std::size_t num_matching_lines{0};
+  std::size_t num_matches{0};
 
   // Read the file in chunks and perform search
   bool first{true};
@@ -299,11 +302,12 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      process_fn(filename.data(), buffer, search_size, ctx.matches,
-                 current_line_number, lines, options.print_filenames,
-                 options.is_stdout, options.show_line_numbers,
-                 options.print_only_matching_parts, options.max_column_limit);
-      num_matching_lines += ctx.number_of_matches;
+      num_matching_lines += process_fn(
+          filename.data(), buffer, search_size, ctx.matches,
+          current_line_number, lines, options.print_filenames,
+          options.is_stdout, options.show_line_numbers,
+          options.print_only_matching_parts, options.max_column_limit);
+      num_matches += ctx.number_of_matches;
     }
 
     if (last_newline && bytes_read > search_size &&
@@ -340,6 +344,18 @@ bool directory_search::process_file(std::string &&filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
+  } else if (result && options.count_matches && !options.print_only_filenames) {
+    if (options.print_filenames) {
+      if (options.is_stdout) {
+        fmt::print("{}:{}\n",
+                   fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                   num_matches);
+      } else {
+        fmt::print("{}:{}\n", filename, num_matches);
+      }
+    } else {
+      fmt::print("{}\n", num_matches);
+    }
   } else {
     if (result && options.print_only_filenames) {
       if (options.is_stdout) {
@@ -348,7 +364,8 @@ bool directory_search::process_file(std::string &&filename,
         fmt::print("{}\n", filename);
       }
     } else if (result && !options.count_matching_lines &&
-               !options.print_only_filenames && !lines.empty()) {
+               !options.count_matches && !options.print_only_filenames &&
+               !lines.empty()) {
       if (options.is_stdout) {
         if (options.print_filenames) {
           lines = fmt::format(fg(fmt::color::steel_blue), "\n{}\n", filename) +

@@ -12,6 +12,13 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--count-matches")
+      .help("This flag suppresses normal output and shows the number of "
+            "individual "
+            "matches of the given patterns for each file searched.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("--exclude-submodules")
       .help("Exclude submodules from the search")
       .default_value(false)

@@ -8,6 +8,7 @@ file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
 
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
+  options.count_matches = program.get<bool>("--count-matches");
   options.num_threads = program.get<unsigned>("-j");
 
   if (!program.is_used("-j")) {
@@ -160,6 +161,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   std::atomic<std::size_t> num_threads_finished{0};
   std::atomic<std::size_t> num_results_enqueued{0}, num_results_dequeued{0};
+  std::atomic<std::size_t> num_matches{0};
   std::atomic<bool> single_match_found{false};
 
   for (std::size_t i = 0; i < max_concurrency; ++i) {
@@ -175,86 +177,89 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     thread_local_scratch.push_back(local_scratch);
 
     // Spawn a reader thread
-    threads[i] = std::thread([this, i = i, max_concurrency = max_concurrency,
-                              buffer = buffer, file_size = file_size,
-                              max_searchable_size = max_searchable_size,
-                              &output_queues, &num_results_enqueued,
-                              &num_threads_finished, &single_match_found]() {
-      // Set up the scratch space
-      hs_scratch_t *local_scratch = thread_local_scratch[i];
+    threads[i] = std::thread(
+        [this, i = i, max_concurrency = max_concurrency, buffer = buffer,
+         file_size = file_size, max_searchable_size = max_searchable_size,
+         &output_queues, &num_results_enqueued, &num_threads_finished,
+         &single_match_found, &num_matches]() {
+          // Set up the scratch space
+          hs_scratch_t *local_scratch = thread_local_scratch[i];
 
-      std::size_t offset{i * max_searchable_size};
-      char *eof = buffer + file_size;
+          std::size_t offset{i * max_searchable_size};
+          char *eof = buffer + file_size;
 
-      while (true) {
+          while (true) {
 
-        if (options.print_only_filenames && single_match_found) {
-          break;
-        }
+            if (options.print_only_filenames && single_match_found) {
+              break;
+            }
 
-        char *start = buffer + offset;
-        if (start >= buffer + file_size) {
-          // stop here
-          num_threads_finished += 1;
-          break;
-        }
+            char *start = buffer + offset;
+            if (start >= buffer + file_size) {
+              // stop here
+              num_threads_finished += 1;
+              break;
+            }
 
-        if (offset > 0) {
-          // Adjust start to go back to a newline boundary
-          // Adjust end as well to go back to a newline boundary
-          std::string_view chunk(buffer, start - buffer);
+            if (offset > 0) {
+              // Adjust start to go back to a newline boundary
+              // Adjust end as well to go back to a newline boundary
+              std::string_view chunk(buffer, start - buffer);
 
-          auto last_newline = chunk.find_last_of('\n', start - buffer);
-          if (last_newline == std::string_view::npos) {
-            // No newline found, do nothing?
-            // TODO: This could be an error scenario, check
-          } else {
-            start = buffer + last_newline;
+              auto last_newline = chunk.find_last_of('\n', start - buffer);
+              if (last_newline == std::string_view::npos) {
+                // No newline found, do nothing?
+                // TODO: This could be an error scenario, check
+              } else {
+                start = buffer + last_newline;
+              }
+            }
+
+            char *end = buffer + offset + max_searchable_size;
+            if (end > eof) {
+              end = eof;
+            }
+
+            // Update end to stop at a newline boundary
+            std::string_view chunk(start, end - start);
+            auto last_newline = chunk.find_last_of('\n', end - start);
+            if (last_newline == std::string_view::npos) {
+              // No newline found, do nothing?
+              // TODO: This could be an error scenario, check
+            } else {
+              end = start + last_newline;
+            }
+
+            // Perform the search
+            std::mutex match_mutex;
+            std::vector<std::pair<unsigned long long, unsigned long long>>
+                matches{};
+            std::atomic<size_t> number_of_matches = 0;
+            file_context ctx{number_of_matches, matches, match_mutex,
+                             options.print_only_filenames};
+
+            if (hs_scan(database, start, end - start, 0, local_scratch,
+                        on_match, (void *)(&ctx)) != HS_SUCCESS) {
+              if (options.print_only_filenames && ctx.number_of_matches > 0) {
+                single_match_found = true;
+              }
+              num_threads_finished += 1;
+              break;
+            }
+
+            num_matches += ctx.number_of_matches;
+
+            // Save result
+            std::size_t line_count_at_end_of_chunk =
+                std::count(start, end, '\n');
+            chunk_result local_chunk_result{start, end, std::move(matches),
+                                            line_count_at_end_of_chunk};
+            output_queues[i].enqueue(std::move(local_chunk_result));
+            num_results_enqueued += 1;
+
+            offset += max_concurrency * max_searchable_size;
           }
-        }
-
-        char *end = buffer + offset + max_searchable_size;
-        if (end > eof) {
-          end = eof;
-        }
-
-        // Update end to stop at a newline boundary
-        std::string_view chunk(start, end - start);
-        auto last_newline = chunk.find_last_of('\n', end - start);
-        if (last_newline == std::string_view::npos) {
-          // No newline found, do nothing?
-          // TODO: This could be an error scenario, check
-        } else {
-          end = start + last_newline;
-        }
-
-        // Perform the search
-        std::mutex match_mutex;
-        std::vector<std::pair<unsigned long long, unsigned long long>>
-            matches{};
-        std::atomic<size_t> number_of_matches = 0;
-        file_context ctx{number_of_matches, matches, match_mutex,
-                         options.print_only_filenames};
-
-        if (hs_scan(database, start, end - start, 0, local_scratch, on_match,
-                    (void *)(&ctx)) != HS_SUCCESS) {
-          if (options.print_only_filenames && ctx.number_of_matches > 0) {
-            single_match_found = true;
-          }
-          num_threads_finished += 1;
-          break;
-        }
-
-        // Save result
-        std::size_t line_count_at_end_of_chunk = std::count(start, end, '\n');
-        chunk_result local_chunk_result{start, end, std::move(matches),
-                                        line_count_at_end_of_chunk};
-        output_queues[i].enqueue(std::move(local_chunk_result));
-        num_results_enqueued += 1;
-
-        offset += max_concurrency * max_searchable_size;
-      }
-    });
+        });
   }
 
   std::size_t num_matching_lines{0};
@@ -267,7 +272,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     // Dequeue from output_queues, process matches
     // and print output
     while (!(num_threads_finished == max_concurrency &&
-            num_results_enqueued == num_results_dequeued)) {
+             num_results_enqueued == num_results_dequeued)) {
       chunk_result next_result{};
 
       auto found = output_queues[i].try_dequeue(next_result);
@@ -287,8 +292,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
               options.is_stdout, options.show_line_numbers,
               options.print_only_matching_parts, options.max_column_limit);
 
-          if (!options.count_matching_lines && !options.print_only_filenames &&
-              !lines.empty()) {
+          if (!options.count_matching_lines && !options.count_matches &&
+              !options.print_only_filenames && !lines.empty()) {
 
             if (options.print_filename && !filename_printed) {
               if (options.is_stdout) {
@@ -327,6 +332,18 @@ bool file_search::mmap_and_scan(std::string &&filename) {
       }
     } else {
       fmt::print("{}\n", num_matching_lines);
+    }
+  } else if (options.count_matches && !options.print_only_filenames) {
+    if (options.print_filename) {
+      if (options.is_stdout) {
+        fmt::print("{}:{}\n",
+                   fmt::format(fg(fmt::color::steel_blue), "{}", filename),
+                   num_matches.load());
+      } else {
+        fmt::print("{}:{}\n", filename, num_matches.load());
+      }
+    } else {
+      fmt::print("{}\n", num_matches.load());
     }
   } else if (options.print_only_filenames && single_match_found) {
     if (options.is_stdout) {
