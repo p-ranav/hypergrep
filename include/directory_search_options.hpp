@@ -7,6 +7,7 @@ struct directory_search_options {
   bool is_stdout{true};
   bool show_line_numbers{false};
   bool show_column_numbers{false};
+  bool show_byte_offset{false};
   bool ignore_case{false};
   bool print_only_filenames{false};
   bool count_matching_lines{false};

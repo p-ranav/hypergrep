@@ -6,6 +6,11 @@ int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
 
+  program.add_argument("-b", "--byte-offset")
+      .help("Print the 0-based byte offset within the input file before each line of output. If -o (--only-matching) is specified, print the offset of the matching part itself.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("--column")
       .help("Show column numbers (1-based). This only shows the column numbers "
             "for the first match on each line.")

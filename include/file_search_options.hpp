@@ -5,6 +5,7 @@ struct file_search_options {
   bool is_stdout{true};
   bool show_line_numbers{false};
   bool show_column_numbers{false};
+  bool show_byte_offset{false};
   bool ignore_case{false};
   bool count_matching_lines{false};
   bool count_matches{false};

@@ -52,6 +52,8 @@ file_search::file_search(argparse::ArgumentParser &program) {
     options.show_line_numbers = true;
   }
 
+  options.show_byte_offset = program.get<bool>("-b");
+
   compile_hs_database(pattern);
 }
 
@@ -78,7 +80,7 @@ void file_search::compile_hs_database(std::string &pattern) {
         pattern.data(),
         (options.ignore_case ? HS_FLAG_CASELESS : 0) |
             (options.is_stdout || options.print_only_matching_parts ||
-                     options.show_column_numbers
+                     options.show_column_numbers || options.show_byte_offset
                  ? HS_FLAG_SOM_LEFTMOST
                  : 0),
         pattern.size(), HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -88,7 +90,7 @@ void file_search::compile_hs_database(std::string &pattern) {
         (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
             (options.use_ucp ? HS_FLAG_UCP : 0) |
             (options.is_stdout || options.print_only_matching_parts ||
-                     options.show_column_numbers
+                     options.show_column_numbers || options.show_byte_offset
                  ? HS_FLAG_SOM_LEFTMOST
                  : 0),
         HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -148,7 +150,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
 
   const auto process_fn =
       (options.is_stdout || options.print_only_matching_parts ||
-       options.show_column_numbers)
+       options.show_column_numbers || options.show_byte_offset)
           ? process_matches
           : process_matches_nocolor_nostdout;
 
@@ -310,8 +312,10 @@ bool file_search::mmap_and_scan(std::string &&filename) {
               filename.data(), start, end - start, next_result.matches,
               previous_line_number, lines, options.print_filename,
               options.is_stdout, options.show_line_numbers,
-              options.show_column_numbers, options.print_only_matching_parts,
-              options.max_column_limit);
+              options.show_column_numbers, 
+              options.show_byte_offset,
+              options.print_only_matching_parts,
+              options.max_column_limit, (start - buffer));
 
           if (!options.count_matching_lines && !options.count_matches &&
               !options.print_only_filenames && !lines.empty()) {
@@ -412,7 +416,7 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
 
   const auto process_fn =
       (options.is_stdout || options.print_only_matching_parts ||
-       options.show_column_numbers)
+       options.show_column_numbers || options.show_byte_offset)
           ? process_matches
           : process_matches_nocolor_nostdout;
 
@@ -444,7 +448,8 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
     process_fn(filename.data(), line.data(), line.size(), ctx.matches,
                current_line_number, lines, false, options.is_stdout,
                options.show_line_numbers, options.show_column_numbers,
-               options.print_only_matching_parts, options.max_column_limit);
+               options.show_byte_offset,
+               options.print_only_matching_parts, options.max_column_limit, 0);
 
     if (!options.count_matching_lines && !options.print_only_filenames &&
         result && !lines.empty()) {

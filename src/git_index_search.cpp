@@ -63,6 +63,8 @@ git_index_search::git_index_search(const std::filesystem::path &path,
     options.show_line_numbers = true;
   }
 
+  options.show_byte_offset = program.get<bool>("-b");
+
   perform_search = !program.get<bool>("--files");
   if (perform_search) {
     compile_hs_database(pattern);
@@ -188,7 +190,7 @@ void git_index_search::compile_hs_database(std::string &pattern) {
         pattern.data(),
         (options.ignore_case ? HS_FLAG_CASELESS : 0) |
             (options.is_stdout || options.print_only_matching_parts ||
-                     options.show_column_numbers
+                     options.show_column_numbers || options.show_byte_offset
                  ? HS_FLAG_SOM_LEFTMOST
                  : 0),
         pattern.size(), HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -198,7 +200,7 @@ void git_index_search::compile_hs_database(std::string &pattern) {
         (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
             (options.use_ucp ? HS_FLAG_UCP : 0) |
             (options.is_stdout || options.print_only_matching_parts ||
-                     options.show_column_numbers
+                     options.show_column_numbers || options.show_byte_offset
                  ? HS_FLAG_SOM_LEFTMOST
                  : 0),
         HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -225,7 +227,7 @@ bool git_index_search::process_file(const char *filename,
 
   const auto process_fn =
       (options.is_stdout || options.print_only_matching_parts ||
-       options.show_column_numbers)
+       options.show_column_numbers || options.show_byte_offset)
           ? process_matches
           : process_matches_nocolor_nostdout;
   auto result_path = basepath / filename;
@@ -311,8 +313,10 @@ bool git_index_search::process_file(const char *filename,
           result_path.c_str(), buffer, search_size, ctx.matches,
           current_line_number, lines, options.print_filenames,
           options.is_stdout, options.show_line_numbers,
-          options.show_column_numbers, options.print_only_matching_parts,
-          options.max_column_limit);
+          options.show_column_numbers, 
+          options.show_byte_offset,
+          options.print_only_matching_parts,
+          options.max_column_limit, total_bytes_read - bytes_read);
       num_matches += ctx.number_of_matches;
     }
 

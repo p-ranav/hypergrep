@@ -25,8 +25,10 @@ std::size_t process_matches(
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
+    bool show_byte_offset,
     bool print_only_matching_parts,
-    const std::optional<std::size_t> &max_column_limit) {
+    const std::optional<std::size_t> &max_column_limit,
+    std::size_t byte_offset) {
   std::string_view chunk(buffer, bytes_read);
 
   static bool apply_column_limit = max_column_limit.has_value();
@@ -159,7 +161,6 @@ std::size_t process_matches(
           if (show_column_numbers) {
             lines += fmt::format("{}:", (from - start_of_line) + 1);
           }
-
         } else {
           if (!is_stdout) {
             if (print_filename) {
@@ -167,6 +168,16 @@ std::size_t process_matches(
             }
           }
         }
+
+        if (show_byte_offset) {
+          if (print_only_matching_parts) {
+            lines += fmt::format("{}:", byte_offset + from);
+          }
+          else {
+            lines += fmt::format("{}:", byte_offset + start_of_line);
+          }
+        }
+
         first = false;
       }
 
@@ -215,8 +226,10 @@ std::size_t process_matches_nocolor_nostdout(
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
+    bool show_byte_offset,
     bool print_only_matching_parts,
-    const std::optional<std::size_t> &max_column_limit) {
+    const std::optional<std::size_t> &max_column_limit,
+    std::size_t byte_offset) {
   std::string_view chunk(buffer, bytes_read);
   static bool apply_column_limit = max_column_limit.has_value();
 
