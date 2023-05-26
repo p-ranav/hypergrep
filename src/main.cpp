@@ -7,7 +7,8 @@ int main(int argc, char **argv) {
   argparse::ArgumentParser program("hg");
 
   program.add_argument("--column")
-      .help("Show column numbers (1-based). This only shows the column numbers for the first match on each line.")
+      .help("Show column numbers (1-based). This only shows the column numbers "
+            "for the first match on each line.")
       .default_value(false)
       .implicit_value(true);
 
@@ -38,6 +39,13 @@ int main(int argc, char **argv) {
   program.add_argument("-f", "--filter")
       .help(
           "Filter files based on a pattern, e.g., --filter '\\.(c|cpp|h|hpp)'");
+
+  program.add_argument("-F", "--fixed-strings")
+      .help("Treat the pattern as a literal string instead of a regular "
+            "expression. Special regular expression meta characters such as "
+            ".(){}*+ do not need to be escaped.")
+      .default_value(false)
+      .implicit_value(true);
 
   program.add_argument("--hidden")
       .help("Search hidden files and directories. By default, hidden files and "

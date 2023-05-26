@@ -65,6 +65,7 @@ private:
   // If false, hypergrep will instead simply print the files
   // that _will_ be searched
   bool perform_search{true};
+  bool compile_pattern_as_literal{false};
 
   moodycamel::ConcurrentQueue<std::string> queue;
   moodycamel::ProducerToken ptok{queue};

@@ -9,6 +9,7 @@ file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
 file_search::file_search(argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
+  compile_pattern_as_literal = program.get<bool>("-F");
   options.num_threads = program.get<unsigned>("-j");
 
   if (!program.is_used("-j")) {
@@ -70,15 +71,28 @@ file_search::~file_search() {
 }
 
 void file_search::compile_hs_database(std::string &pattern) {
+  hs_error_t error_code;
   hs_compile_error_t *compile_error = NULL;
-  auto error_code =
-      hs_compile(pattern.data(),
-                 (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-                     (options.use_ucp ? HS_FLAG_UCP : 0) |
-                     (options.is_stdout || options.print_only_matching_parts || options.show_column_numbers
-                          ? HS_FLAG_SOM_LEFTMOST
-                          : 0),
-                 HS_MODE_BLOCK, NULL, &database, &compile_error);
+  if (compile_pattern_as_literal) {
+    error_code = hs_compile_lit(
+        pattern.data(),
+        (options.ignore_case ? HS_FLAG_CASELESS : 0) |
+            (options.is_stdout || options.print_only_matching_parts ||
+                     options.show_column_numbers
+                 ? HS_FLAG_SOM_LEFTMOST
+                 : 0),
+        pattern.size(), HS_MODE_BLOCK, NULL, &database, &compile_error);
+  } else {
+    error_code = hs_compile(
+        pattern.data(),
+        (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
+            (options.use_ucp ? HS_FLAG_UCP : 0) |
+            (options.is_stdout || options.print_only_matching_parts ||
+                     options.show_column_numbers
+                 ? HS_FLAG_SOM_LEFTMOST
+                 : 0),
+        HS_MODE_BLOCK, NULL, &database, &compile_error);
+  }
   if (error_code != HS_SUCCESS) {
     throw std::runtime_error(std::string{"Error compiling pattern: "} +
                              compile_error->message);
@@ -133,7 +147,8 @@ bool file_search::mmap_and_scan(std::string &&filename) {
   }
 
   const auto process_fn =
-      (options.is_stdout || options.print_only_matching_parts || options.show_column_numbers)
+      (options.is_stdout || options.print_only_matching_parts ||
+       options.show_column_numbers)
           ? process_matches
           : process_matches_nocolor_nostdout;
 
@@ -294,8 +309,9 @@ bool file_search::mmap_and_scan(std::string &&filename) {
           num_matching_lines += process_fn(
               filename.data(), start, end - start, next_result.matches,
               previous_line_number, lines, options.print_filename,
-              options.is_stdout, options.show_line_numbers, options.show_column_numbers,
-              options.print_only_matching_parts, options.max_column_limit);
+              options.is_stdout, options.show_line_numbers,
+              options.show_column_numbers, options.print_only_matching_parts,
+              options.max_column_limit);
 
           if (!options.count_matching_lines && !options.count_matches &&
               !options.print_only_filenames && !lines.empty()) {
@@ -395,7 +411,8 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
   }
 
   const auto process_fn =
-      (options.is_stdout || options.print_only_matching_parts || options.show_column_numbers)
+      (options.is_stdout || options.print_only_matching_parts ||
+       options.show_column_numbers)
           ? process_matches
           : process_matches_nocolor_nostdout;
 
@@ -426,8 +443,8 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
     const std::string filename{""};
     process_fn(filename.data(), line.data(), line.size(), ctx.matches,
                current_line_number, lines, false, options.is_stdout,
-               options.show_line_numbers, options.show_column_numbers, options.print_only_matching_parts,
-               options.max_column_limit);
+               options.show_line_numbers, options.show_column_numbers,
+               options.print_only_matching_parts, options.max_column_limit);
 
     if (!options.count_matching_lines && !options.print_only_filenames &&
         result && !lines.empty()) {

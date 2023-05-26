@@ -40,6 +40,8 @@ private:
 
 private:
   bool non_owning_database{false};
+  bool compile_pattern_as_literal{false};
+
   hs_database_t *database = NULL;
   hs_scratch_t *scratch = NULL;
   std::vector<hs_scratch *> thread_local_scratch;
