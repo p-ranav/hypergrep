@@ -462,7 +462,7 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
           auto it = path.find_last_of("/");
           if (it != std::string_view::npos) {
             // Found a '/'
-            if (path[it] == '.') {
+            if (path[it + 1] == '.') {
               continue;
             }
           }
