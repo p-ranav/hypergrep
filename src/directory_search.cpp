@@ -15,8 +15,8 @@ directory_search::directory_search(const std::filesystem::path &path,
   options.ignore_case = program.get<bool>("-i");
   options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
-  if (program.is_used("-f")) {
-    options.filter_file_pattern = program.get<std::string>("-f");
+  if (program.is_used("--filter")) {
+    options.filter_file_pattern = program.get<std::string>("--filter");
     options.filter_files = true;
     if (!construct_file_filtering_hs_database()) {
       throw std::runtime_error("Error compiling pattern " +

@@ -33,6 +33,7 @@ add_executable(hg
   src/git_index_search.cpp
   src/match_handler.cpp
   src/main.cpp
+  src/print_help.cpp
   src/size_to_bytes.cpp)
 target_compile_features(hg PUBLIC cxx_std_17)
 target_include_directories(hg PRIVATE include)
