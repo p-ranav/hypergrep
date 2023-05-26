@@ -55,6 +55,11 @@ directory_search::directory_search(const std::filesystem::path &path,
     options.show_line_numbers = show_line_number;
   }
 
+  options.show_column_numbers = program.get<bool>("--column");
+  if (options.show_column_numbers) {
+    options.show_line_numbers = true;
+  }
+
   perform_search = !program.get<bool>("--files");
   if (perform_search) {
     compile_hs_database(pattern);
@@ -149,7 +154,7 @@ void directory_search::run(std::filesystem::path path) {
       file_search large_file_searcher(
           database, scratch,
           file_search_options{
-              options.is_stdout, options.show_line_numbers, options.ignore_case,
+              options.is_stdout, options.show_line_numbers, options.show_column_numbers, options.ignore_case,
               options.count_matching_lines, options.count_matches,
               options.use_ucp, options.num_threads, options.print_filenames,
               options.print_only_matching_parts, options.max_column_limit,
@@ -174,7 +179,7 @@ void directory_search::compile_hs_database(std::string &pattern) {
       hs_compile(pattern.data(),
                  (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
                      (options.use_ucp ? HS_FLAG_UCP : 0) |
-                     (options.is_stdout || options.print_only_matching_parts
+                     (options.is_stdout || options.print_only_matching_parts || options.show_column_numbers
                           ? HS_FLAG_SOM_LEFTMOST
                           : 0),
                  HS_MODE_BLOCK, NULL, &database, &compile_error);
@@ -219,7 +224,7 @@ bool directory_search::process_file(std::string &&filename,
   bool result{false};
 
   const auto process_fn =
-      (options.is_stdout || options.print_only_matching_parts)
+      (options.is_stdout || options.print_only_matching_parts || options.show_column_numbers)
           ? process_matches
           : process_matches_nocolor_nostdout;
 
@@ -317,7 +322,7 @@ bool directory_search::process_file(std::string &&filename,
       num_matching_lines += process_fn(
           filename.data(), buffer, search_size, ctx.matches,
           current_line_number, lines, options.print_filenames,
-          options.is_stdout, options.show_line_numbers,
+          options.is_stdout, options.show_line_numbers, options.show_column_numbers,
           options.print_only_matching_parts, options.max_column_limit);
       num_matches += ctx.number_of_matches;
     }

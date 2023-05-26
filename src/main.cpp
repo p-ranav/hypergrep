@@ -6,6 +6,11 @@ int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg");
 
+  program.add_argument("--column")
+      .help("Show column numbers (1-based). This only shows the column numbers for the first match on each line.")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-c", "--count")
       .help("This flag suppresses normal output and shows the number of lines "
             "that match the given patterns for each file searched.")
