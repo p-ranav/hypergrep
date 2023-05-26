@@ -196,20 +196,4 @@ void print_help() {
     print_option_name(is_stdout, "-w, --word-regexp");
     print_description_line("Only show matches surrounded by word boundaries. This is equivalent to");
     print_description_line("putting \\b before and after the the search pattern.\n");
-
-    // // Examples
-    // print_heading(is_stdout, "EXAMPLE");
-    // fmt::print("    Show some usage examples of your program.\n\n");
-
-    // // Author
-    // print_heading(is_stdout, "AUTHOR");
-    // fmt::print("    Written by Pranav Srinivas Kumar <pranav.srinivas.kumar@gmail.com>\n\n");
-
-    // // Project Home Page
-    // print_heading(is_stdout, "PROJECT HOMEPAGE");
-    // fmt::print("    https://github.com/p-ranav/hypergrep\n\n");
-
-    // // Copyright
-    // print_heading(is_stdout, "COPYRIGHT");
-    // fmt::print("    Copyright (c) 2023 Pranav Srinivas Kumar. License MIT.\n\n");
 }
