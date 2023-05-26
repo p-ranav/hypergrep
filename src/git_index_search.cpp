@@ -14,6 +14,7 @@ git_index_search::git_index_search(const std::filesystem::path &path,
   auto hide_line_number = program.get<bool>("-N");
   options.exclude_submodules = program.get<bool>("--exclude-submodules");
   options.ignore_case = program.get<bool>("-i");
+  options.count_include_zeros = program.get<bool>("--include-zero");
   options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
   if (program.is_used("--filter")) {
@@ -342,7 +343,7 @@ bool git_index_search::process_file(const char *filename,
 
   close(fd);
 
-  if (result && options.count_matching_lines && !options.print_only_filenames) {
+  if ((result || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(
@@ -355,7 +356,7 @@ bool git_index_search::process_file(const char *filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if (result && options.count_matches && !options.print_only_filenames) {
+  } else if ((result || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(

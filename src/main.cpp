@@ -54,6 +54,10 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--include-zero")
+      .default_value(false)
+      .implicit_value(true);
+
   program.add_argument("-I", "--no-filename")
       .default_value(false)
       .implicit_value(true);

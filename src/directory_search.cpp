@@ -13,6 +13,7 @@ directory_search::directory_search(const std::filesystem::path &path,
   auto hide_line_number = program.get<bool>("-N");
   options.exclude_submodules = program.get<bool>("--exclude-submodules");
   options.ignore_case = program.get<bool>("-i");
+  options.count_include_zeros = program.get<bool>("--include-zero");
   options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
   if (program.is_used("--filter")) {
@@ -162,6 +163,7 @@ void directory_search::run(std::filesystem::path path) {
               options.show_byte_offset,
               options.ignore_case,
               options.count_matching_lines, options.count_matches,
+              options.count_include_zeros,
               options.use_ucp, options.num_threads, options.print_filenames,
               options.print_only_matching_parts, options.max_column_limit,
               options.print_only_filenames});
@@ -370,7 +372,7 @@ bool directory_search::process_file(std::string &&filename,
 
   close(fd);
 
-  if (result && options.count_matching_lines && !options.print_only_filenames) {
+  if ((result || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -382,7 +384,7 @@ bool directory_search::process_file(std::string &&filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if (result && options.count_matches && !options.print_only_filenames) {
+  } else if ((result || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",

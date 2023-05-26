@@ -25,6 +25,7 @@ file_search::file_search(argparse::ArgumentParser &program) {
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
   options.ignore_case = program.get<bool>("-i");
+  options.count_include_zeros = program.get<bool>("--include-zero");
   options.print_only_matching_parts = program.get<bool>("-o");
   auto pattern = program.get<std::string>("pattern");
 
@@ -346,7 +347,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     t.join();
   }
 
-  if (options.count_matching_lines && !options.print_only_filenames) {
+  if ((num_matching_lines > 0 || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -358,7 +359,7 @@ bool file_search::mmap_and_scan(std::string &&filename) {
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if (options.count_matches && !options.print_only_filenames) {
+  } else if ((num_matches.load() > 0 || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",

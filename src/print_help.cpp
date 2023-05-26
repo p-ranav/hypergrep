@@ -138,6 +138,12 @@ void print_help() {
     print_description_line("case insensitively. The <PATTERN> may still use PCRE tokens");
     print_description_line("(notably (?i) and (?-i)) to toggle case-insensitive matching.\n");
 
+    // Include zero matches
+    print_option_name(is_stdout, "--include-zero");
+    print_description_line("When used with --count or --count-matches, print the number of");
+    print_description_line("matches for each file even if there were zero matches. This is");
+    print_description_line("distabled by default.\n");
+
     // No filename
     print_option_name(is_stdout, "-I, --no-filename");
     print_description_line("Never print the file path with the matched lines. This is the");
