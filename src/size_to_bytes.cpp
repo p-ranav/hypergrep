@@ -16,7 +16,18 @@ unsigned long long size_to_bytes(std::string_view input) {
   // Get the numeric part of the string
   std::size_t multiplier_pos = input.find_last_of("KMGTPEkmgtpe");
   if (multiplier_pos == std::string_view::npos) {
-    throw std::runtime_error("Invalid size requirement " + std::string(input));
+    // No multiplier part
+
+    // Check if the numeric part is a valid number
+    unsigned long long num = 0;
+    try {
+      num = std::stoull(input.data());
+    } catch (const std::exception &e) {
+      throw std::runtime_error("Invalid numeric part " +
+                              std::string(input));
+    }
+
+    return num;
   }
 
   std::string_view numeric_part = input.substr(0, multiplier_pos);

@@ -1,5 +1,7 @@
 #pragma once
+#include <string_view>
 
+constexpr static inline std::string_view VERSION = "0.1.0";
 constexpr static inline std::size_t TYPICAL_FILESYSTEM_BLOCK_SIZE = 4096;
 constexpr static inline std::size_t FILE_CHUNK_SIZE =
     16 * TYPICAL_FILESYSTEM_BLOCK_SIZE;

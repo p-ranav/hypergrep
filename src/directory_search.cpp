@@ -28,8 +28,8 @@ directory_search::directory_search(const std::filesystem::path &path,
     options.max_column_limit = program.get<std::size_t>("-M");
   }
 
-  if (program.is_used("--max-file-size")) {
-    const auto max_file_size_spec = program.get<std::string>("--max-file-size");
+  if (program.is_used("--max-filesize")) {
+    const auto max_file_size_spec = program.get<std::string>("--max-filesize");
     options.max_file_size = size_to_bytes(max_file_size_spec);
   }
 
