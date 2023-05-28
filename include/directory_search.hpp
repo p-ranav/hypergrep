@@ -5,6 +5,7 @@
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
 #include <directory_search_options.hpp>
+#include <dirent.h>
 #include <fcntl.h>
 #include <file_search.hpp>
 #include <filesystem>
@@ -44,7 +45,7 @@ private:
   bool process_file(std::string &&filename, hs_scratch_t *local_scratch,
                     char *buffer, std::string &lines);
 
-  bool try_dequeue_and_process_path(hs_scratch_t *local_scratch, char *buffer,
+  bool try_dequeue_and_process_path(moodycamel::ConsumerToken& ctok, hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines);
 
   bool construct_file_filtering_hs_database();
@@ -57,7 +58,7 @@ private:
 
   void search_thread_function();
 
-  void visit_directory_and_enqueue(const std::filesystem::path &path);
+  void visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory);
 
 private:
   std::filesystem::path search_path;
@@ -67,8 +68,11 @@ private:
   bool perform_search{true};
   bool compile_pattern_as_literal{false};
 
+  // Directory traversal 
+  moodycamel::ConcurrentQueue<std::string> subdirectories;
+  std::atomic<std::size_t> num_dirs_enqueued{0};
+
   moodycamel::ConcurrentQueue<std::string> queue;
-  moodycamel::ProducerToken ptok{queue};
 
   std::atomic<bool> running{true};
   std::atomic<std::size_t> num_files_enqueued{0};
