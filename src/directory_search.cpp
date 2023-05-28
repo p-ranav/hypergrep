@@ -424,6 +424,36 @@ bool directory_search::process_file(std::string &&filename,
   return result;
 }
 
+bool ignore_directory(std::string_view dirname) {
+  const std::vector<std::string_view> directories{
+    "bin",
+    "build",
+    "coverage",
+    "database",
+    "db",
+    "dist",
+    "env",
+    "envs",
+    "exe",
+    "images",
+    "img",
+    "imgs",
+    "lib",
+    "libs",
+    "media",
+    "node_modules",
+    "obj",
+    "out",
+    "target",
+    "temp",
+    "tmp",
+    "venv"
+    "virtualenv",
+  };
+
+  return std::find(directories.begin(), directories.end(), dirname) != directories.end();
+}
+
 void directory_search::visit_directory_and_enqueue(
     const std::filesystem::path &path) {
   for (auto it = std::filesystem::recursive_directory_iterator(
@@ -459,6 +489,9 @@ void directory_search::visit_directory_and_enqueue(
       } else if (std::filesystem::exists(path / ".git")) {
         git_repo_paths.push_back(path.string());
 
+        // Stop processing this directory and its contents
+        it.disable_recursion_pending();
+      } else if (ignore_directory(filename_cstr)) {
         // Stop processing this directory and its contents
         it.disable_recursion_pending();
       }
