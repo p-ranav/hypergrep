@@ -89,5 +89,6 @@ private:
   std::atomic<std::size_t> num_large_files_enqueued{0};
 
   // Optimizations for git repos
-  std::vector<std::string> git_repo_paths;
+  moodycamel::ConcurrentQueue<std::string> git_repo_paths;
+  std::atomic<std::size_t> num_git_repos_enqueued{0};
 };

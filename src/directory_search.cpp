@@ -134,7 +134,9 @@ void directory_search::run(std::filesystem::path path) {
           if (found) {
             const auto dot_git_path = std::filesystem::path(subdir) / ".git";
             if (std::filesystem::exists(dot_git_path)) {
-              // do something else
+              // Enqueue git repo
+              git_repo_paths.enqueue(subdir);
+              ++num_git_repos_enqueued;
             } else {
               // go deeper
               moodycamel::ProducerToken ptok{queue};
@@ -166,18 +168,26 @@ void directory_search::run(std::filesystem::path path) {
 
   // All threads are done processing the file queue
 
-  // Now search git repos one by one
-  if (!git_repo_paths.empty()) {
+  // Search git repos one by one 
+  if (num_git_repos_enqueued > 0) {
     auto current_path = std::filesystem::current_path();
-    for (const auto &repo_path : git_repo_paths) {
-      git_index_search git_index_searcher(
-          database, scratch, file_filter_database, file_filter_scratch,
-          perform_search, options, repo_path);
-      if (chdir(repo_path.c_str()) == 0) {
-        git_index_searcher.run(".");
-        if (chdir(current_path.c_str()) != 0) {
-          throw std::runtime_error("Failed to restore path");
+
+    while (num_git_repos_enqueued > 0) {
+      std::string repo_path{};
+      auto found = git_repo_paths.try_dequeue(repo_path);
+      if (found) {
+
+        git_index_search git_index_searcher(
+            database, scratch, file_filter_database, file_filter_scratch,
+            perform_search, options, repo_path);
+        if (chdir(repo_path.c_str()) == 0) {
+          git_index_searcher.run(".");
+          if (chdir(current_path.c_str()) != 0) {
+            throw std::runtime_error("Failed to restore path");
+          }
         }
+
+        --num_git_repos_enqueued;
       }
     }
   }
