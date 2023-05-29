@@ -120,13 +120,15 @@ void directory_search::run(std::filesystem::path path) {
     }
   }
 
+  // Kick off the directory traversal
   moodycamel::ProducerToken ptok{queue};
   visit_directory_and_enqueue(ptok, path.string());
 
   // Spawn threads to handle subdirectories
   {
-    std::vector<std::thread> traversal_threads(options.num_threads);
-    for (std::size_t i = 0; i < options.num_threads; ++i) {
+    const auto num_subdir_threads = options.num_threads; 
+    std::vector<std::thread> traversal_threads(num_subdir_threads);
+    for (std::size_t i = 0; i < num_subdir_threads; ++i) {
       traversal_threads[i] = std::thread([this]() {
         while (num_dirs_enqueued > 0) {
           std::string subdir{};
@@ -148,7 +150,7 @@ void directory_search::run(std::filesystem::path path) {
       });
     }
 
-    for (std::size_t i = 0; i < options.num_threads; ++i) {
+    for (std::size_t i = 0; i < num_subdir_threads; ++i) {
       traversal_threads[i].join();
     }
   }
@@ -478,8 +480,6 @@ bool ignore_directory(std::string_view dirname) {
     "images",
     "img",
     "imgs",
-    "lib",
-    "libs",
     "media",
     "node_modules",
     "obj",
@@ -507,9 +507,14 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
       break;
     }
 
-    if (entry->d_name[0] == '.') {
+    // Ignore symlinks
+    if (entry->d_type == DT_LNK) {
       continue;
     }
+
+    // Ignore dot files/directories unless requested
+    if (!options.search_hidden_files && entry->d_name[0] == '.')
+      continue;
 
     // Check if the entry is a directory
     if (entry->d_type == DT_DIR) {
@@ -517,21 +522,29 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
         continue;
       }
 
+      if (ignore_directory(entry->d_name)) {
+        continue;
+      }
+
       // Enqueue subdirectory for processing
-      const auto path = std::filesystem::path(directory) / entry->d_name;
-      subdirectories.enqueue(path.string());
+      const auto path = directory + "/" + std::string{entry->d_name};
+      subdirectories.enqueue(std::move(path));
       num_dirs_enqueued += 1;
     }
     else if (entry->d_type == DT_REG) {
-      const auto path = std::filesystem::path(directory) / entry->d_name;
-      if (perform_search) {
-        queue.enqueue(ptok, path.string());
-        ++num_files_enqueued;
-      } else {
-        if (options.is_stdout) {
-          fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
+      const auto path = directory + "/" + std::string{entry->d_name};
+
+      if (!options.filter_files ||
+          (options.filter_files && filter_file(path.c_str()))) {
+        if (perform_search) {
+          queue.enqueue(ptok, std::move(path));
+          ++num_files_enqueued;
         } else {
-          fmt::print("{}\n", path.c_str());
+          if (options.is_stdout) {
+            fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
+          } else {
+            fmt::print("{}\n", path.c_str());
+          }
         }
       }
     }
@@ -539,51 +552,6 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
 
   closedir(dir);
 } 
-
-// void directory_search::visit_directory_and_enqueue(
-//     const std::filesystem::path &path) {
-//   for (auto it = std::filesystem::recursive_directory_iterator(
-//            path, std::filesystem::directory_options::skip_permission_denied);
-//        it != std::filesystem::recursive_directory_iterator(); ++it) {
-//     const auto &path = it->path();
-//     const auto &filename = path.filename();
-//     const auto filename_cstr = filename.c_str();
-
-//     if (it->is_regular_file() && !it->is_symlink()) {
-
-//       if (!options.search_hidden_files && filename_cstr[0] == '.')
-//         continue;
-
-//       if (!options.filter_files ||
-//           (options.filter_files && filter_file(path.c_str()))) {
-//         if (perform_search) {
-//           queue.enqueue(ptok, path.native());
-//           ++num_files_enqueued;
-//         } else {
-//           if (options.is_stdout) {
-//             fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
-//           } else {
-//             fmt::print("{}\n", path.c_str());
-//           }
-//         }
-//       }
-//     } else if (it->is_directory()) {
-//       if ((!options.search_hidden_files && filename_cstr[0] == '.') ||
-//           it->is_symlink()) {
-//         // Stop processing this directory and its contents
-//         it.disable_recursion_pending();
-//       } else if (std::filesystem::exists(path / ".git")) {
-//         git_repo_paths.push_back(path.string());
-
-//         // Stop processing this directory and its contents
-//         it.disable_recursion_pending();
-//       } else if (ignore_directory(filename_cstr)) {
-//         // Stop processing this directory and its contents
-//         it.disable_recursion_pending();
-//       }
-//     }
-//   }
-// }
 
 bool directory_search::try_dequeue_and_process_path(moodycamel::ConsumerToken& ctok, 
   hs_scratch_t *local_scratch,
