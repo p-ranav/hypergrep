@@ -122,7 +122,7 @@ void directory_search::run(std::filesystem::path path) {
 
   // Kick off the directory traversal
   moodycamel::ProducerToken ptok{queue};
-  visit_directory_and_enqueue(ptok, path.string());
+  visit_directory_and_enqueue(ptok, path.string(), file_filter_scratch);
 
   // Spawn threads to handle subdirectories
   {
@@ -130,6 +130,17 @@ void directory_search::run(std::filesystem::path path) {
     std::vector<std::thread> traversal_threads(num_subdir_threads);
     for (std::size_t i = 0; i < num_subdir_threads; ++i) {
       traversal_threads[i] = std::thread([this]() {
+
+        // A local scratch for each traversal thread
+        hs_scratch* local_file_filter_scratch{nullptr};
+        hs_error_t database_error =
+            hs_alloc_scratch(file_filter_database, &local_file_filter_scratch);
+        if (database_error != HS_SUCCESS) {
+          fprintf(stderr, "Error allocating scratch space\n");
+          hs_free_database(file_filter_database);
+          return;
+        }
+
         while (num_dirs_enqueued > 0) {
           std::string subdir{};
           auto found = subdirectories.try_dequeue(subdir);
@@ -142,7 +153,7 @@ void directory_search::run(std::filesystem::path path) {
             } else {
               // go deeper
               moodycamel::ProducerToken ptok{queue};
-              visit_directory_and_enqueue(ptok, subdir);
+              visit_directory_and_enqueue(ptok, subdir, local_file_filter_scratch);
             }
             num_dirs_enqueued -= 1;
           }
@@ -494,7 +505,7 @@ bool ignore_directory(std::string_view dirname) {
   return std::find(directories.begin(), directories.end(), dirname) != directories.end();
 }
 
-void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory) {
+void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch) {
   DIR *dir = opendir(directory.c_str());
   if (dir == NULL) {
     return;
@@ -535,7 +546,7 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
       const auto path = directory + "/" + std::string{entry->d_name};
 
       if (!options.filter_files ||
-          (options.filter_files && filter_file(path.c_str()))) {
+          (options.filter_files && filter_file(path.c_str(), local_file_filter_scratch))) {
         if (perform_search) {
           queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;
@@ -603,9 +614,9 @@ int directory_search::on_file_filter_match(unsigned int id,
   return HS_SUCCESS;
 }
 
-bool directory_search::filter_file(const char *path) {
+bool directory_search::filter_file(const char *path, hs_scratch* local_file_filter_scratch) {
   filter_context ctx{false};
-  if (hs_scan(file_filter_database, path, strlen(path), 0, file_filter_scratch,
+  if (hs_scan(file_filter_database, path, strlen(path), 0, local_file_filter_scratch,
               on_file_filter_match, (void *)(&ctx)) != HS_SUCCESS) {
     return true;
   }

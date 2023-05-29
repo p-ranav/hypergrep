@@ -54,11 +54,11 @@ private:
                                   unsigned long long to, unsigned int flags,
                                   void *ctx);
 
-  bool filter_file(const char *path);
+  bool filter_file(const char *path, hs_scratch* local_file_filter_scratch);
 
   void search_thread_function();
 
-  void visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory);
+  void visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch);
 
 private:
   std::filesystem::path search_path;
