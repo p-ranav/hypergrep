@@ -189,8 +189,9 @@ int main(int argc, char **argv) {
     //
     // If size == 1 (i.e. just a pattern provided), just search "."
     auto patterns_and_paths = program.get<std::vector<std::string>>("patterns_and_paths");
+    const auto size = patterns_and_paths.size();
 
-    if (patterns_and_paths.empty()) {
+    if (size == 0) {
       // TODO: print meaningful error message + USAGE
       // e.g., "expected <PATTERN>"
 
@@ -198,8 +199,16 @@ int main(int argc, char **argv) {
     }
     
     auto& pattern = patterns_and_paths[0];
-    for (std::size_t i = 1; i < patterns_and_paths.size(); ++i) {
-      perform_search(pattern, patterns_and_paths[i], program);
+
+    if (size == 1) {
+      // Path not provided
+      // Default to current directory
+      perform_search(pattern, ".", program);
+    }
+    else {
+      for (std::size_t i = 1; i < patterns_and_paths.size(); ++i) {
+        perform_search(pattern, patterns_and_paths[i], program);
+      }
     }
   }
   return 0;
