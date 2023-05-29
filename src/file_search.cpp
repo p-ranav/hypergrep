@@ -6,7 +6,7 @@ file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
   non_owning_database = true;
 }
 
-file_search::file_search(argparse::ArgumentParser &program) {
+file_search::file_search(std::string& pattern, argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
   compile_pattern_as_literal = program.get<bool>("-F");
@@ -27,7 +27,6 @@ file_search::file_search(argparse::ArgumentParser &program) {
   options.ignore_case = program.get<bool>("-i");
   options.count_include_zeros = program.get<bool>("--include-zero");
   options.print_only_matching_parts = program.get<bool>("-o");
-  auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
   if (program.get<bool>("-w")) {

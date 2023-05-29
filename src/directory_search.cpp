@@ -1,7 +1,8 @@
 #include <directory_search.hpp>
 #include <is_binary.hpp>
 
-directory_search::directory_search(const std::filesystem::path &path,
+directory_search::directory_search(std::string& pattern,
+                                   const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
   options.search_binary_files = program.get<bool>("--text");
@@ -33,8 +34,6 @@ directory_search::directory_search(const std::filesystem::path &path,
     const auto max_file_size_spec = program.get<std::string>("--max-filesize");
     options.max_file_size = size_to_bytes(max_file_size_spec);
   }
-
-  auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
   if (program.get<bool>("-w")) {
@@ -133,12 +132,14 @@ void directory_search::run(std::filesystem::path path) {
 
         // A local scratch for each traversal thread
         hs_scratch* local_file_filter_scratch{nullptr};
-        hs_error_t database_error =
-            hs_alloc_scratch(file_filter_database, &local_file_filter_scratch);
-        if (database_error != HS_SUCCESS) {
-          fprintf(stderr, "Error allocating scratch space\n");
-          hs_free_database(file_filter_database);
-          return;
+        if (options.filter_files) {
+          hs_error_t database_error =
+              hs_alloc_scratch(file_filter_database, &local_file_filter_scratch);
+          if (database_error != HS_SUCCESS) {
+            fprintf(stderr, "Error allocating scratch space\n");
+            hs_free_database(file_filter_database);
+            return;
+          }
         }
 
         while (num_dirs_enqueued > 0) {
@@ -158,6 +159,8 @@ void directory_search::run(std::filesystem::path path) {
             num_dirs_enqueued -= 1;
           }
         }
+
+        hs_free_scratch(local_file_filter_scratch);
       });
     }
 
@@ -538,12 +541,12 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
       }
 
       // Enqueue subdirectory for processing
-      const auto path = directory + "/" + std::string{entry->d_name};
+      const auto path = std::filesystem::path{directory} / entry->d_name;
       subdirectories.enqueue(std::move(path));
       num_dirs_enqueued += 1;
     }
     else if (entry->d_type == DT_REG) {
-      const auto path = directory + "/" + std::string{entry->d_name};
+      const auto path = std::filesystem::path{directory} / entry->d_name;
 
       if (!options.filter_files ||
           (options.filter_files && filter_file(path.c_str(), local_file_filter_scratch))) {

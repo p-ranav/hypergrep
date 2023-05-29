@@ -2,7 +2,8 @@
 #include <is_binary.hpp>
 #include <unordered_set>
 
-git_index_search::git_index_search(const std::filesystem::path &path,
+git_index_search::git_index_search(std::string& pattern,
+                                   const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : basepath(std::filesystem::relative(path)) {
   options.search_binary_files = program.get<bool>("--text");
@@ -36,8 +37,6 @@ git_index_search::git_index_search(const std::filesystem::path &path,
   }
 
   options.print_only_matching_parts = program.get<bool>("-o");
-
-  auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
   if (program.get<bool>("-w")) {

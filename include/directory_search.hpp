@@ -28,7 +28,8 @@
 
 class directory_search {
 public:
-  directory_search(const std::filesystem::path &path,
+  directory_search(std::string& pattern,
+                   const std::filesystem::path &path,
                    argparse::ArgumentParser &program);
   ~directory_search();
   void run(std::filesystem::path path);
