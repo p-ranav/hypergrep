@@ -27,6 +27,65 @@ void print_description_line(std::string_view line) {
     fmt::print("        {}\n", line);
 }
 
+void print_synopsis_command(bool is_stdout) {
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "    {}", NAME);
+    } else {
+        fmt::print("    {}", NAME);
+    }
+    fmt::print(" [");
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "OPTIONS");
+    } else {
+        fmt::print("OPTIONS");
+    }
+    fmt::print("] ");
+}
+
+void print_synopsis_1(bool is_stdout) {
+    print_synopsis_command(is_stdout);
+
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "PATTERN [PATH ...]");
+    } else {
+        fmt::print("PATTERN [PATH ...]");
+    }
+    fmt::print("\n");
+}
+
+void print_synopsis_2(bool is_stdout) {
+    print_synopsis_command(is_stdout);
+
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "--files [PATH ...]");
+    } else {
+        fmt::print("--files [PATH ...]");
+    }
+    fmt::print("\n");
+}
+
+void print_synopsis_3(bool is_stdout) {
+    print_synopsis_command(is_stdout);
+
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "--help");
+    } else {
+        fmt::print("--help");
+    }
+    fmt::print("\n");
+}
+
+void print_synopsis_4(bool is_stdout) {
+    print_synopsis_command(is_stdout);
+
+    if (is_stdout) {
+        fmt::print(fmt::emphasis::bold, "--version");
+    } else {
+        fmt::print("--version");
+    }
+    fmt::print("\n");
+}
+
 void print_help() {
     const auto is_stdout = isatty(STDOUT_FILENO) == 1;
 
@@ -41,25 +100,11 @@ void print_help() {
 
     // Synopsis
     print_heading(is_stdout, "SYNOPSIS");
-    if (is_stdout) {
-        fmt::print(fmt::emphasis::bold, "    {}", NAME);
-    } else {
-        fmt::print("    {}", NAME);
-    }
-    fmt::print(" [");
-    if (is_stdout) {
-        fmt::print(fmt::emphasis::bold, "OPTIONS");
-    } else {
-        fmt::print("OPTIONS");
-    }
-    fmt::print("] ");
-
-    if (is_stdout) {
-        fmt::print(fmt::emphasis::bold, "PATTERN PATH");
-    } else {
-        fmt::print("PATTERN PATH");
-    }
-    fmt::print("\n\n");
+    print_synopsis_1(is_stdout);
+    print_synopsis_2(is_stdout);
+    print_synopsis_3(is_stdout);
+    print_synopsis_4(is_stdout);
+    fmt::print("\n");
 
     // Description
     print_heading(is_stdout, "DESCRIPTION");

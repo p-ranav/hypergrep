@@ -1,7 +1,8 @@
 #include <directory_search.hpp>
 #include <is_binary.hpp>
 
-directory_search::directory_search(const std::filesystem::path &path,
+directory_search::directory_search(std::string& pattern,
+                                   const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
   options.search_binary_files = program.get<bool>("--text");
@@ -33,8 +34,6 @@ directory_search::directory_search(const std::filesystem::path &path,
     const auto max_file_size_spec = program.get<std::string>("--max-filesize");
     options.max_file_size = size_to_bytes(max_file_size_spec);
   }
-
-  auto pattern = program.get<std::string>("pattern");
 
   // Check if word boundary is requested
   if (program.get<bool>("-w")) {
@@ -95,9 +94,11 @@ void directory_search::search_thread_function() {
     throw std::runtime_error("Error allocating scratch space\n");
   }
 
+  moodycamel::ConsumerToken ctok{queue};
+
   while (true) {
     if (num_files_enqueued > 0) {
-      try_dequeue_and_process_path(local_scratch, buffer, lines);
+      try_dequeue_and_process_path(ctok, local_scratch, buffer, lines);
     }
     if (!running && num_files_dequeued == num_files_enqueued) {
       break;
@@ -113,13 +114,60 @@ void directory_search::run(std::filesystem::path path) {
   std::vector<std::thread> consumer_threads(options.num_threads);
   if (perform_search) {
     for (std::size_t i = 0; i < options.num_threads; ++i) {
-
       consumer_threads[i] = std::thread(
           std::bind(&directory_search::search_thread_function, this));
     }
   }
 
-  visit_directory_and_enqueue(path);
+  // Kick off the directory traversal
+  moodycamel::ProducerToken ptok{queue};
+  visit_directory_and_enqueue(ptok, path.string(), file_filter_scratch);
+
+  // Spawn threads to handle subdirectories
+  {
+    const auto num_subdir_threads = options.num_threads; 
+    std::vector<std::thread> traversal_threads(num_subdir_threads);
+    for (std::size_t i = 0; i < num_subdir_threads; ++i) {
+      traversal_threads[i] = std::thread([this]() {
+
+        // A local scratch for each traversal thread
+        hs_scratch* local_file_filter_scratch{nullptr};
+        if (options.filter_files) {
+          hs_error_t database_error =
+              hs_alloc_scratch(file_filter_database, &local_file_filter_scratch);
+          if (database_error != HS_SUCCESS) {
+            fprintf(stderr, "Error allocating scratch space\n");
+            hs_free_database(file_filter_database);
+            return;
+          }
+        }
+
+        while (num_dirs_enqueued > 0) {
+          std::string subdir{};
+          auto found = subdirectories.try_dequeue(subdir);
+          if (found) {
+            const auto dot_git_path = std::filesystem::path(subdir) / ".git";
+            if (std::filesystem::exists(dot_git_path)) {
+              // Enqueue git repo
+              git_repo_paths.enqueue(subdir);
+              ++num_git_repos_enqueued;
+            } else {
+              // go deeper
+              moodycamel::ProducerToken ptok{queue};
+              visit_directory_and_enqueue(ptok, subdir, local_file_filter_scratch);
+            }
+            num_dirs_enqueued -= 1;
+          }
+        }
+
+        hs_free_scratch(local_file_filter_scratch);
+      });
+    }
+
+    for (std::size_t i = 0; i < num_subdir_threads; ++i) {
+      traversal_threads[i].join();
+    }
+  }
 
   running = false;
 
@@ -136,18 +184,26 @@ void directory_search::run(std::filesystem::path path) {
 
   // All threads are done processing the file queue
 
-  // Now search git repos one by one
-  if (!git_repo_paths.empty()) {
+  // Search git repos one by one 
+  if (num_git_repos_enqueued > 0) {
     auto current_path = std::filesystem::current_path();
-    for (const auto &repo_path : git_repo_paths) {
-      git_index_search git_index_searcher(
-          database, scratch, file_filter_database, file_filter_scratch,
-          perform_search, options, repo_path);
-      if (chdir(repo_path.c_str()) == 0) {
-        git_index_searcher.run(".");
-        if (chdir(current_path.c_str()) != 0) {
-          throw std::runtime_error("Failed to restore path");
+
+    while (num_git_repos_enqueued > 0) {
+      std::string repo_path{};
+      auto found = git_repo_paths.try_dequeue(repo_path);
+      if (found) {
+
+        git_index_search git_index_searcher(
+            database, scratch, file_filter_database, file_filter_scratch,
+            perform_search, options, repo_path);
+        if (chdir(repo_path.c_str()) == 0) {
+          git_index_searcher.run(".");
+          if (chdir(current_path.c_str()) != 0) {
+            throw std::runtime_error("Failed to restore path");
+          }
         }
+
+        --num_git_repos_enqueued;
       }
     }
   }
@@ -424,24 +480,78 @@ bool directory_search::process_file(std::string &&filename,
   return result;
 }
 
-void directory_search::visit_directory_and_enqueue(
-    const std::filesystem::path &path) {
-  for (auto it = std::filesystem::recursive_directory_iterator(
-           path, std::filesystem::directory_options::skip_permission_denied);
-       it != std::filesystem::recursive_directory_iterator(); ++it) {
-    const auto &path = it->path();
-    const auto &filename = path.filename();
-    const auto filename_cstr = filename.c_str();
+bool ignore_directory(std::string_view dirname) {
+  const std::vector<std::string_view> directories{
+    "bin",
+    "build",
+    "coverage",
+    "database",
+    "db",
+    "dist",
+    "env",
+    "envs",
+    "exe",
+    "images",
+    "img",
+    "imgs",
+    "media",
+    "node_modules",
+    "obj",
+    "out",
+    "target",
+    "temp",
+    "tmp",
+    "venv"
+    "virtualenv",
+  };
 
-    if (it->is_regular_file() && !it->is_symlink()) {
+  return std::find(directories.begin(), directories.end(), dirname) != directories.end();
+}
 
-      if (!options.search_hidden_files && filename_cstr[0] == '.')
+void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch) {
+  DIR *dir = opendir(directory.c_str());
+  if (dir == NULL) {
+    return;
+  }
+
+  struct dirent *entry;
+  while (true) {
+    entry = readdir(dir);
+    if (!entry) {
+      break;
+    }
+
+    // Ignore symlinks
+    if (entry->d_type == DT_LNK) {
+      continue;
+    }
+
+    // Ignore dot files/directories unless requested
+    if (!options.search_hidden_files && entry->d_name[0] == '.')
+      continue;
+
+    // Check if the entry is a directory
+    if (entry->d_type == DT_DIR) {
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
         continue;
+      }
+
+      if (ignore_directory(entry->d_name)) {
+        continue;
+      }
+
+      // Enqueue subdirectory for processing
+      const auto path = std::filesystem::path{directory} / entry->d_name;
+      subdirectories.enqueue(std::move(path));
+      num_dirs_enqueued += 1;
+    }
+    else if (entry->d_type == DT_REG) {
+      const auto path = std::filesystem::path{directory} / entry->d_name;
 
       if (!options.filter_files ||
-          (options.filter_files && filter_file(path.c_str()))) {
+          (options.filter_files && filter_file(path.c_str(), local_file_filter_scratch))) {
         if (perform_search) {
-          queue.enqueue(ptok, path.native());
+          queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;
         } else {
           if (options.is_stdout) {
@@ -451,28 +561,20 @@ void directory_search::visit_directory_and_enqueue(
           }
         }
       }
-    } else if (it->is_directory()) {
-      if ((!options.search_hidden_files && filename_cstr[0] == '.') ||
-          it->is_symlink()) {
-        // Stop processing this directory and its contents
-        it.disable_recursion_pending();
-      } else if (std::filesystem::exists(path / ".git")) {
-        git_repo_paths.push_back(path.string());
-
-        // Stop processing this directory and its contents
-        it.disable_recursion_pending();
-      }
     }
   }
-}
 
-bool directory_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
-                                                    char *buffer,
-                                                    std::string &lines) {
+  closedir(dir);
+} 
+
+bool directory_search::try_dequeue_and_process_path(moodycamel::ConsumerToken& ctok, 
+  hs_scratch_t *local_scratch,
+  char *buffer,
+  std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
   auto count =
-      queue.try_dequeue_bulk_from_producer(ptok, entries, BULK_DEQUEUE_SIZE);
+      queue.try_dequeue_bulk(ctok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
       process_file(std::move(entries[j]), local_scratch, buffer, lines);
@@ -515,9 +617,9 @@ int directory_search::on_file_filter_match(unsigned int id,
   return HS_SUCCESS;
 }
 
-bool directory_search::filter_file(const char *path) {
+bool directory_search::filter_file(const char *path, hs_scratch* local_file_filter_scratch) {
   filter_context ctx{false};
-  if (hs_scan(file_filter_database, path, strlen(path), 0, file_filter_scratch,
+  if (hs_scan(file_filter_database, path, strlen(path), 0, local_file_filter_scratch,
               on_file_filter_match, (void *)(&ctx)) != HS_SUCCESS) {
     return true;
   }

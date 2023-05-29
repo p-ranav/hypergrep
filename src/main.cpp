@@ -4,6 +4,44 @@
 #include <git_index_search.hpp>
 #include <print_help.hpp>
 
+void perform_search(std::string& pattern, std::string_view path, argparse::ArgumentParser& program) {
+  if (!isatty(fileno(stdin))) {
+    // Program was called from a pipe
+
+    file_search s(pattern, program);
+    std::string line;
+    std::size_t current_line_number{1};
+    while (std::getline(std::cin, line)) {
+      // Process line here
+      bool break_loop{false};
+      s.scan_line(line, current_line_number, break_loop);
+      if (break_loop) {
+        break;
+      }
+    }
+  } else {
+    if (std::filesystem::is_regular_file(path)) {
+      file_search s(pattern, program);
+      s.run(path);
+    } else {
+      const auto current_path = std::filesystem::current_path();
+
+      if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
+        if (chdir(path.data()) == 0) {
+          git_index_search s(pattern, current_path, program);
+          s.run(".");
+          if (chdir(current_path.c_str()) != 0) {
+            throw std::runtime_error("Failed to restore path");
+          }
+        }
+      } else {
+        directory_search s(pattern, current_path, program);
+        s.run(path);
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv) {
 
   argparse::ArgumentParser program("hg", VERSION.data(), argparse::default_arguments::none);
@@ -103,13 +141,9 @@ int main(int argc, char **argv) {
       .default_value(default_num_threads)
       .scan<'d', unsigned>();
 
-  program.add_argument("pattern")
-      .default_value(std::string{"."})
-      .help("regular expression pattern");
-
-  program.add_argument("path")
-      .default_value(std::string{"."})
-      .help("path to search");
+  program.add_argument("patterns_and_paths")
+    .default_value(std::vector<std::string>{})
+    .remaining();
 
   try {
     program.parse_args(argc, argv);
@@ -131,50 +165,42 @@ int main(int argc, char **argv) {
   // If --files is not used
   // pattern is required
   const auto files_used = program.get<bool>("--files");
-  if (!files_used && !program.is_used("pattern")) {
-    std::cerr << "1 argument(s) expected. 0 provided." << std::endl;
-    std::cerr << "\nFor more information try --help\n";
-    return 1;
-  }
 
-  auto path = program.get<std::string>("path");
-
-  if (!isatty(fileno(stdin))) {
-    // Program was called from a pipe
-
-    file_search s(program);
-    std::string line;
-    std::size_t current_line_number{1};
-    while (std::getline(std::cin, line)) {
-      // Process line here
-      bool break_loop{false};
-      s.scan_line(line, current_line_number, break_loop);
-      if (break_loop) {
-        break;
-      }
-    }
-  } else {
-    if (std::filesystem::is_regular_file(path)) {
-      file_search s(program);
-      s.run(path);
+  if (files_used) {
+    // Treat everything in patterns_and_paths
+    // as a list of paths
+    //
+    // If empty, just search "."
+    auto empty_pattern = std::string{};
+    auto paths = program.get<std::vector<std::string>>("patterns_and_paths");
+    if (paths.empty()) {
+      perform_search(empty_pattern, ".", program);
     } else {
-
-      const auto current_path = std::filesystem::current_path();
-
-      if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
-        if (chdir(path.c_str()) == 0) {
-          git_index_search s(current_path, program);
-          s.run(".");
-          if (chdir(current_path.c_str()) != 0) {
-            throw std::runtime_error("Failed to restore path");
-          }
-        }
-      } else {
-        directory_search s(current_path, program);
-        s.run(path);
+      for (const auto& path: paths) {
+        perform_search(empty_pattern, path, program);
       }
     }
   }
+  else {
+    // Treat first in patterns_and_paths
+    // as the pattern
+    //
+    // The rest are paths to process
+    //
+    // If size == 1 (i.e. just a pattern provided), just search "."
+    auto patterns_and_paths = program.get<std::vector<std::string>>("patterns_and_paths");
 
+    if (patterns_and_paths.empty()) {
+      // TODO: print meaningful error message + USAGE
+      // e.g., "expected <PATTERN>"
+
+      // TODO: return here
+    }
+    
+    auto& pattern = patterns_and_paths[0];
+    for (std::size_t i = 1; i < patterns_and_paths.size(); ++i) {
+      perform_search(pattern, patterns_and_paths[i], program);
+    }
+  }
   return 0;
 }

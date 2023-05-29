@@ -24,7 +24,7 @@
 
 class file_search {
 public:
-  file_search(argparse::ArgumentParser &program);
+  file_search(std::string& pattern, argparse::ArgumentParser &program);
   file_search(hs_database_t *database, hs_scratch_t *scratch,
               const file_search_options &options);
   ~file_search();
