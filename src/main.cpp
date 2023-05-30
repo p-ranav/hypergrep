@@ -192,10 +192,9 @@ int main(int argc, char **argv) {
     const auto size = patterns_and_paths.size();
 
     if (size == 0) {
-      // TODO: print meaningful error message + USAGE
-      // e.g., "expected <PATTERN>"
-
-      // TODO: return here
+      std::cerr << "1 argument(s) expected for <PATTERN>. 0 provided." << std::endl;
+      std::cerr << "\nFor more information try --help\n";
+      return 1;
     }
     
     auto& pattern = patterns_and_paths[0];

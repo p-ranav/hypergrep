@@ -513,6 +513,7 @@ bool ignore_directory(std::string_view dirname) {
 void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch) {
   DIR *dir = opendir(directory.c_str());
   if (dir == NULL) {
+    std::cerr << "Failed to open '" << directory << "'\n";
     return;
   }
 
