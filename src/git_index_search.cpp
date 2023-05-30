@@ -328,13 +328,11 @@ bool git_index_search::process_file(const char *filename,
         // Do nothing
       } else {
         // Backtrack "remainder" number of characters
-        if (bytes_read > search_size) {
-          if ((bytes_read - search_size) < FILE_CHUNK_SIZE) {
-            lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
-          } else {
-            // Don't lseek back the entire chunk
-            // because that's an infinite loop
-          }
+        if ((bytes_read - search_size) < FILE_CHUNK_SIZE) {
+          lseek(fd, -1 * (bytes_read - search_size), SEEK_CUR);
+        } else {
+          // Don't lseek back the entire chunk
+          // because that's an infinite loop
         }
       }
     }
