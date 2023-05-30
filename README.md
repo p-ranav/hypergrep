@@ -60,7 +60,7 @@ The following tests compare the performance of `hypergrep` against:
 | Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.880 | **0.770** |
 | Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.812 | **0.638** |
 
-### Directory Search: `torvalds/linux`
+### Git Repository Search: `torvalds/linux`
 
 The following searches are performed on the entire [Linux kernel source tree](https://github.com/torvalds/linux) (after running `make defconfig && make -j8`). The commit used is [f1fcb](https://github.com/torvalds/linux/commit/f1fcbaa18b28dec10281551dfe6ed3a3ed80e3d6).
 
@@ -72,7 +72,7 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 | Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.410 | 0.407 | **0.146** |
 | Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 3.762 | 0.484 | 0.386 | **0.146** |
 
-### Directory Search: `apple/swift`
+### Git Repository Search: `apple/swift`
 
 The following searches are performed on the entire [Apple Swift source tree](https://github.com/apple/swift). The commit used is [3865b](https://github.com/apple/swift/commit/3865b5de6f2f56043e21895f65bd0d873e004ed9).
 
@@ -82,6 +82,19 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 | Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 1.169 | 1.238 | 0.186 | **0.095** |
 | Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012263 | 3.131 | 2.598 | 0.673 | **0.482** |
 | Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.828 | 0.174 | 0.072 | **0.047** |
+
+### Directory Search: `/usr`
+
+The following searches are performed on the `/usr` directory. 
+
+| Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
+| :---| ---:| ---:| ---:| ---:| ---:|
+| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13691 | 4.597 | 2.894 | 0.358 | **0.176** |
+| Any IPv4 IP address<br/>`hg -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12643 | 4.727 | 2.340 | 0.380 | **0.177** |
+| Any E-mail address<br/>`hg -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47513 | 5.477 | 37.209 | 0.542 | **0.259** |
+| Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 113 | 4.239 | 1.827 | 0.303 | **0.174** |
+| Count the number of HEX values<br/>`hg -cw "(?:0x)?[0-9A-Fa-f]+"` | 68401 | 5.765 | 28.691 | 1.662 | **0.660** |
+| Search any C/C++ for a literal<br/>`hg --filter "\.(c\|cpp\|h\|hpp)$" test` | 7355 | n/a | 0.505 | 0.140 | **0.086** | 
 
 ## How It Works
 
