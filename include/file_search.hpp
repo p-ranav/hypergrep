@@ -29,14 +29,14 @@ public:
               const file_search_options &options);
   ~file_search();
 
-  void run(std::filesystem::path path);
+  void run(std::filesystem::path path, std::optional<std::size_t> maybe_file_size = {});
   bool scan_line(std::string &line, std::size_t &current_line_number,
                  bool &break_loop);
 
 private:
   void compile_hs_database(std::string &pattern);
 
-  bool mmap_and_scan(std::string &&filename);
+  bool mmap_and_scan(std::string &&filename, std::optional<std::size_t> maybe_file_size = {});
 
 private:
   bool non_owning_database{false};

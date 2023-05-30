@@ -228,10 +228,10 @@ void directory_search::run(std::filesystem::path path) {
 
       // Memory map + multi-threaded search
       while (num_large_files_enqueued > 0) {
-        std::string path{};
-        auto found = large_file_backlog.try_dequeue(path);
+        large_file lf{};
+        auto found = large_file_backlog.try_dequeue(lf);
         if (found) {
-          large_file_searcher.run(path);
+          large_file_searcher.run(lf.path, lf.size);
           --num_large_files_enqueued;
         }
       }
@@ -345,13 +345,18 @@ bool directory_search::process_file(std::string &&filename,
       // The file_search object will memory map and search this large file
       // in multiple threads
 
-      // TODO: Maybe perform a stat and check the file size? 
+      // Perform a stat and check the file size?
       // If the file size is not much larger than total_bytes_read
       // just continue and finish the file
       const auto file_size = std::filesystem::file_size(filename.data());
 
+      // Only bail if the file size if more than twice of
+      // what hypergrep has already searched
       if (total_bytes_read * 2 > file_size) {
-        large_file_backlog.enqueue(std::move(filename));
+
+        large_file lf { std::move(filename), file_size };
+
+        large_file_backlog.enqueue(lf);
         ++num_large_files_enqueued;
         close(fd);
         return false;

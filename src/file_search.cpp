@@ -106,7 +106,7 @@ void file_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-void file_search::run(std::filesystem::path path) {
+void file_search::run(std::filesystem::path path, std::optional<std::size_t> maybe_file_size) {
   if (!database) {
     throw std::runtime_error("Database is NULL");
   }
@@ -119,7 +119,7 @@ void file_search::run(std::filesystem::path path) {
   thread_local_scratch.push_back(local_scratch);
 
   // Memory map and search file in chunks multithreaded
-  mmap_and_scan(std::move(path));
+  mmap_and_scan(std::move(path), maybe_file_size);
 }
 
 struct chunk_result {
@@ -129,18 +129,23 @@ struct chunk_result {
   std::size_t line_count{0};
 };
 
-bool file_search::mmap_and_scan(std::string &&filename) {
+bool file_search::mmap_and_scan(std::string &&filename, std::optional<std::size_t> maybe_file_size) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
   }
 
   // Get the size of the file
-  struct stat sb;
-  if (fstat(fd, &sb) == -1) {
-    return false;
+  std::size_t file_size{0};
+  if (maybe_file_size.has_value()) {
+    file_size = maybe_file_size.value();
+  } else {
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+      return false;
+    }
+    file_size = sb.st_size;
   }
-  std::size_t file_size = sb.st_size;
 
   // Memory map the file
   char *buffer = (char *)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
