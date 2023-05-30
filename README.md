@@ -100,7 +100,7 @@ The following searches are performed on the `/usr` directory.
 
 `hypergrep` can search (1) a directory of files, (2) a git repository, or (3) a single file. The approach taken by `hypergrep` differs in small ways depending on what is being searched. 
 
-For any directory search, the approach is: Find files that needs to be searched. Enqueue these files onto a lock-free queue. Spawn N threads that read from the queue and scan for matches. Continue until all relevant files are searched.  
+For any directory search, the approach is: Find files that needs to be searched. Enqueue these files onto a lock-free queue. Spawn N threads that consume from the queue, open each file, and scan for matches. Continue this until all files in the queue are searched.  
 
 ![Workflow](doc/workflow.png)
 
