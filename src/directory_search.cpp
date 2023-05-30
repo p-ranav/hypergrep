@@ -553,9 +553,9 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
         continue;
       }
 
-      if (ignore_directory(entry->d_name)) {
-        continue;
-      }
+      //if (ignore_directory(entry->d_name)) {
+      //  continue;
+      //}
 
       // Enqueue subdirectory for processing
       const auto path = std::filesystem::path{directory} / entry->d_name;
