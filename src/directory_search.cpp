@@ -321,6 +321,7 @@ bool directory_search::process_file(std::string &&filename,
 
   // Read the file in chunks and perform search
   bool first{true};
+  bool continue_even_though_large_file{false};
   while (true) {
 
     auto ret = read(fd, buffer, FILE_CHUNK_SIZE);
@@ -337,18 +338,26 @@ bool directory_search::process_file(std::string &&filename,
       // File size limit reached
       close(fd);
       return false;
-    } else if (total_bytes_read > LARGE_FILE_SIZE) {
+    } else if (!continue_even_though_large_file && total_bytes_read > LARGE_FILE_SIZE) {
       // This file is a bit large
       // Add it to the backlog and process it later with a file_search object
       // instead of using a single thread to read in chunks
       // The file_search object will memory map and search this large file
       // in multiple threads
 
-      large_file_backlog.enqueue(std::move(filename));
-      ++num_large_files_enqueued;
+      // TODO: Maybe perform a stat and check the file size? 
+      // If the file size is not much larger than total_bytes_read
+      // just continue and finish the file
+      const auto file_size = std::filesystem::file_size(filename.data());
 
-      close(fd);
-      return false;
+      if (total_bytes_read * 2 > file_size) {
+        large_file_backlog.enqueue(std::move(filename));
+        ++num_large_files_enqueued;
+        close(fd);
+        return false;
+      } else {
+        continue_even_though_large_file = true;
+      }
     }
 
     if (first && !options.search_binary_files) {
