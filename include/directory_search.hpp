@@ -86,7 +86,11 @@ private:
   directory_search_options options;
 
   // Optimizations for large files
-  moodycamel::ConcurrentQueue<std::string> large_file_backlog;
+  struct large_file {
+    std::string path;
+    std::size_t size;
+  };
+  moodycamel::ConcurrentQueue<large_file> large_file_backlog;
   std::atomic<std::size_t> num_large_files_enqueued{0};
 
   // Optimizations for git repos

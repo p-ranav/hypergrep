@@ -228,10 +228,10 @@ void directory_search::run(std::filesystem::path path) {
 
       // Memory map + multi-threaded search
       while (num_large_files_enqueued > 0) {
-        std::string path{};
-        auto found = large_file_backlog.try_dequeue(path);
+        large_file lf{};
+        auto found = large_file_backlog.try_dequeue(lf);
         if (found) {
-          large_file_searcher.run(path);
+          large_file_searcher.run(lf.path, lf.size);
           --num_large_files_enqueued;
         }
       }
@@ -321,6 +321,7 @@ bool directory_search::process_file(std::string &&filename,
 
   // Read the file in chunks and perform search
   bool first{true};
+  bool continue_even_though_large_file{false};
   while (true) {
 
     auto ret = read(fd, buffer, FILE_CHUNK_SIZE);
@@ -337,18 +338,31 @@ bool directory_search::process_file(std::string &&filename,
       // File size limit reached
       close(fd);
       return false;
-    } else if (total_bytes_read > LARGE_FILE_SIZE) {
+    } else if (!continue_even_though_large_file && total_bytes_read > LARGE_FILE_SIZE) {
       // This file is a bit large
       // Add it to the backlog and process it later with a file_search object
       // instead of using a single thread to read in chunks
       // The file_search object will memory map and search this large file
       // in multiple threads
 
-      large_file_backlog.enqueue(std::move(filename));
-      ++num_large_files_enqueued;
+      // Perform a stat and check the file size?
+      // If the file size is not much larger than total_bytes_read
+      // just continue and finish the file
+      const auto file_size = std::filesystem::file_size(filename.data());
 
-      close(fd);
-      return false;
+      // Only bail if the file size if more than twice of
+      // what hypergrep has already searched
+      if (total_bytes_read * 2 > file_size) {
+
+        large_file lf { std::move(filename), file_size };
+
+        large_file_backlog.enqueue(lf);
+        ++num_large_files_enqueued;
+        close(fd);
+        return false;
+      } else {
+        continue_even_though_large_file = true;
+      }
     }
 
     if (first && !options.search_binary_files) {
@@ -539,9 +553,9 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
         continue;
       }
 
-      if (ignore_directory(entry->d_name)) {
-        continue;
-      }
+      //if (ignore_directory(entry->d_name)) {
+      //  continue;
+      //}
 
       // Enqueue subdirectory for processing
       const auto path = std::filesystem::path{directory} / entry->d_name;
