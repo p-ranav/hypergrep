@@ -160,7 +160,9 @@ void directory_search::run(std::filesystem::path path) {
           }
         }
 
-        hs_free_scratch(local_file_filter_scratch);
+        if (local_file_filter_scratch) {
+          hs_free_scratch(local_file_filter_scratch);
+        }
       });
     }
 
