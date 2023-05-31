@@ -40,7 +40,7 @@ private:
 
 private:
   // Compile the HyperScan database for search
-  void compile_hs_database(std::string &pattern);
+  void compile_hs_database(const std::vector<std::string> &pattern_list);
 
   bool process_file(std::string &&filename, hs_scratch_t *local_scratch,
                     char *buffer, std::string &lines);

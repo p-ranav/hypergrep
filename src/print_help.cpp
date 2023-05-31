@@ -161,6 +161,22 @@ void print_help() {
   print_description_line(
       "individual matches of the given pattern for each file searched\n");
 
+  // Pattern argument 
+  print_option_name(is_stdout, "-e, --regexp", "<PATTERN>...");
+  print_description_line(
+      "A pattern to search for. This option can be provided multiple times,");
+  print_description_line(
+      "where all patterns given are searched. Lines matching at least one"
+  );
+  print_description_line(
+      "of the provided patterns are printed, e.g.,\n"
+  );
+  print_option_name(is_stdout,
+                    "        hg -e 'myFunctionCall' -e 'myErrorCallback'\n");
+  print_description_line(
+      "will search for any occurrence of either of the patterns.\n"
+  );
+
   // Files
   print_option_name(is_stdout, "--files");
   print_description_line(

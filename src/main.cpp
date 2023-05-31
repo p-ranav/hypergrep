@@ -80,9 +80,9 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--ignore-submodules")
-      .default_value(false)
-      .implicit_value(true);
+  program.add_argument("-e", "--regexp")
+    .default_value<std::vector<std::string>>({})
+    .append();
 
   program.add_argument("--files").default_value(false).implicit_value(true);
 
@@ -99,6 +99,10 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("--ignore-gitindex")
+      .default_value(false)
+      .implicit_value(true);
+
+  program.add_argument("--ignore-submodules")
       .default_value(false)
       .implicit_value(true);
 
@@ -170,9 +174,10 @@ int main(int argc, char **argv) {
 
   // If --files is not used
   // pattern is required
+  const auto regexp_used = program.is_used("-e");
   const auto files_used = program.get<bool>("--files");
 
-  if (files_used) {
+  if (files_used || regexp_used) {
     // Treat everything in patterns_and_paths
     // as a list of paths
     //

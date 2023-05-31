@@ -35,13 +35,16 @@ public:
                  bool &break_loop);
 
 private:
-  void compile_hs_database(std::string &pattern);
+  void compile_hs_database(const std::vector<std::string> &pattern_list);
 
   bool mmap_and_scan(std::string &&filename,
                      std::optional<std::size_t> maybe_file_size = {});
 
 private:
   bool non_owning_database{false};
+  // If false, hypergrep will instead simply print the files
+  // that _will_ be searched
+  bool perform_search{true};
   bool compile_pattern_as_literal{false};
 
   hs_database_t *database = NULL;
