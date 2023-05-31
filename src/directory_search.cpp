@@ -496,34 +496,6 @@ bool directory_search::process_file(std::string &&filename,
   return result;
 }
 
-bool ignore_directory(std::string_view dirname) {
-  const std::vector<std::string_view> directories{
-    "bin",
-    "build",
-    "coverage",
-    "database",
-    "db",
-    "dist",
-    "env",
-    "envs",
-    "exe",
-    "images",
-    "img",
-    "imgs",
-    "media",
-    "node_modules",
-    "obj",
-    "out",
-    "target",
-    "temp",
-    "tmp",
-    "venv"
-    "virtualenv",
-  };
-
-  return std::find(directories.begin(), directories.end(), dirname) != directories.end();
-}
-
 void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch) {
   DIR *dir = opendir(directory.c_str());
   if (dir == NULL) {
@@ -549,14 +521,6 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
 
     // Check if the entry is a directory
     if (entry->d_type == DT_DIR) {
-      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-        continue;
-      }
-
-      //if (ignore_directory(entry->d_name)) {
-      //  continue;
-      //}
-
       // Enqueue subdirectory for processing
       const auto path = std::filesystem::path{directory} / entry->d_name;
       subdirectories.enqueue(std::move(path));
