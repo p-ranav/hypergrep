@@ -83,8 +83,6 @@ directory_search::~directory_search() {
   if (database) {
     hs_free_database(database);
   }
-  fmt::print("{}/{} {}\n", num_files_dequeued.load(), num_files_enqueued.load(),
-             num_large_files_enqueued.load());
 }
 
 void directory_search::search_thread_function() {
@@ -597,6 +595,12 @@ bool directory_search::try_dequeue_and_process_path(
 }
 
 bool directory_search::construct_file_filtering_hs_database() {
+
+  negate_filter = options.filter_file_pattern[0] == '!';
+  if (negate_filter) {
+    options.filter_file_pattern = options.filter_file_pattern.substr(1);
+  }
+
   hs_compile_error_t *compile_error = NULL;
   hs_error_t error_code =
       hs_compile(options.filter_file_pattern.c_str(), HS_FLAG_UTF8,
@@ -629,11 +633,25 @@ int directory_search::on_file_filter_match(unsigned int id,
 
 bool directory_search::filter_file(const char *path,
                                    hs_scratch *local_file_filter_scratch) {
+
+  // Result of `true` means that the file will be searched
+  // Result of `false` means that the file will be ignored
+  //
+  // If negate_filter is `true`, the result is flipped
+  bool result{false};
+
   filter_context ctx{false};
   if (hs_scan(file_filter_database, path, strlen(path), 0,
               local_file_filter_scratch, on_file_filter_match,
               (void *)(&ctx)) != HS_SUCCESS) {
-    return true;
+    result = true;
+  } else {
+    result = ctx.result;
   }
-  return ctx.result;
+
+  if (negate_filter) {
+    result = !result;
+  }
+
+  return result;
 }

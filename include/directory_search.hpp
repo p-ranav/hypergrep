@@ -85,6 +85,10 @@ private:
   hs_scratch_t *scratch = NULL;
   hs_database_t *file_filter_database = NULL;
   hs_scratch_t *file_filter_scratch = NULL;
+  // If the filter pattern starts with '!'
+  // then negate the result of the filter
+  bool negate_filter{false};
+
   directory_search_options options;
 
   // Optimizations for large files
