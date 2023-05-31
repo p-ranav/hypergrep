@@ -161,12 +161,6 @@ void print_help() {
   print_description_line(
       "individual matches of the given pattern for each file searched\n");
 
-  // Exclude git submodules
-  print_option_name(is_stdout, "--exclude-submodules");
-  print_description_line(
-      "For any detected git repository, this option will cause");
-  print_description_line("hypergrep to exclude any submodules found.\n");
-
   // Files
   print_option_name(is_stdout, "--files");
   print_description_line(
@@ -177,9 +171,16 @@ void print_help() {
   print_option_name(is_stdout, "--filter", "<FILTER_PATTERN>");
   print_description_line("Filter paths based on a regex pattern, e.g.,\n");
   print_option_name(is_stdout,
-                    "        hg --filter '(include|src)/.*\\.(c|cpp|h|hpp)'\n");
+                    "        hg --filter '(include|src)/.*\\.(c|cpp|h|hpp)$'\n");
   print_description_line(
       "will search C/C++ files in the any */include/* and */src/* paths.\n");
+  print_description_line(
+      "A filter can be negated by prefixing the pattern with !, e.g.,\n"
+  );
+  print_option_name(is_stdout,
+                    "        hg --filter '!\\.html$'\n");
+  print_description_line(
+      "will search any files that are not HTML files.\n");
 
   // Fixed Strings
   print_option_name(is_stdout, "-F, --fixed-strings");
@@ -231,6 +232,12 @@ void print_help() {
   print_description_line(
       "hypergrep will search this path as if it were a normal directory.\n"
   );
+
+  // Exclude git submodules
+  print_option_name(is_stdout, "--ignore-submodules");
+  print_description_line(
+      "For any detected git repository, this option will cause");
+  print_description_line("hypergrep to exclude any submodules found.\n");
 
   // Include zero matches
   print_option_name(is_stdout, "--include-zero");

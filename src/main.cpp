@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--exclude-submodules")
+  program.add_argument("--ignore-submodules")
       .default_value(false)
       .implicit_value(true);
 

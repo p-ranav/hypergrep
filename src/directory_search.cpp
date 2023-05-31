@@ -12,7 +12,7 @@ directory_search::directory_search(std::string &pattern,
   options.num_threads = program.get<unsigned>("-j");
   auto show_line_number = program.get<bool>("-n");
   auto hide_line_number = program.get<bool>("-N");
-  options.exclude_submodules = program.get<bool>("--exclude-submodules");
+  options.exclude_submodules = program.get<bool>("--ignore-submodules");
   options.ignore_case = program.get<bool>("-i");
   options.ignore_gitindex = program.get<bool>("--ignore-gitindex");
   options.count_include_zeros = program.get<bool>("--include-zero");
