@@ -5,7 +5,7 @@
 #include <compiler.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
-#include <directory_search_options.hpp>
+#include <search_options.hpp>
 #include <fcntl.h>
 #include <file_filter.hpp>
 #include <file_search.hpp>
@@ -32,8 +32,7 @@ public:
                    argparse::ArgumentParser &program);
   git_index_search(hs_database_t *database, hs_scratch_t *scratch,
                    hs_database_t *file_filter_database,
-                   hs_scratch_t *file_filter_scratch, bool negate_filter, bool perform_search,
-                   const directory_search_options &options,
+                   hs_scratch_t *file_filter_scratch, const search_options &options,
                    const std::filesystem::path &path);
   ~git_index_search();
   void run(std::filesystem::path path);
@@ -58,11 +57,6 @@ private:
   static inline bool libgit2_initialized{false};
   std::filesystem::path basepath{};
 
-  // If false, hypergrep will instead simply print the files
-  // that _will_ be searched
-  bool perform_search{true};
-  bool compile_pattern_as_literal{false};
-
   moodycamel::ConcurrentQueue<const char *> queue;
   moodycamel::ProducerToken ptok{queue};
 
@@ -79,7 +73,7 @@ private:
   // then negate the result of the filter
   bool negate_filter{false};
 
-  directory_search_options options;
+  search_options options;
 
   std::vector<git_repository *> garbage_collect_repo;
   std::vector<git_index *> garbage_collect_index;

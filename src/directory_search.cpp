@@ -5,89 +5,7 @@ directory_search::directory_search(std::string &pattern,
                                    const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
-  options.search_binary_files = program.get<bool>("--text");
-  options.count_matching_lines = program.get<bool>("-c");
-  options.count_matches = program.get<bool>("--count-matches");
-  compile_pattern_as_literal = program.get<bool>("-F");
-  options.num_threads = program.get<unsigned>("-j");
-  auto show_line_number = program.get<bool>("-n");
-  auto hide_line_number = program.get<bool>("-N");
-  options.exclude_submodules = program.get<bool>("--ignore-submodules");
-  options.ignore_case = program.get<bool>("-i");
-  options.ignore_gitindex = program.get<bool>("--ignore-gitindex");
-  options.count_include_zeros = program.get<bool>("--include-zero");
-  options.print_filenames = !(program.get<bool>("-I"));
-  options.print_only_filenames = program.get<bool>("-l");
-  if (program.is_used("--filter")) {
-    options.filter_file_pattern = program.get<std::string>("--filter");
-    options.filter_files = true;
-    if (!construct_file_filtering_hs_database(&file_filter_database, &file_filter_scratch, options, negate_filter)) {
-      throw std::runtime_error("Error compiling pattern " +
-                               options.filter_file_pattern);
-    }
-  }
-
-  if (program.is_used("-M")) {
-    options.max_column_limit = program.get<std::size_t>("-M");
-  }
-
-  if (program.is_used("--max-filesize")) {
-    const auto max_file_size_spec = program.get<std::string>("--max-filesize");
-    options.max_file_size = size_to_bytes(max_file_size_spec);
-  }
-
-  // Check if word boundary is requested
-  if (program.get<bool>("-w")) {
-    pattern = "\\b" + pattern + "\\b";
-
-    // This cannot work as a literal anymore
-    compile_pattern_as_literal = false;
-  }
-
-  options.use_ucp = program.get<bool>("--ucp");
-  options.search_hidden_files = program.get<bool>("--hidden");
-  options.print_only_matching_parts = program.get<bool>("-o");
-
-  options.is_stdout = isatty(STDOUT_FILENO) == 1;
-
-  if (options.is_stdout) {
-    // By default show line numbers
-    // unless -N is used
-    options.show_line_numbers = (!hide_line_number);
-  } else {
-    // By default hide line numbers
-    // unless -n is used
-    options.show_line_numbers = show_line_number;
-  }
-
-  options.show_column_numbers = program.get<bool>("--column");
-  if (options.show_column_numbers) {
-    options.show_line_numbers = true;
-  }
-
-  options.show_byte_offset = program.get<bool>("-b");
-
-  perform_search = !program.get<bool>("--files");
-  if (perform_search) {
-
-    auto pattern_list = program.get<std::vector<std::string>>("-e");
-
-    if (program.get<bool>("-w")) {
-      // Add word boundary around each pattern
-      for (auto& pattern : pattern_list) {
-        pattern = "\\b" + pattern + "\\b";
-      }
-
-      // This cannot work as a literal anymore
-      compile_pattern_as_literal = false;
-    }
-
-    if (pattern_list.empty()) {
-      compile_hs_database(&database, &scratch, options, {pattern}, compile_pattern_as_literal);
-    } else {
-      compile_hs_database(&database, &scratch, options, pattern_list, compile_pattern_as_literal);
-    }
-  }
+  initialize_search(pattern, program, options, &database, &scratch, &file_filter_database, &file_filter_scratch);
 }
 
 directory_search::~directory_search() {
@@ -135,7 +53,7 @@ void directory_search::run(std::filesystem::path path) {
   }
 
   std::vector<std::thread> consumer_threads(options.num_threads);
-  if (perform_search) {
+  if (options.perform_search) {
     for (std::size_t i = 0; i < options.num_threads; ++i) {
       consumer_threads[i] = std::thread(
           std::bind(&directory_search::search_thread_function, this));
@@ -207,7 +125,7 @@ void directory_search::run(std::filesystem::path path) {
   // Done enqueuing files for search
 
   // Help with the search now:
-  if (perform_search) {
+  if (options.perform_search) {
     search_thread_function();
 
     for (std::size_t i = 0; i < options.num_threads; ++i) {
@@ -228,8 +146,7 @@ void directory_search::run(std::filesystem::path path) {
 
         git_index_search git_index_searcher(
             database, scratch, file_filter_database, file_filter_scratch,
-            negate_filter,
-            perform_search, options, repo_path);
+            options, repo_path);
         if (chdir(repo_path.c_str()) == 0) {
           git_index_searcher.run(".");
           if (chdir(current_path.c_str()) != 0) {
@@ -242,19 +159,10 @@ void directory_search::run(std::filesystem::path path) {
     }
   }
 
-  if (perform_search) {
+  if (options.perform_search) {
     // Now search large files one by one using the large_file_searcher
     if (num_large_files_enqueued > 0) {
-      file_search large_file_searcher(
-          database, scratch,
-          file_search_options{
-              options.is_stdout, options.show_line_numbers,
-              options.show_column_numbers, options.show_byte_offset,
-              options.ignore_case, options.count_matching_lines,
-              options.count_matches, options.count_include_zeros,
-              options.use_ucp, options.num_threads, options.print_filenames,
-              options.print_only_matching_parts, options.max_column_limit,
-              options.print_only_filenames});
+      file_search large_file_searcher(database, scratch, options);
 
       // Memory map + multi-threaded search
       while (num_large_files_enqueued > 0) {
@@ -546,8 +454,8 @@ void directory_search::visit_directory_and_enqueue(
 
       if (!options.filter_files ||
           (options.filter_files &&
-           filter_file(path.c_str(), file_filter_database, local_file_filter_scratch, negate_filter))) {
-        if (perform_search) {
+           filter_file(path.c_str(), file_filter_database, local_file_filter_scratch, options.negate_filter))) {
+        if (options.perform_search) {
           queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;
         } else {

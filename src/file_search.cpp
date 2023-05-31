@@ -1,84 +1,18 @@
 #include <file_search.hpp>
 
-file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
-                         const file_search_options &options)
-    : database(database), scratch(scratch), options(options) {
-  non_owning_database = true;
-}
-
 file_search::file_search(std::string &pattern,
                          argparse::ArgumentParser &program) {
-  options.count_matching_lines = program.get<bool>("-c");
-  options.count_matches = program.get<bool>("--count-matches");
-  compile_pattern_as_literal = program.get<bool>("-F");
-  options.num_threads = program.get<unsigned>("-j");
+  initialize_search(pattern, program, options, &database, &scratch, &file_filter_database, &file_filter_scratch);
 
   if (!program.is_used("-j")) {
     options.num_threads += 1;
   }
+}
 
-  options.print_only_filenames = program.get<bool>("-l");
-
-  if (program.is_used("-M")) {
-    options.max_column_limit = program.get<std::size_t>("-M");
-  }
-
-  auto show_line_number = program.get<bool>("-n");
-  auto hide_line_number = program.get<bool>("-N");
-  options.ignore_case = program.get<bool>("-i");
-  options.count_include_zeros = program.get<bool>("--include-zero");
-  options.print_only_matching_parts = program.get<bool>("-o");
-
-  // Check if word boundary is requested
-  if (program.get<bool>("-w")) {
-    pattern = "\\b" + pattern + "\\b";
-
-    // This cannot work as a literal anymore
-    compile_pattern_as_literal = false;
-  }
-
-  options.use_ucp = program.get<bool>("--ucp");
-
-  options.is_stdout = isatty(STDOUT_FILENO) == 1;
-
-  if (options.is_stdout) {
-    // By default show line numbers
-    // unless -N is used
-    options.show_line_numbers = (!hide_line_number);
-  } else {
-    // By default hide line numbers
-    // unless -n is used
-    options.show_line_numbers = show_line_number;
-  }
-
-  options.show_column_numbers = program.get<bool>("--column");
-  if (options.show_column_numbers) {
-    options.show_line_numbers = true;
-  }
-
-  options.show_byte_offset = program.get<bool>("-b");
-
-  perform_search = !program.get<bool>("--files");
-  if (perform_search) {
-
-    auto pattern_list = program.get<std::vector<std::string>>("-e");
-
-    if (program.get<bool>("-w")) {
-      // Add word boundary around each pattern
-      for (auto& pattern : pattern_list) {
-        pattern = "\\b" + pattern + "\\b";
-      }
-
-      // This cannot work as a literal anymore
-      compile_pattern_as_literal = false;
-    }
-
-    if (pattern_list.empty()) {
-      compile_hs_database(&database, &scratch, options, {pattern}, compile_pattern_as_literal);
-    } else {
-      compile_hs_database(&database, &scratch, options, pattern_list, compile_pattern_as_literal);
-    }
-  }
+file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
+                         const search_options &options)
+    : database(database), scratch(scratch), options(options) {
+  non_owning_database = true;
 }
 
 file_search::~file_search() {
@@ -99,7 +33,7 @@ file_search::~file_search() {
 void file_search::run(std::filesystem::path path,
                       std::optional<std::size_t> maybe_file_size) {
 
-  if (!perform_search) {
+  if (!options.perform_search) {
     if (options.is_stdout) {
       fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
     } else {
@@ -317,7 +251,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
           std::size_t previous_line_number = current_line_number;
           num_matching_lines += process_fn(
               filename.data(), start, end - start, next_result.matches,
-              previous_line_number, lines, options.print_filename,
+              previous_line_number, lines, options.print_filenames,
               options.is_stdout, options.show_line_numbers,
               options.show_column_numbers, options.show_byte_offset,
               options.print_only_matching_parts, options.max_column_limit,
@@ -326,7 +260,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
           if (!options.count_matching_lines && !options.count_matches &&
               !options.print_only_filenames && !lines.empty()) {
 
-            if (options.print_filename && !filename_printed) {
+            if (options.print_filenames && !filename_printed) {
               if (options.is_stdout) {
                 fmt::print(fg(fmt::color::steel_blue), "{}\n", filename);
               }
@@ -354,7 +288,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
 
   if ((num_matching_lines > 0 || options.count_include_zeros) &&
       options.count_matching_lines && !options.print_only_filenames) {
-    if (options.print_filename) {
+    if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
                    fmt::format(fg(fmt::color::steel_blue), "{}", filename),
@@ -367,7 +301,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
     }
   } else if ((num_matches.load() > 0 || options.count_include_zeros) &&
              options.count_matches && !options.print_only_filenames) {
-    if (options.print_filename) {
+    if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
                    fmt::format(fg(fmt::color::steel_blue), "{}", filename),

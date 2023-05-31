@@ -6,7 +6,7 @@
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
 #include <fcntl.h>
-#include <file_search_options.hpp>
+#include <search_options.hpp>
 #include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
@@ -27,7 +27,7 @@ class file_search {
 public:
   file_search(std::string &pattern, argparse::ArgumentParser &program);
   file_search(hs_database_t *database, hs_scratch_t *scratch,
-              const file_search_options &options);
+              const search_options &options);
   ~file_search();
 
   void run(std::filesystem::path path,
@@ -41,14 +41,16 @@ private:
 
 private:
   bool non_owning_database{false};
-  // If false, hypergrep will instead simply print the files
-  // that _will_ be searched
-  bool perform_search{true};
-  bool compile_pattern_as_literal{false};
 
   hs_database_t *database = NULL;
   hs_scratch_t *scratch = NULL;
+  hs_database_t *file_filter_database = NULL;
+  hs_scratch_t *file_filter_scratch = NULL;
+  // If the filter pattern starts with '!'
+  // then negate the result of the filter
+  bool negate_filter{false};
+
   std::vector<hs_scratch *> thread_local_scratch;
   std::vector<hs_scratch *> thread_local_scratch_per_line;
-  file_search_options options;
+  search_options options;
 };

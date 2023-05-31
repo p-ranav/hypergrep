@@ -5,7 +5,7 @@
 #include <compiler.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
-#include <directory_search_options.hpp>
+#include <search_options.hpp>
 #include <dirent.h>
 #include <fcntl.h>
 #include <file_filter.hpp>
@@ -52,11 +52,6 @@ private:
 private:
   std::filesystem::path search_path;
 
-  // If false, hypergrep will instead simply print the files
-  // that _will_ be searched
-  bool perform_search{true};
-  bool compile_pattern_as_literal{false};
-
   // Directory traversal
   moodycamel::ConcurrentQueue<std::string> subdirectories;
   std::atomic<std::size_t> num_dirs_enqueued{0};
@@ -75,7 +70,7 @@ private:
   // then negate the result of the filter
   bool negate_filter{false};
 
-  directory_search_options options;
+  search_options options;
 
   // Optimizations for large files
   struct large_file {
