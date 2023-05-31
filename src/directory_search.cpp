@@ -82,6 +82,7 @@ directory_search::~directory_search() {
   if (database) {
     hs_free_database(database);
   }
+  fmt::print("{}/{} {}\n", num_files_dequeued.load(), num_files_enqueued.load(), num_large_files_enqueued.load());
 }
 
 void directory_search::search_thread_function() {
@@ -337,6 +338,7 @@ bool directory_search::process_file(std::string &&filename,
     if (max_file_size_provided && total_bytes_read > max_file_size) {
       // File size limit reached
       close(fd);
+      lines.clear();
       return false;
     } else if (!continue_even_though_large_file && total_bytes_read > LARGE_FILE_SIZE) {
       // This file is a bit large
@@ -359,6 +361,7 @@ bool directory_search::process_file(std::string &&filename,
         large_file_backlog.enqueue(lf);
         ++num_large_files_enqueued;
         close(fd);
+        lines.clear();
         return false;
       } else {
         continue_even_though_large_file = true;
@@ -390,6 +393,12 @@ bool directory_search::process_file(std::string &&filename,
     std::size_t search_size = bytes_read;
     if (last_newline) {
       search_size = last_newline - buffer;
+    } else {
+      // Not a single newline in the entire chunk
+      // This could be some binary file or some minified JS file
+      // Skip it
+      result = false;
+      break;
     }
 
     std::mutex match_mutex;
@@ -436,6 +445,13 @@ bool directory_search::process_file(std::string &&filename,
           } else {
             // Don't lseek back the entire chunk
             // because that's an infinite loop
+
+            // Not a single newline in the entire chunk
+            // This could be some binary file or some minified JS file
+            // Skip it
+            result = false;
+            break;
+
           }
         }
       }

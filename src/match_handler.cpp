@@ -119,30 +119,41 @@ std::size_t process_matches(
         }
       }
 
-      if (apply_column_limit) {
-        static std::size_t column_limit =
-            apply_column_limit ? max_column_limit.value() : 0;
-        const auto line_length = end_of_line - start_of_line;
-        if (line_length > column_limit) {
-          // with line number: [Omitted long line with 2 matches]
-          // without line number: [Omitted long matching line]
-          if (show_line_numbers) {
-            if (is_stdout) {
-              lines += fmt::format(fg(fmt::color::green),
-                                   "{}:", current_line_number);
-              lines += fmt::format("[Omitted long line with {} matches]\n",
-                                   matches.size());
-            } else {
-              lines += fmt::format("{}:[Omitted long line with {} matches]\n",
-                                   current_line_number, matches.size());
-            }
-          } else {
+      const auto line_length = end_of_line - start_of_line;
+
+      static std::size_t column_limit =
+          apply_column_limit ? max_column_limit.value() : MAX_LINE_LENGTH;
+      if (line_length > column_limit) {
+        // with line number: [Omitted long line with 2 matches]
+        // without line number: [Omitted long matching line]
+        if (show_line_numbers) {
+          if (is_stdout) {
+            lines += fmt::format(fg(fmt::color::green),
+                                  "{}:", current_line_number);
             lines += fmt::format("[Omitted long line with {} matches]\n",
-                                 matches.size());
+                                  matches.size());
+          } else {
+
+            if (print_filename) {
+              lines += fmt::format("{}:{}:[Omitted long line with {} matches]\n", filename, current_line_number, matches.size());
+            } else {
+              lines += fmt::format("{}:[Omitted long line with {} matches]\n", current_line_number, matches.size());
+            }
           }
-          line_too_long = true;
-          break;
+        } else {
+          if (is_stdout) {
+            lines += fmt::format("[Omitted long line with {} matches]\n",
+                                  matches.size());
+          } else {
+            if (print_filename) {
+              lines += fmt::format("{}:[Omitted long line with {} matches]\n", filename, matches.size());
+            } else {
+              lines += fmt::format("[Omitted long line with {} matches]\n", matches.size());
+            }
+          }
         }
+        line_too_long = true;
+        break;
       }
 
       if (first || print_only_matching_parts) {
@@ -235,10 +246,10 @@ std::size_t process_matches_nocolor_nostdout(
 
   // This map is of the form:
   // {
-  //    line_number_1: to_1,
-  //    line_number_2: to_2
+  //    line_number_1: {to_1, number_of_matches_1},
+  //    line_number_2: {to_2, number_of_matches_2}
   // }
-  std::map<std::size_t, std::size_t> line_number_match;
+  std::map<std::size_t, std::pair<std::size_t, std::size_t>> line_number_match;
   {
     char *index = buffer;
     std::size_t previous_line_number = current_line_number;
@@ -256,7 +267,11 @@ std::size_t process_matches_nocolor_nostdout(
           line_number_match.end()) {
         // line number not in map
         // save the match
-        line_number_match.insert(std::make_pair(current_line_number, to));
+        line_number_match.insert(std::make_pair(current_line_number, std::make_pair(to, 1)));
+      } else {
+        // line number is in the map
+        // increment the number of matches
+        line_number_match.at(current_line_number).second += 1;
       }
       previous_line_number = current_line_number;
       index = buffer + to;
@@ -265,7 +280,7 @@ std::size_t process_matches_nocolor_nostdout(
 
   for (auto &matching_line : line_number_match) {
     auto &current_line_number = matching_line.first;
-    auto &to = matching_line.second;
+    auto &[to, number_of_matches] = matching_line.second;
 
     std::size_t start_of_line{0}, end_of_line{0};
 
@@ -284,22 +299,26 @@ std::size_t process_matches_nocolor_nostdout(
       end_of_line = to;
     }
 
-    if (apply_column_limit) {
-      static std::size_t column_limit =
-          apply_column_limit ? max_column_limit.value() : 0;
-      const auto line_length = end_of_line - start_of_line;
-      if (line_length > column_limit) {
-        // with line number: [Omitted long line with 2 matches]
-        // without line number: [Omitted long matching line]
-        if (show_line_numbers) {
-          lines += fmt::format("{}:[Omitted long line with {} matches]\n",
-                               current_line_number, matches.size());
+    const auto line_length = end_of_line - start_of_line;
+    static std::size_t column_limit =
+        apply_column_limit ? max_column_limit.value() : MAX_LINE_LENGTH;
+    if (line_length > column_limit) {
+      // with line number: [Omitted long line with 2 matches]
+      // without line number: [Omitted long matching line]
+      if (show_line_numbers) {
+        if (print_filename) {
+          lines += fmt::format("{}:{}:[Omitted long line with {} matches]\n", filename, current_line_number, number_of_matches);
         } else {
-          lines += fmt::format("[Omitted long line with {} matches]\n",
-                               matches.size());
+          lines += fmt::format("{}:[Omitted long line with {} matches]\n", current_line_number, number_of_matches);
         }
-        continue;
+      } else {
+        if (print_filename) {
+          lines += fmt::format("{}:[Omitted long line with {} matches]\n", filename, number_of_matches);
+        } else {
+          lines += fmt::format("[Omitted long line with {} matches]\n", number_of_matches);
+        }
       }
+      continue;
     }
 
     if (show_line_numbers) {

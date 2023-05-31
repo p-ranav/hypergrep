@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <constants.hpp>
 #include <file_context.hpp>
 #include <fmt/color.h>
 #include <fmt/format.h>

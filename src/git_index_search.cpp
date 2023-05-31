@@ -260,6 +260,7 @@ bool git_index_search::process_file(const char *filename,
     if (max_file_size_provided && total_bytes_read > max_file_size) {
       // File size limit reached
       close(fd);
+      lines.clear();
       return false;
     }
 
@@ -286,6 +287,12 @@ bool git_index_search::process_file(const char *filename,
     std::size_t search_size = bytes_read;
     if (last_newline) {
       search_size = last_newline - buffer;
+    } else {
+      // Not a single newline in the entire chunk
+      // This could be some binary file or some minified JS file
+      // Skip it
+      result = false;
+      break;
     }
 
     std::mutex match_mutex;
@@ -333,6 +340,13 @@ bool git_index_search::process_file(const char *filename,
         } else {
           // Don't lseek back the entire chunk
           // because that's an infinite loop
+
+          // Not a single newline in the entire chunk
+          // This could be some binary file or some minified JS file
+          // Skip it
+          result = false;
+          break;
+
         }
       }
     }
