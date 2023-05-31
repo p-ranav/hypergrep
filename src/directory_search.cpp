@@ -14,6 +14,7 @@ directory_search::directory_search(std::string &pattern,
   auto hide_line_number = program.get<bool>("-N");
   options.exclude_submodules = program.get<bool>("--exclude-submodules");
   options.ignore_case = program.get<bool>("-i");
+  options.ignore_gitindex = program.get<bool>("--ignore-gitindex");
   options.count_include_zeros = program.get<bool>("--include-zero");
   options.print_filenames = !(program.get<bool>("-I"));
   options.print_only_filenames = program.get<bool>("-l");
@@ -111,7 +112,9 @@ void directory_search::search_thread_function() {
 }
 
 void directory_search::run(std::filesystem::path path) {
-  git_libgit2_init();
+  if (!options.ignore_gitindex) {
+    git_libgit2_init();
+  }
 
   std::vector<std::thread> consumer_threads(options.num_threads);
   if (perform_search) {
@@ -147,16 +150,24 @@ void directory_search::run(std::filesystem::path path) {
           std::string subdir{};
           auto found = subdirectories.try_dequeue(subdir);
           if (found) {
-            const auto dot_git_path = std::filesystem::path(subdir) / ".git";
-            if (std::filesystem::exists(dot_git_path)) {
-              // Enqueue git repo
-              git_repo_paths.enqueue(subdir);
-              ++num_git_repos_enqueued;
+            if (!options.ignore_gitindex) {
+              const auto dot_git_path = std::filesystem::path(subdir) / ".git";
+              if (std::filesystem::exists(dot_git_path)) {
+                // Enqueue git repo
+                git_repo_paths.enqueue(subdir);
+                ++num_git_repos_enqueued;
+              } else {
+                // go deeper
+                moodycamel::ProducerToken ptok{queue};
+                visit_directory_and_enqueue(ptok, subdir,
+                                            local_file_filter_scratch);
+              }
             } else {
-              // go deeper
+              // Ignore git index
+              // Just go deeper
               moodycamel::ProducerToken ptok{queue};
               visit_directory_and_enqueue(ptok, subdir,
-                                          local_file_filter_scratch);
+                                          local_file_filter_scratch); 
             }
             num_dirs_enqueued -= 1;
           }
@@ -189,7 +200,7 @@ void directory_search::run(std::filesystem::path path) {
   // All threads are done processing the file queue
 
   // Search git repos one by one
-  if (num_git_repos_enqueued > 0) {
+  if (!options.ignore_gitindex && num_git_repos_enqueued > 0) {
     auto current_path = std::filesystem::current_path();
 
     while (num_git_repos_enqueued > 0) {

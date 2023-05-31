@@ -211,6 +211,27 @@ void print_help() {
   print_description_line(
       "(notably (?i) and (?-i)) to toggle case-insensitive matching.\n");
 
+  // Ignore git index
+  print_option_name(is_stdout, "--ignore-gitindex");
+  print_description_line(
+      "By default, hypergrep will check for the presence of a `.git/`"
+  );
+  print_description_line(
+      "directory in any path being searched. If a `.git/` directory is"
+  );
+  print_description_line(
+      "found, hypergrep will attempt to find and load the git index file."
+  );
+  print_description_line(
+      "Once loaded, the git index entries will be iterated and searched."
+  );
+  print_description_line(
+      "Using --ignore-gitindex will disable this behavior. Instead,"
+  );
+  print_description_line(
+      "hypergrep will search this path as if it were a normal directory.\n"
+  );
+
   // Include zero matches
   print_option_name(is_stdout, "--include-zero");
   print_description_line(

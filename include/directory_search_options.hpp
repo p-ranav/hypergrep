@@ -24,4 +24,5 @@ struct directory_search_options {
   std::optional<std::size_t> max_column_limit{};
   bool print_filenames{true};
   bool search_binary_files{false};
+  bool ignore_gitindex{false};
 };

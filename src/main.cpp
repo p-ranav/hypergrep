@@ -25,19 +25,29 @@ void perform_search(std::string &pattern, std::string_view path,
       file_search s(pattern, program);
       s.run(path);
     } else {
-      const auto current_path = std::filesystem::current_path();
 
-      if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
-        if (chdir(path.data()) == 0) {
-          git_index_search s(pattern, current_path, program);
-          s.run(".");
-          if (chdir(current_path.c_str()) != 0) {
-            throw std::runtime_error("Failed to restore path");
-          }
-        }
-      } else {
-        directory_search s(pattern, current_path, program);
+      const auto ignore_gitindex = program.get<bool>("--ignore-gitindex");
+      if (ignore_gitindex) {
+        // Just run directory search
+        directory_search s(pattern, path, program);
         s.run(path);
+      }
+      else {
+        // Check if search path is a git repo
+        const auto current_path = std::filesystem::current_path();
+
+        if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
+          if (chdir(path.data()) == 0) {
+            git_index_search s(pattern, current_path, program);
+            s.run(".");
+            if (chdir(current_path.c_str()) != 0) {
+              throw std::runtime_error("Failed to restore path");
+            }
+          }
+        } else {
+          directory_search s(pattern, path, program);
+          s.run(path);
+        }
       }
     }
   }
@@ -85,6 +95,10 @@ int main(int argc, char **argv) {
   program.add_argument("--hidden").default_value(false).implicit_value(true);
 
   program.add_argument("-i", "--ignore-case")
+      .default_value(false)
+      .implicit_value(true);
+
+  program.add_argument("--ignore-gitindex")
       .default_value(false)
       .implicit_value(true);
 
