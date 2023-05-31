@@ -28,8 +28,7 @@
 
 class directory_search {
 public:
-  directory_search(std::string& pattern,
-                   const std::filesystem::path &path,
+  directory_search(std::string &pattern, const std::filesystem::path &path,
                    argparse::ArgumentParser &program);
   ~directory_search();
   void run(std::filesystem::path path);
@@ -46,7 +45,8 @@ private:
   bool process_file(std::string &&filename, hs_scratch_t *local_scratch,
                     char *buffer, std::string &lines);
 
-  bool try_dequeue_and_process_path(moodycamel::ConsumerToken& ctok, hs_scratch_t *local_scratch, char *buffer,
+  bool try_dequeue_and_process_path(moodycamel::ConsumerToken &ctok,
+                                    hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines);
 
   bool construct_file_filtering_hs_database();
@@ -55,11 +55,13 @@ private:
                                   unsigned long long to, unsigned int flags,
                                   void *ctx);
 
-  bool filter_file(const char *path, hs_scratch* local_file_filter_scratch);
+  bool filter_file(const char *path, hs_scratch *local_file_filter_scratch);
 
   void search_thread_function();
 
-  void visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch);
+  void visit_directory_and_enqueue(moodycamel::ProducerToken &ptok,
+                                   std::string directory,
+                                   hs_scratch *local_file_filter_scratch);
 
 private:
   std::filesystem::path search_path;
@@ -69,7 +71,7 @@ private:
   bool perform_search{true};
   bool compile_pattern_as_literal{false};
 
-  // Directory traversal 
+  // Directory traversal
   moodycamel::ConcurrentQueue<std::string> subdirectories;
   std::atomic<std::size_t> num_dirs_enqueued{0};
 

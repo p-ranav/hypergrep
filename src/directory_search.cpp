@@ -1,7 +1,7 @@
 #include <directory_search.hpp>
 #include <is_binary.hpp>
 
-directory_search::directory_search(std::string& pattern,
+directory_search::directory_search(std::string &pattern,
                                    const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
@@ -82,7 +82,8 @@ directory_search::~directory_search() {
   if (database) {
     hs_free_database(database);
   }
-  fmt::print("{}/{} {}\n", num_files_dequeued.load(), num_files_enqueued.load(), num_large_files_enqueued.load());
+  fmt::print("{}/{} {}\n", num_files_dequeued.load(), num_files_enqueued.load(),
+             num_large_files_enqueued.load());
 }
 
 void directory_search::search_thread_function() {
@@ -126,16 +127,15 @@ void directory_search::run(std::filesystem::path path) {
 
   // Spawn threads to handle subdirectories
   {
-    const auto num_subdir_threads = options.num_threads; 
+    const auto num_subdir_threads = options.num_threads;
     std::vector<std::thread> traversal_threads(num_subdir_threads);
     for (std::size_t i = 0; i < num_subdir_threads; ++i) {
       traversal_threads[i] = std::thread([this]() {
-
         // A local scratch for each traversal thread
-        hs_scratch* local_file_filter_scratch{nullptr};
+        hs_scratch *local_file_filter_scratch{nullptr};
         if (options.filter_files) {
-          hs_error_t database_error =
-              hs_alloc_scratch(file_filter_database, &local_file_filter_scratch);
+          hs_error_t database_error = hs_alloc_scratch(
+              file_filter_database, &local_file_filter_scratch);
           if (database_error != HS_SUCCESS) {
             fprintf(stderr, "Error allocating scratch space\n");
             hs_free_database(file_filter_database);
@@ -155,7 +155,8 @@ void directory_search::run(std::filesystem::path path) {
             } else {
               // go deeper
               moodycamel::ProducerToken ptok{queue};
-              visit_directory_and_enqueue(ptok, subdir, local_file_filter_scratch);
+              visit_directory_and_enqueue(ptok, subdir,
+                                          local_file_filter_scratch);
             }
             num_dirs_enqueued -= 1;
           }
@@ -187,7 +188,7 @@ void directory_search::run(std::filesystem::path path) {
 
   // All threads are done processing the file queue
 
-  // Search git repos one by one 
+  // Search git repos one by one
   if (num_git_repos_enqueued > 0) {
     auto current_path = std::filesystem::current_path();
 
@@ -218,11 +219,9 @@ void directory_search::run(std::filesystem::path path) {
           database, scratch,
           file_search_options{
               options.is_stdout, options.show_line_numbers,
-              options.show_column_numbers, 
-              options.show_byte_offset,
-              options.ignore_case,
-              options.count_matching_lines, options.count_matches,
-              options.count_include_zeros,
+              options.show_column_numbers, options.show_byte_offset,
+              options.ignore_case, options.count_matching_lines,
+              options.count_matches, options.count_include_zeros,
               options.use_ucp, options.num_threads, options.print_filenames,
               options.print_only_matching_parts, options.max_column_limit,
               options.print_only_filenames});
@@ -340,7 +339,8 @@ bool directory_search::process_file(std::string &&filename,
       close(fd);
       lines.clear();
       return false;
-    } else if (!continue_even_though_large_file && total_bytes_read > LARGE_FILE_SIZE) {
+    } else if (!continue_even_though_large_file &&
+               total_bytes_read > LARGE_FILE_SIZE) {
       // This file is a bit large
       // Add it to the backlog and process it later with a file_search object
       // instead of using a single thread to read in chunks
@@ -356,7 +356,7 @@ bool directory_search::process_file(std::string &&filename,
       // what hypergrep has already searched
       if (total_bytes_read * 2 > file_size) {
 
-        large_file lf { std::move(filename), file_size };
+        large_file lf{std::move(filename), file_size};
 
         large_file_backlog.enqueue(lf);
         ++num_large_files_enqueued;
@@ -422,12 +422,13 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      num_matching_lines += process_fn(
-          filename.data(), buffer, search_size, ctx.matches,
-          current_line_number, lines, options.print_filenames,
-          options.is_stdout, options.show_line_numbers,
-          options.show_column_numbers, options.show_byte_offset, options.print_only_matching_parts,
-          options.max_column_limit, total_bytes_read - bytes_read);
+      num_matching_lines +=
+          process_fn(filename.data(), buffer, search_size, ctx.matches,
+                     current_line_number, lines, options.print_filenames,
+                     options.is_stdout, options.show_line_numbers,
+                     options.show_column_numbers, options.show_byte_offset,
+                     options.print_only_matching_parts,
+                     options.max_column_limit, total_bytes_read - bytes_read);
       num_matches += ctx.number_of_matches;
     }
 
@@ -451,7 +452,6 @@ bool directory_search::process_file(std::string &&filename,
             // Skip it
             result = false;
             break;
-
           }
         }
       }
@@ -460,7 +460,8 @@ bool directory_search::process_file(std::string &&filename,
 
   close(fd);
 
-  if ((result || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
+  if ((result || options.count_include_zeros) && options.count_matching_lines &&
+      !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -472,7 +473,8 @@ bool directory_search::process_file(std::string &&filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if ((result || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
+  } else if ((result || options.count_include_zeros) && options.count_matches &&
+             !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -512,7 +514,9 @@ bool directory_search::process_file(std::string &&filename,
   return result;
 }
 
-void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& ptok, std::string directory, hs_scratch* local_file_filter_scratch) {
+void directory_search::visit_directory_and_enqueue(
+    moodycamel::ProducerToken &ptok, std::string directory,
+    hs_scratch *local_file_filter_scratch) {
   DIR *dir = opendir(directory.c_str());
   if (dir == NULL) {
     std::cerr << "Failed to open '" << directory << "'\n";
@@ -541,12 +545,12 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
       const auto path = std::filesystem::path{directory} / entry->d_name;
       subdirectories.enqueue(std::move(path));
       num_dirs_enqueued += 1;
-    }
-    else if (entry->d_type == DT_REG) {
+    } else if (entry->d_type == DT_REG) {
       const auto path = std::filesystem::path{directory} / entry->d_name;
 
       if (!options.filter_files ||
-          (options.filter_files && filter_file(path.c_str(), local_file_filter_scratch))) {
+          (options.filter_files &&
+           filter_file(path.c_str(), local_file_filter_scratch))) {
         if (perform_search) {
           queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;
@@ -562,16 +566,14 @@ void directory_search::visit_directory_and_enqueue(moodycamel::ProducerToken& pt
   }
 
   closedir(dir);
-} 
+}
 
-bool directory_search::try_dequeue_and_process_path(moodycamel::ConsumerToken& ctok, 
-  hs_scratch_t *local_scratch,
-  char *buffer,
-  std::string &lines) {
+bool directory_search::try_dequeue_and_process_path(
+    moodycamel::ConsumerToken &ctok, hs_scratch_t *local_scratch, char *buffer,
+    std::string &lines) {
   constexpr std::size_t BULK_DEQUEUE_SIZE = 32;
   std::string entries[BULK_DEQUEUE_SIZE];
-  auto count =
-      queue.try_dequeue_bulk(ctok, entries, BULK_DEQUEUE_SIZE);
+  auto count = queue.try_dequeue_bulk(ctok, entries, BULK_DEQUEUE_SIZE);
   if (count > 0) {
     for (std::size_t j = 0; j < count; ++j) {
       process_file(std::move(entries[j]), local_scratch, buffer, lines);
@@ -614,10 +616,12 @@ int directory_search::on_file_filter_match(unsigned int id,
   return HS_SUCCESS;
 }
 
-bool directory_search::filter_file(const char *path, hs_scratch* local_file_filter_scratch) {
+bool directory_search::filter_file(const char *path,
+                                   hs_scratch *local_file_filter_scratch) {
   filter_context ctx{false};
-  if (hs_scan(file_filter_database, path, strlen(path), 0, local_file_filter_scratch,
-              on_file_filter_match, (void *)(&ctx)) != HS_SUCCESS) {
+  if (hs_scan(file_filter_database, path, strlen(path), 0,
+              local_file_filter_scratch, on_file_filter_match,
+              (void *)(&ctx)) != HS_SUCCESS) {
     return true;
   }
   return ctx.result;

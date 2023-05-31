@@ -4,7 +4,8 @@
 #include <git_index_search.hpp>
 #include <print_help.hpp>
 
-void perform_search(std::string& pattern, std::string_view path, argparse::ArgumentParser& program) {
+void perform_search(std::string &pattern, std::string_view path,
+                    argparse::ArgumentParser &program) {
   if (!isatty(fileno(stdin))) {
     // Program was called from a pipe
 
@@ -44,7 +45,8 @@ void perform_search(std::string& pattern, std::string_view path, argparse::Argum
 
 int main(int argc, char **argv) {
 
-  argparse::ArgumentParser program("hg", VERSION.data(), argparse::default_arguments::none);
+  argparse::ArgumentParser program("hg", VERSION.data(),
+                                   argparse::default_arguments::none);
 
   program.add_argument("-h", "--help")
       .default_value(false)
@@ -58,9 +60,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--column")
-      .default_value(false)
-      .implicit_value(true);
+  program.add_argument("--column").default_value(false).implicit_value(true);
 
   program.add_argument("-c", "--count")
       .default_value(false)
@@ -74,9 +74,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--files")
-      .default_value(false)
-      .implicit_value(true);
+  program.add_argument("--files").default_value(false).implicit_value(true);
 
   program.add_argument("--filter");
 
@@ -84,9 +82,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--hidden")
-      .default_value(false)
-      .implicit_value(true);
+  program.add_argument("--hidden").default_value(false).implicit_value(true);
 
   program.add_argument("-i", "--ignore-case")
       .default_value(false)
@@ -104,8 +100,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("-M", "--max-columns")
-      .scan<'d', std::size_t>();
+  program.add_argument("-M", "--max-columns").scan<'d', std::size_t>();
 
   program.add_argument("--max-filesize");
 
@@ -125,9 +120,7 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
-  program.add_argument("--ucp")
-      .default_value(false)
-      .implicit_value(true);
+  program.add_argument("--ucp").default_value(false).implicit_value(true);
 
   program.add_argument("-w", "--word-regexp")
       .default_value(false)
@@ -142,8 +135,8 @@ int main(int argc, char **argv) {
       .scan<'d', unsigned>();
 
   program.add_argument("patterns_and_paths")
-    .default_value(std::vector<std::string>{})
-    .remaining();
+      .default_value(std::vector<std::string>{})
+      .remaining();
 
   try {
     program.parse_args(argc, argv);
@@ -156,8 +149,7 @@ int main(int argc, char **argv) {
   if (program.is_used("-h")) {
     print_help();
     return 0;
-  }
-  else if (program.is_used("-v")) {
+  } else if (program.is_used("-v")) {
     fmt::print("{}\n", VERSION);
     return 0;
   }
@@ -176,35 +168,35 @@ int main(int argc, char **argv) {
     if (paths.empty()) {
       perform_search(empty_pattern, ".", program);
     } else {
-      for (const auto& path: paths) {
+      for (const auto &path : paths) {
         perform_search(empty_pattern, path, program);
       }
     }
-  }
-  else {
+  } else {
     // Treat first in patterns_and_paths
     // as the pattern
     //
     // The rest are paths to process
     //
     // If size == 1 (i.e. just a pattern provided), just search "."
-    auto patterns_and_paths = program.get<std::vector<std::string>>("patterns_and_paths");
+    auto patterns_and_paths =
+        program.get<std::vector<std::string>>("patterns_and_paths");
     const auto size = patterns_and_paths.size();
 
     if (size == 0) {
-      std::cerr << "1 argument(s) expected for <PATTERN>. 0 provided." << std::endl;
+      std::cerr << "1 argument(s) expected for <PATTERN>. 0 provided."
+                << std::endl;
       std::cerr << "\nFor more information try --help\n";
       return 1;
     }
-    
-    auto& pattern = patterns_and_paths[0];
+
+    auto &pattern = patterns_and_paths[0];
 
     if (size == 1) {
       // Path not provided
       // Default to current directory
       perform_search(pattern, ".", program);
-    }
-    else {
+    } else {
       for (std::size_t i = 1; i < patterns_and_paths.size(); ++i) {
         perform_search(pattern, patterns_and_paths[i], program);
       }

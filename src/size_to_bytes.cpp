@@ -23,8 +23,7 @@ unsigned long long size_to_bytes(std::string_view input) {
     try {
       num = std::stoull(input.data());
     } catch (const std::exception &e) {
-      throw std::runtime_error("Invalid numeric part " +
-                              std::string(input));
+      throw std::runtime_error("Invalid numeric part " + std::string(input));
     }
 
     return num;

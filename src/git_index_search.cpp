@@ -2,7 +2,7 @@
 #include <is_binary.hpp>
 #include <unordered_set>
 
-git_index_search::git_index_search(std::string& pattern,
+git_index_search::git_index_search(std::string &pattern,
                                    const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : basepath(std::filesystem::relative(path)) {
@@ -316,14 +316,13 @@ bool git_index_search::process_file(const char *filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      num_matching_lines += process_fn(
-          result_path.c_str(), buffer, search_size, ctx.matches,
-          current_line_number, lines, options.print_filenames,
-          options.is_stdout, options.show_line_numbers,
-          options.show_column_numbers, 
-          options.show_byte_offset,
-          options.print_only_matching_parts,
-          options.max_column_limit, total_bytes_read - bytes_read);
+      num_matching_lines +=
+          process_fn(result_path.c_str(), buffer, search_size, ctx.matches,
+                     current_line_number, lines, options.print_filenames,
+                     options.is_stdout, options.show_line_numbers,
+                     options.show_column_numbers, options.show_byte_offset,
+                     options.print_only_matching_parts,
+                     options.max_column_limit, total_bytes_read - bytes_read);
       num_matches += ctx.number_of_matches;
     }
 
@@ -346,7 +345,6 @@ bool git_index_search::process_file(const char *filename,
           // Skip it
           result = false;
           break;
-
         }
       }
     }
@@ -354,7 +352,8 @@ bool git_index_search::process_file(const char *filename,
 
   close(fd);
 
-  if ((result || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
+  if ((result || options.count_include_zeros) && options.count_matching_lines &&
+      !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(
@@ -367,7 +366,8 @@ bool git_index_search::process_file(const char *filename,
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if ((result || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
+  } else if ((result || options.count_include_zeros) && options.count_matches &&
+             !options.print_only_filenames) {
     if (options.print_filenames) {
       if (options.is_stdout) {
         fmt::print(

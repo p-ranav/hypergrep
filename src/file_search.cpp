@@ -6,7 +6,8 @@ file_search::file_search(hs_database_t *database, hs_scratch_t *scratch,
   non_owning_database = true;
 }
 
-file_search::file_search(std::string& pattern, argparse::ArgumentParser &program) {
+file_search::file_search(std::string &pattern,
+                         argparse::ArgumentParser &program) {
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
   compile_pattern_as_literal = program.get<bool>("-F");
@@ -106,7 +107,8 @@ void file_search::compile_hs_database(std::string &pattern) {
   }
 }
 
-void file_search::run(std::filesystem::path path, std::optional<std::size_t> maybe_file_size) {
+void file_search::run(std::filesystem::path path,
+                      std::optional<std::size_t> maybe_file_size) {
   if (!database) {
     throw std::runtime_error("Database is NULL");
   }
@@ -129,7 +131,8 @@ struct chunk_result {
   std::size_t line_count{0};
 };
 
-bool file_search::mmap_and_scan(std::string &&filename, std::optional<std::size_t> maybe_file_size) {
+bool file_search::mmap_and_scan(std::string &&filename,
+                                std::optional<std::size_t> maybe_file_size) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
     return false;
@@ -317,10 +320,9 @@ bool file_search::mmap_and_scan(std::string &&filename, std::optional<std::size_
               filename.data(), start, end - start, next_result.matches,
               previous_line_number, lines, options.print_filename,
               options.is_stdout, options.show_line_numbers,
-              options.show_column_numbers, 
-              options.show_byte_offset,
-              options.print_only_matching_parts,
-              options.max_column_limit, (start - buffer));
+              options.show_column_numbers, options.show_byte_offset,
+              options.print_only_matching_parts, options.max_column_limit,
+              (start - buffer));
 
           if (!options.count_matching_lines && !options.count_matches &&
               !options.print_only_filenames && !lines.empty()) {
@@ -351,7 +353,8 @@ bool file_search::mmap_and_scan(std::string &&filename, std::optional<std::size_
     t.join();
   }
 
-  if ((num_matching_lines > 0 || options.count_include_zeros) && options.count_matching_lines && !options.print_only_filenames) {
+  if ((num_matching_lines > 0 || options.count_include_zeros) &&
+      options.count_matching_lines && !options.print_only_filenames) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -363,7 +366,8 @@ bool file_search::mmap_and_scan(std::string &&filename, std::optional<std::size_
     } else {
       fmt::print("{}\n", num_matching_lines);
     }
-  } else if ((num_matches.load() > 0 || options.count_include_zeros) && options.count_matches && !options.print_only_filenames) {
+  } else if ((num_matches.load() > 0 || options.count_include_zeros) &&
+             options.count_matches && !options.print_only_filenames) {
     if (options.print_filename) {
       if (options.is_stdout) {
         fmt::print("{}:{}\n",
@@ -453,8 +457,8 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
     process_fn(filename.data(), line.data(), line.size(), ctx.matches,
                current_line_number, lines, false, options.is_stdout,
                options.show_line_numbers, options.show_column_numbers,
-               options.show_byte_offset,
-               options.print_only_matching_parts, options.max_column_limit, 0);
+               options.show_byte_offset, options.print_only_matching_parts,
+               options.max_column_limit, 0);
 
     if (!options.count_matching_lines && !options.print_only_filenames &&
         result && !lines.empty()) {

@@ -25,8 +25,7 @@ std::size_t process_matches(
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
-    bool show_byte_offset,
-    bool print_only_matching_parts,
+    bool show_byte_offset, bool print_only_matching_parts,
     const std::optional<std::size_t> &max_column_limit,
     std::size_t byte_offset) {
   std::string_view chunk(buffer, bytes_read);
@@ -128,27 +127,32 @@ std::size_t process_matches(
         // without line number: [Omitted long matching line]
         if (show_line_numbers) {
           if (is_stdout) {
-            lines += fmt::format(fg(fmt::color::green),
-                                  "{}:", current_line_number);
+            lines +=
+                fmt::format(fg(fmt::color::green), "{}:", current_line_number);
             lines += fmt::format("[Omitted long line with {} matches]\n",
-                                  matches.size());
+                                 matches.size());
           } else {
 
             if (print_filename) {
-              lines += fmt::format("{}:{}:[Omitted long line with {} matches]\n", filename, current_line_number, matches.size());
+              lines +=
+                  fmt::format("{}:{}:[Omitted long line with {} matches]\n",
+                              filename, current_line_number, matches.size());
             } else {
-              lines += fmt::format("{}:[Omitted long line with {} matches]\n", current_line_number, matches.size());
+              lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                                   current_line_number, matches.size());
             }
           }
         } else {
           if (is_stdout) {
             lines += fmt::format("[Omitted long line with {} matches]\n",
-                                  matches.size());
+                                 matches.size());
           } else {
             if (print_filename) {
-              lines += fmt::format("{}:[Omitted long line with {} matches]\n", filename, matches.size());
+              lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                                   filename, matches.size());
             } else {
-              lines += fmt::format("[Omitted long line with {} matches]\n", matches.size());
+              lines += fmt::format("[Omitted long line with {} matches]\n",
+                                   matches.size());
             }
           }
         }
@@ -183,8 +187,7 @@ std::size_t process_matches(
         if (show_byte_offset) {
           if (print_only_matching_parts) {
             lines += fmt::format("{}:", byte_offset + from);
-          }
-          else {
+          } else {
             lines += fmt::format("{}:", byte_offset + start_of_line);
           }
         }
@@ -237,8 +240,7 @@ std::size_t process_matches_nocolor_nostdout(
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
-    bool show_byte_offset,
-    bool print_only_matching_parts,
+    bool show_byte_offset, bool print_only_matching_parts,
     const std::optional<std::size_t> &max_column_limit,
     std::size_t byte_offset) {
   std::string_view chunk(buffer, bytes_read);
@@ -267,7 +269,8 @@ std::size_t process_matches_nocolor_nostdout(
           line_number_match.end()) {
         // line number not in map
         // save the match
-        line_number_match.insert(std::make_pair(current_line_number, std::make_pair(to, 1)));
+        line_number_match.insert(
+            std::make_pair(current_line_number, std::make_pair(to, 1)));
       } else {
         // line number is in the map
         // increment the number of matches
@@ -307,15 +310,20 @@ std::size_t process_matches_nocolor_nostdout(
       // without line number: [Omitted long matching line]
       if (show_line_numbers) {
         if (print_filename) {
-          lines += fmt::format("{}:{}:[Omitted long line with {} matches]\n", filename, current_line_number, number_of_matches);
+          lines +=
+              fmt::format("{}:{}:[Omitted long line with {} matches]\n",
+                          filename, current_line_number, number_of_matches);
         } else {
-          lines += fmt::format("{}:[Omitted long line with {} matches]\n", current_line_number, number_of_matches);
+          lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                               current_line_number, number_of_matches);
         }
       } else {
         if (print_filename) {
-          lines += fmt::format("{}:[Omitted long line with {} matches]\n", filename, number_of_matches);
+          lines += fmt::format("{}:[Omitted long line with {} matches]\n",
+                               filename, number_of_matches);
         } else {
-          lines += fmt::format("[Omitted long line with {} matches]\n", number_of_matches);
+          lines += fmt::format("[Omitted long line with {} matches]\n",
+                               number_of_matches);
         }
       }
       continue;
