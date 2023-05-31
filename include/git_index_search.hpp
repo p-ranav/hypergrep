@@ -54,8 +54,6 @@ private:
 
   void search_thread_function();
 
-  void visit_directory_and_enqueue(const std::filesystem::path &path);
-
 private:
   static inline bool libgit2_initialized{false};
   std::filesystem::path basepath{};
