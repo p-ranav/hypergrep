@@ -1,12 +1,13 @@
-#include <git_index_search.hpp>
-#include <is_binary.hpp>
+#include <hypergrep/git_index_search.hpp>
+#include <hypergrep/is_binary.hpp>
 #include <unordered_set>
 
 git_index_search::git_index_search(std::string &pattern,
                                    const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : basepath(std::filesystem::relative(path)) {
-  initialize_search(pattern, program, options, &database, &scratch, &file_filter_database, &file_filter_scratch);
+  initialize_search(pattern, program, options, &database, &scratch,
+                    &file_filter_database, &file_filter_scratch);
 }
 
 git_index_search::git_index_search(hs_database_t *database,
@@ -15,8 +16,8 @@ git_index_search::git_index_search(hs_database_t *database,
                                    hs_scratch_t *file_filter_scratch,
                                    const search_options &options,
                                    const std::filesystem::path &path)
-    : basepath(path), database(database),
-      scratch(scratch), file_filter_database(file_filter_database),
+    : basepath(path), database(database), scratch(scratch),
+      file_filter_database(file_filter_database),
       file_filter_scratch(file_filter_scratch), options(options) {
   non_owning_database = true;
 }
@@ -106,8 +107,7 @@ void git_index_search::run(std::filesystem::path path) {
   const auto current_path = std::filesystem::current_path();
   for (const auto &sm_path : submodule_paths) {
     git_index_search git_index_searcher(
-        database, scratch, file_filter_database, file_filter_scratch,
-        options,
+        database, scratch, file_filter_database, file_filter_scratch, options,
         basepath /
             std::filesystem::relative(std::filesystem::canonical(sm_path)));
     if (chdir(sm_path.c_str()) == 0) {
@@ -360,8 +360,11 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
 
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
-      if (entry && (!options.filter_files ||
-                    (options.filter_files && filter_file(entry->path, file_filter_database, file_filter_scratch, options.negate_filter)))) {
+      if (entry &&
+          (!options.filter_files ||
+           (options.filter_files &&
+            filter_file(entry->path, file_filter_database, file_filter_scratch,
+                        options.negate_filter)))) {
 
         // Skip directories and symlinks
         if ((entry->mode & S_IFMT) == S_IFDIR ||

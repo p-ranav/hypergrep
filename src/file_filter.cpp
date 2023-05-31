@@ -1,6 +1,8 @@
-#include <file_filter.hpp>
+#include <hypergrep/file_filter.hpp>
 
-bool construct_file_filtering_hs_database(hs_database** file_filter_database, hs_scratch** file_filter_scratch, search_options& options) {
+bool construct_file_filtering_hs_database(hs_database **file_filter_database,
+                                          hs_scratch **file_filter_scratch,
+                                          search_options &options) {
 
   options.negate_filter = options.filter_file_pattern[0] == '!';
   if (options.negate_filter) {
@@ -29,14 +31,15 @@ bool construct_file_filtering_hs_database(hs_database** file_filter_database, hs
 }
 
 int on_file_filter_match(unsigned int id, unsigned long long from,
-                                unsigned long long to, unsigned int flags,
-                                void *ctx) {
+                         unsigned long long to, unsigned int flags, void *ctx) {
   filter_context *fctx = (filter_context *)(ctx);
   fctx->result = true;
   return HS_SUCCESS;
 }
 
-bool filter_file(const char *path, hs_database* file_filter_database, hs_scratch *local_file_filter_scratch, const bool& negate_filter) {
+bool filter_file(const char *path, hs_database *file_filter_database,
+                 hs_scratch *local_file_filter_scratch,
+                 const bool &negate_filter) {
 
   // Result of `true` means that the file will be searched
   // Result of `false` means that the file will be ignored

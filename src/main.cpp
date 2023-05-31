@@ -1,8 +1,8 @@
-#include <constants.hpp>
-#include <directory_search.hpp>
-#include <file_search.hpp>
-#include <git_index_search.hpp>
-#include <print_help.hpp>
+#include <hypergrep/constants.hpp>
+#include <hypergrep/directory_search.hpp>
+#include <hypergrep/file_search.hpp>
+#include <hypergrep/git_index_search.hpp>
+#include <hypergrep/print_help.hpp>
 
 void perform_search(std::string &pattern, std::string_view path,
                     argparse::ArgumentParser &program) {
@@ -31,8 +31,7 @@ void perform_search(std::string &pattern, std::string_view path,
         // Just run directory search
         directory_search s(pattern, path, program);
         s.run(path);
-      }
-      else {
+      } else {
         // Check if search path is a git repo
         const auto current_path = std::filesystem::current_path();
 
@@ -81,8 +80,8 @@ int main(int argc, char **argv) {
       .implicit_value(true);
 
   program.add_argument("-e", "--regexp")
-    .default_value<std::vector<std::string>>({})
-    .append();
+      .default_value<std::vector<std::string>>({})
+      .append();
 
   program.add_argument("--files").default_value(false).implicit_value(true);
 

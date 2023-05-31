@@ -1,9 +1,9 @@
 #pragma once
 #include <argparse/argparse.hpp>
 #include <cstdint>
-#include <file_filter.hpp>
+#include <hypergrep/file_filter.hpp>
+#include <hypergrep/size_to_bytes.hpp>
 #include <optional>
-#include <size_to_bytes.hpp>
 #include <string>
 #include <unistd.h>
 
@@ -34,5 +34,7 @@ struct search_options {
   bool compile_pattern_as_literal{false};
 };
 
-void initialize_search(std::string &pattern, argparse::ArgumentParser& program, search_options& options, 
-  hs_database** database, hs_scratch** scratch, hs_database** file_filter_database, hs_scratch** file_filter_scratch);
+void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
+                       search_options &options, hs_database **database,
+                       hs_scratch **scratch, hs_database **file_filter_database,
+                       hs_scratch **file_filter_scratch);

@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cmath>
-#include <size_to_bytes.hpp>
+#include <hypergrep/size_to_bytes.hpp>
 #include <stdexcept>
 #include <string>
 #include <string_view>

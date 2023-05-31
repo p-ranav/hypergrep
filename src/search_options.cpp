@@ -1,9 +1,10 @@
-#include <compiler.hpp>
-#include <search_options.hpp>
+#include <hypergrep/compiler.hpp>
+#include <hypergrep/search_options.hpp>
 
-void initialize_search(std::string &pattern, argparse::ArgumentParser& program, search_options& options, 
-  hs_database** database, hs_scratch** scratch,
-  hs_database** file_filter_database, hs_scratch** file_filter_scratch) {
+void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
+                       search_options &options, hs_database **database,
+                       hs_scratch **scratch, hs_database **file_filter_database,
+                       hs_scratch **file_filter_scratch) {
 
   options.search_binary_files = program.get<bool>("--text");
   options.count_matching_lines = program.get<bool>("-c");
@@ -20,7 +21,8 @@ void initialize_search(std::string &pattern, argparse::ArgumentParser& program, 
   if (program.is_used("--filter")) {
     options.filter_file_pattern = program.get<std::string>("--filter");
     options.filter_files = true;
-    if (!construct_file_filtering_hs_database(file_filter_database, file_filter_scratch, options)) {
+    if (!construct_file_filtering_hs_database(file_filter_database,
+                                              file_filter_scratch, options)) {
       throw std::runtime_error("Error compiling pattern " +
                                options.filter_file_pattern);
     }
@@ -74,7 +76,7 @@ void initialize_search(std::string &pattern, argparse::ArgumentParser& program, 
 
     if (program.get<bool>("-w")) {
       // Add word boundary around each pattern
-      for (auto& pattern : pattern_list) {
+      for (auto &pattern : pattern_list) {
         pattern = "\\b" + pattern + "\\b";
       }
 

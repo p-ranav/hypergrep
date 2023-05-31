@@ -1,9 +1,9 @@
 #pragma once
 #include <algorithm>
-#include <constants.hpp>
-#include <file_context.hpp>
 #include <fmt/color.h>
 #include <fmt/format.h>
+#include <hypergrep/constants.hpp>
+#include <hypergrep/file_context.hpp>
 #include <optional>
 #include <string_view>
 #include <vector>

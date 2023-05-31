@@ -1,5 +1,5 @@
-#include <constants.hpp>
-#include <print_help.hpp>
+#include <hypergrep/constants.hpp>
+#include <hypergrep/print_help.hpp>
 #include <unistd.h>
 
 void print_heading(bool is_stdout, std::string_view name) {
@@ -161,21 +161,17 @@ void print_help() {
   print_description_line(
       "individual matches of the given pattern for each file searched\n");
 
-  // Pattern argument 
+  // Pattern argument
   print_option_name(is_stdout, "-e, --regexp", "<PATTERN>...");
   print_description_line(
       "A pattern to search for. This option can be provided multiple times,");
   print_description_line(
-      "where all patterns given are searched. Lines matching at least one"
-  );
-  print_description_line(
-      "of the provided patterns are printed, e.g.,\n"
-  );
+      "where all patterns given are searched. Lines matching at least one");
+  print_description_line("of the provided patterns are printed, e.g.,\n");
   print_option_name(is_stdout,
                     "        hg -e 'myFunctionCall' -e 'myErrorCallback'\n");
   print_description_line(
-      "will search for any occurrence of either of the patterns.\n"
-  );
+      "will search for any occurrence of either of the patterns.\n");
 
   // Files
   print_option_name(is_stdout, "--files");
@@ -186,17 +182,14 @@ void print_help() {
   // Filter
   print_option_name(is_stdout, "--filter", "<FILTER_PATTERN>");
   print_description_line("Filter paths based on a regex pattern, e.g.,\n");
-  print_option_name(is_stdout,
-                    "        hg --filter '(include|src)/.*\\.(c|cpp|h|hpp)$'\n");
+  print_option_name(
+      is_stdout, "        hg --filter '(include|src)/.*\\.(c|cpp|h|hpp)$'\n");
   print_description_line(
       "will search C/C++ files in the any */include/* and */src/* paths.\n");
   print_description_line(
-      "A filter can be negated by prefixing the pattern with !, e.g.,\n"
-  );
-  print_option_name(is_stdout,
-                    "        hg --filter '!\\.html$'\n");
-  print_description_line(
-      "will search any files that are not HTML files.\n");
+      "A filter can be negated by prefixing the pattern with !, e.g.,\n");
+  print_option_name(is_stdout, "        hg --filter '!\\.html$'\n");
+  print_description_line("will search any files that are not HTML files.\n");
 
   // Fixed Strings
   print_option_name(is_stdout, "-F, --fixed-strings");
@@ -231,23 +224,17 @@ void print_help() {
   // Ignore git index
   print_option_name(is_stdout, "--ignore-gitindex");
   print_description_line(
-      "By default, hypergrep will check for the presence of a `.git/`"
-  );
+      "By default, hypergrep will check for the presence of a `.git/`");
   print_description_line(
-      "directory in any path being searched. If a `.git/` directory is"
-  );
+      "directory in any path being searched. If a `.git/` directory is");
   print_description_line(
-      "found, hypergrep will attempt to find and load the git index file."
-  );
+      "found, hypergrep will attempt to find and load the git index file.");
   print_description_line(
-      "Once loaded, the git index entries will be iterated and searched."
-  );
+      "Once loaded, the git index entries will be iterated and searched.");
   print_description_line(
-      "Using --ignore-gitindex will disable this behavior. Instead,"
-  );
+      "Using --ignore-gitindex will disable this behavior. Instead,");
   print_description_line(
-      "hypergrep will search this path as if it were a normal directory.\n"
-  );
+      "hypergrep will search this path as if it were a normal directory.\n");
 
   // Exclude git submodules
   print_option_name(is_stdout, "--ignore-submodules");

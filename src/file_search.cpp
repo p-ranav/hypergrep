@@ -1,8 +1,9 @@
-#include <file_search.hpp>
+#include <hypergrep/file_search.hpp>
 
 file_search::file_search(std::string &pattern,
                          argparse::ArgumentParser &program) {
-  initialize_search(pattern, program, options, &database, &scratch, &file_filter_database, &file_filter_scratch);
+  initialize_search(pattern, program, options, &database, &scratch,
+                    &file_filter_database, &file_filter_scratch);
 
   if (!program.is_used("-j")) {
     options.num_threads += 1;

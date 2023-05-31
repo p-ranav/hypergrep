@@ -1,4 +1,4 @@
-#include <is_binary.hpp>
+#include <hypergrep/is_binary.hpp>
 
 bool is_elf_header(const char *buffer) {
   static constexpr std::string_view elf_magic = "\x7f"

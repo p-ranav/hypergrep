@@ -1,5 +1,5 @@
+#include <hypergrep/match_handler.hpp>
 #include <map>
-#include <match_handler.hpp>
 #include <unordered_map>
 #include <vector>
 

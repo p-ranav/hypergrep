@@ -1,11 +1,12 @@
-#include <directory_search.hpp>
-#include <is_binary.hpp>
+#include <hypergrep/directory_search.hpp>
+#include <hypergrep/is_binary.hpp>
 
 directory_search::directory_search(std::string &pattern,
                                    const std::filesystem::path &path,
                                    argparse::ArgumentParser &program)
     : search_path(path) {
-  initialize_search(pattern, program, options, &database, &scratch, &file_filter_database, &file_filter_scratch);
+  initialize_search(pattern, program, options, &database, &scratch,
+                    &file_filter_database, &file_filter_scratch);
 }
 
 directory_search::~directory_search() {
@@ -103,7 +104,7 @@ void directory_search::run(std::filesystem::path path) {
               // Just go deeper
               moodycamel::ProducerToken ptok{queue};
               visit_directory_and_enqueue(ptok, subdir,
-                                          local_file_filter_scratch); 
+                                          local_file_filter_scratch);
             }
             num_dirs_enqueued -= 1;
           }
@@ -454,7 +455,8 @@ void directory_search::visit_directory_and_enqueue(
 
       if (!options.filter_files ||
           (options.filter_files &&
-           filter_file(path.c_str(), file_filter_database, local_file_filter_scratch, options.negate_filter))) {
+           filter_file(path.c_str(), file_filter_database,
+                       local_file_filter_scratch, options.negate_filter))) {
         if (options.perform_search) {
           queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;

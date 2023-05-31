@@ -2,24 +2,24 @@
 #include <argparse/argparse.hpp>
 #include <atomic>
 #include <chrono>
-#include <compiler.hpp>
 #include <concurrentqueue/concurrentqueue.h>
-#include <constants.hpp>
-#include <search_options.hpp>
 #include <fcntl.h>
-#include <file_filter.hpp>
-#include <file_search.hpp>
 #include <filesystem>
 #include <fmt/color.h>
 #include <fmt/format.h>
 #include <fstream>
 #include <git2.h>
 #include <hs/hs.h>
-#include <is_binary.hpp>
+#include <hypergrep/compiler.hpp>
+#include <hypergrep/constants.hpp>
+#include <hypergrep/file_filter.hpp>
+#include <hypergrep/file_search.hpp>
+#include <hypergrep/is_binary.hpp>
+#include <hypergrep/match_handler.hpp>
+#include <hypergrep/search_options.hpp>
+#include <hypergrep/size_to_bytes.hpp>
 #include <limits>
-#include <match_handler.hpp>
 #include <numeric>
-#include <size_to_bytes.hpp>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <thread>
@@ -32,7 +32,8 @@ public:
                    argparse::ArgumentParser &program);
   git_index_search(hs_database_t *database, hs_scratch_t *scratch,
                    hs_database_t *file_filter_database,
-                   hs_scratch_t *file_filter_scratch, const search_options &options,
+                   hs_scratch_t *file_filter_scratch,
+                   const search_options &options,
                    const std::filesystem::path &path);
   ~git_index_search();
   void run(std::filesystem::path path);
