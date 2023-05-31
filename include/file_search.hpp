@@ -2,6 +2,7 @@
 #include <argparse/argparse.hpp>
 #include <atomic>
 #include <chrono>
+#include <compiler.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
 #include <fcntl.h>
@@ -35,8 +36,6 @@ public:
                  bool &break_loop);
 
 private:
-  void compile_hs_database(const std::vector<std::string> &pattern_list);
-
   bool mmap_and_scan(std::string &&filename,
                      std::optional<std::size_t> maybe_file_size = {});
 

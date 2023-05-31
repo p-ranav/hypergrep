@@ -21,7 +21,7 @@ git_index_search::git_index_search(std::string &pattern,
   if (program.is_used("--filter")) {
     options.filter_file_pattern = program.get<std::string>("--filter");
     options.filter_files = true;
-    if (!construct_file_filtering_hs_database()) {
+    if (!construct_file_filtering_hs_database(&file_filter_database, &file_filter_scratch, options, negate_filter)) {
       throw std::runtime_error("Error compiling pattern " +
                                options.filter_file_pattern);
     }
@@ -84,9 +84,9 @@ git_index_search::git_index_search(std::string &pattern,
     }
 
     if (pattern_list.empty()) {
-      compile_hs_database({pattern});
+      compile_hs_database(&database, &scratch, options, {pattern}, compile_pattern_as_literal);
     } else {
-      compile_hs_database(pattern_list);
+      compile_hs_database(&database, &scratch, options, pattern_list, compile_pattern_as_literal);
     }
   }
 }
@@ -95,12 +95,13 @@ git_index_search::git_index_search(hs_database_t *database,
                                    hs_scratch_t *scratch,
                                    hs_database_t *file_filter_database,
                                    hs_scratch_t *file_filter_scratch,
+                                   bool negate_filter,
                                    bool perform_search,
                                    const directory_search_options &options,
                                    const std::filesystem::path &path)
     : basepath(path), perform_search(perform_search), database(database),
       scratch(scratch), file_filter_database(file_filter_database),
-      file_filter_scratch(file_filter_scratch), options(options) {
+      file_filter_scratch(file_filter_scratch), negate_filter(negate_filter), options(options) {
   non_owning_database = true;
 }
 
@@ -190,6 +191,7 @@ void git_index_search::run(std::filesystem::path path) {
   for (const auto &sm_path : submodule_paths) {
     git_index_search git_index_searcher(
         database, scratch, file_filter_database, file_filter_scratch,
+        negate_filter,
         perform_search, options,
         basepath /
             std::filesystem::relative(std::filesystem::canonical(sm_path)));
@@ -199,96 +201,6 @@ void git_index_search::run(std::filesystem::path path) {
         throw std::runtime_error("Failed to restore path");
       }
     }
-  }
-}
-
-void git_index_search::compile_hs_database(const std::vector<std::string> &pattern_list) {
-
-  hs_error_t error_code;
-  hs_compile_error_t *compile_error = NULL;
-
-  if (pattern_list.size() == 1) {
-    const auto& pattern = pattern_list[0];
-
-    if (compile_pattern_as_literal) {
-      error_code = hs_compile_lit(
-          pattern.data(),
-          (options.ignore_case ? HS_FLAG_CASELESS : 0) |
-              (options.is_stdout || options.print_only_matching_parts ||
-                      options.show_column_numbers || options.show_byte_offset
-                  ? HS_FLAG_SOM_LEFTMOST
-                  : 0),
-          pattern.size(), HS_MODE_BLOCK, NULL, &database, &compile_error);
-    } else {
-      error_code = hs_compile(
-          pattern.data(),
-          (options.ignore_case ? HS_FLAG_CASELESS : 0) | HS_FLAG_UTF8 |
-              (options.use_ucp ? HS_FLAG_UCP : 0) |
-              (options.is_stdout || options.print_only_matching_parts ||
-                      options.show_column_numbers || options.show_byte_offset
-                  ? HS_FLAG_SOM_LEFTMOST
-                  : 0),
-          HS_MODE_BLOCK, NULL, &database, &compile_error);
-    }
-  }
-  else {
-    // Compile multiple patterns
-    // using hs_compile_multi
-
-    // Search patterns
-    std::vector<const char*> pattern_list_c;
-    pattern_list_c.reserve(pattern_list.size());
-    for (const std::string& str : pattern_list) {
-      pattern_list_c.push_back(str.data());
-    }
-
-    // Search flags
-    const auto flag = (options.ignore_case ? HS_FLAG_CASELESS : 0) | 
-          (compile_pattern_as_literal ? 0 : HS_FLAG_UTF8) |
-          (!compile_pattern_as_literal && options.use_ucp ? HS_FLAG_UCP : 0) |
-          (options.is_stdout || options.print_only_matching_parts ||
-                  options.show_column_numbers || options.show_byte_offset
-              ? HS_FLAG_SOM_LEFTMOST
-              : 0);
-    std::vector<unsigned int> flags;
-    flags.reserve(pattern_list.size());
-    for (std::size_t i = 0; i < pattern_list.size(); ++i) {
-      flags.push_back(flag);
-    }
-
-    if (compile_pattern_as_literal) {
-
-      std::vector<size_t> lens;
-      lens.reserve(pattern_list.size());
-      for (const std::string& str : pattern_list) {
-          lens.push_back(str.size());
-      }
-
-      error_code = hs_compile_lit_multi(
-          pattern_list_c.data(),
-          flags.data(),
-          NULL, // list of IDs - NULL means all zero
-          lens.data(), 
-          pattern_list.size(), HS_MODE_BLOCK, NULL, &database, &compile_error);
-    }
-    else {
-      error_code = hs_compile_multi(
-        pattern_list_c.data(),
-        flags.data(),
-        NULL, // list of IDs - NULL means all zero
-        pattern_list.size(),
-        HS_MODE_BLOCK, NULL, &database, &compile_error);
-    }
-  }
-
-  if (error_code != HS_SUCCESS) {
-    throw std::runtime_error(std::string{"Error compiling pattern: "} +
-                            compile_error->message);
-  }
-
-  auto database_error = hs_alloc_scratch(database, &scratch);
-  if (database_error != HS_SUCCESS) {
-    throw std::runtime_error("Error allocating scratch space");
   }
 }
 
@@ -534,7 +446,7 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
     const git_index_entry *entry = nullptr;
     while (git_index_iterator_next(&entry, iter) != GIT_ITEROVER) {
       if (entry && (!options.filter_files ||
-                    (options.filter_files && filter_file(entry->path)))) {
+                    (options.filter_files && filter_file(entry->path, file_filter_database, file_filter_scratch, negate_filter)))) {
 
         // Skip directories and symlinks
         if ((entry->mode & S_IFMT) == S_IFDIR ||
@@ -624,64 +536,4 @@ bool git_index_search::try_dequeue_and_process_path(hs_scratch_t *local_scratch,
     return true;
   }
   return false;
-}
-
-bool git_index_search::construct_file_filtering_hs_database() {
-
-  negate_filter = options.filter_file_pattern[0] == '!';
-  if (negate_filter) {
-    options.filter_file_pattern = options.filter_file_pattern.substr(1);
-  }
-
-  hs_compile_error_t *compile_error = NULL;
-  hs_error_t error_code =
-      hs_compile(options.filter_file_pattern.c_str(), HS_FLAG_UTF8,
-                 HS_MODE_BLOCK, NULL, &file_filter_database, &compile_error);
-  if (error_code != HS_SUCCESS) {
-    fprintf(stderr, "Error compiling pattern: %s\n", compile_error->message);
-    hs_free_compile_error(compile_error);
-    return false;
-  }
-
-  hs_error_t database_error =
-      hs_alloc_scratch(file_filter_database, &file_filter_scratch);
-  if (database_error != HS_SUCCESS) {
-    fprintf(stderr, "Error allocating scratch space\n");
-    hs_free_database(file_filter_database);
-    return false;
-  }
-
-  return true;
-}
-
-int git_index_search::on_file_filter_match(unsigned int id,
-                                           unsigned long long from,
-                                           unsigned long long to,
-                                           unsigned int flags, void *ctx) {
-  filter_context *fctx = (filter_context *)(ctx);
-  fctx->result = true;
-  return HS_SUCCESS;
-}
-
-bool git_index_search::filter_file(const char *path) {
-
-  // Result of `true` means that the file will be searched
-  // Result of `false` means that the file will be ignored
-  //
-  // If negate_filter is `true`, the result is flipped
-  bool result{false};
-
-  filter_context ctx{false};
-  if (hs_scan(file_filter_database, path, strlen(path), 0, file_filter_scratch,
-              on_file_filter_match, (void *)(&ctx)) != HS_SUCCESS) {
-    result = true;
-  } else {
-    result = ctx.result;
-  }
-
-  if (negate_filter) {
-    result = !result;
-  }
-
-  return result;
 }

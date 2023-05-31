@@ -2,11 +2,13 @@
 #include <argparse/argparse.hpp>
 #include <atomic>
 #include <chrono>
+#include <compiler.hpp>
 #include <concurrentqueue/concurrentqueue.h>
 #include <constants.hpp>
 #include <directory_search_options.hpp>
 #include <dirent.h>
 #include <fcntl.h>
+#include <file_filter.hpp>
 #include <file_search.hpp>
 #include <filesystem>
 #include <fmt/color.h>
@@ -34,28 +36,12 @@ public:
   void run(std::filesystem::path path);
 
 private:
-  struct filter_context {
-    bool result{false};
-  };
-
-private:
-  // Compile the HyperScan database for search
-  void compile_hs_database(const std::vector<std::string> &pattern_list);
-
   bool process_file(std::string &&filename, hs_scratch_t *local_scratch,
                     char *buffer, std::string &lines);
 
   bool try_dequeue_and_process_path(moodycamel::ConsumerToken &ctok,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines);
-
-  bool construct_file_filtering_hs_database();
-
-  static int on_file_filter_match(unsigned int id, unsigned long long from,
-                                  unsigned long long to, unsigned int flags,
-                                  void *ctx);
-
-  bool filter_file(const char *path, hs_scratch *local_file_filter_scratch);
 
   void search_thread_function();
 

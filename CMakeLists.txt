@@ -30,6 +30,7 @@ add_executable(hg
   src/is_binary.cpp
   src/directory_search.cpp
   src/file_search.cpp
+  src/filter_file.cpp
   src/git_index_search.cpp
   src/match_handler.cpp
   src/main.cpp
