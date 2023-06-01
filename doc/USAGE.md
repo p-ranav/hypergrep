@@ -60,3 +60,13 @@ The output indicates 4 matches across 2 different files.
 When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
   
 ![image](https://github.com/p-ranav/hypergrep/assets/8450091/89bd0e5b-7f09-4055-9f79-7a2c13e2ba95)
+
+### Locating the Match
+
+Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
+
+![03_GettingStarted_byteoffset](https://github.com/p-ranav/hypergrep/assets/8450091/85fceb5f-1871-4521-9921-f336166eb860)
+  
+Use `--column` to get the 1-based column number for the first-match in any matching line.
+
+![04_GettingStarted_column](https://github.com/p-ranav/hypergrep/assets/8450091/c5b75b5e-8dec-4b91-9a41-59c295a670b3)
