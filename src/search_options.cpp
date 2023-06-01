@@ -1,5 +1,21 @@
+#include <fstream>
 #include <hypergrep/compiler.hpp>
 #include <hypergrep/search_options.hpp>
+
+void read_pattern_file(const std::string &filename,
+                       std::vector<std::string> &pattern_list) {
+  std::ifstream file(filename);
+
+  if (file.is_open()) {
+    std::string line;
+    while (std::getline(file, line)) {
+      pattern_list.push_back(line);
+    }
+  } else {
+    const auto error = fmt::format("Error: Unable to open file {}", filename);
+    throw std::runtime_error(error.c_str());
+  }
+}
 
 void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
                        search_options &options, hs_database **database,
@@ -73,6 +89,16 @@ void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
   if (options.perform_search) {
 
     auto pattern_list = program.get<std::vector<std::string>>("-e");
+
+    if (program.is_used("-f")) {
+      // read from pattern file and append
+      // to the pattern list
+      const auto pattern_files = program.get<std::vector<std::string>>("-f");
+
+      for (const auto &pattern_file : pattern_files) {
+        read_pattern_file(pattern_file, pattern_list);
+      }
+    }
 
     if (program.get<bool>("-w")) {
       // Add word boundary around each pattern

@@ -54,7 +54,34 @@ void print_synopsis_1(bool is_stdout) {
   fmt::print("\n");
 }
 
+/*
+  rg [OPTIONS] -e PATTERN ... [PATH ...]
+  rg [OPTIONS] -f PATTERNFILE ... [PATH ...]
+*/
+
 void print_synopsis_2(bool is_stdout) {
+  print_synopsis_command(is_stdout);
+
+  if (is_stdout) {
+    fmt::print(fmt::emphasis::bold, "-e PATTERN ... [PATH ...]");
+  } else {
+    fmt::print("-e PATTERN ... [PATH ...]");
+  }
+  fmt::print("\n");
+}
+
+void print_synopsis_3(bool is_stdout) {
+  print_synopsis_command(is_stdout);
+
+  if (is_stdout) {
+    fmt::print(fmt::emphasis::bold, "-f PATTERNFILE ... [PATH ...]");
+  } else {
+    fmt::print("-f PATTERNFILE ... [PATH ...]");
+  }
+  fmt::print("\n");
+}
+
+void print_synopsis_4(bool is_stdout) {
   print_synopsis_command(is_stdout);
 
   if (is_stdout) {
@@ -65,7 +92,7 @@ void print_synopsis_2(bool is_stdout) {
   fmt::print("\n");
 }
 
-void print_synopsis_3(bool is_stdout) {
+void print_synopsis_5(bool is_stdout) {
   print_synopsis_command(is_stdout);
 
   if (is_stdout) {
@@ -76,7 +103,7 @@ void print_synopsis_3(bool is_stdout) {
   fmt::print("\n");
 }
 
-void print_synopsis_4(bool is_stdout) {
+void print_synopsis_6(bool is_stdout) {
   print_synopsis_command(is_stdout);
 
   if (is_stdout) {
@@ -105,6 +132,8 @@ void print_help() {
   print_synopsis_2(is_stdout);
   print_synopsis_3(is_stdout);
   print_synopsis_4(is_stdout);
+  print_synopsis_5(is_stdout);
+  print_synopsis_6(is_stdout);
   fmt::print("\n");
 
   // Description
@@ -172,6 +201,15 @@ void print_help() {
                     "        hg -e 'myFunctionCall' -e 'myErrorCallback'\n");
   print_description_line(
       "will search for any occurrence of either of the patterns.\n");
+
+  // Pattern file
+  print_option_name(is_stdout, "-f, --file", "<PATTERNFILE>...");
+  print_description_line(
+      "Search for patterns from the given file, with one pattern per line.");
+  print_description_line(
+      "When this flag is used multiple times or in combination with the");
+  print_description_line(
+      "-e/---regexp flag, then all patterns provided are searched.\n");
 
   // Files
   print_option_name(is_stdout, "--files");

@@ -22,14 +22,14 @@ void perform_search(std::string &pattern, std::string_view path,
     }
   } else {
     if (std::filesystem::is_regular_file(path)) {
-      file_search s(pattern, program);
+      static file_search s(pattern, program);
       s.run(path);
     } else {
 
       const auto ignore_gitindex = program.get<bool>("--ignore-gitindex");
       if (ignore_gitindex) {
         // Just run directory search
-        directory_search s(pattern, path, program);
+        static directory_search s(pattern, path, program);
         s.run(path);
       } else {
         // Check if search path is a git repo
@@ -37,7 +37,7 @@ void perform_search(std::string &pattern, std::string_view path,
 
         if (std::filesystem::exists(std::filesystem::path(path) / ".git")) {
           if (chdir(path.data()) == 0) {
-            git_index_search s(pattern, current_path, program);
+            static git_index_search s(pattern, current_path, program);
             s.run(".");
             if (chdir(current_path.c_str()) != 0) {
               throw std::runtime_error("Failed to restore path");
@@ -82,6 +82,8 @@ int main(int argc, char **argv) {
   program.add_argument("-e", "--regexp")
       .default_value<std::vector<std::string>>({})
       .append();
+
+  program.add_argument("-f", "--file").append();
 
   program.add_argument("--files").default_value(false).implicit_value(true);
 
@@ -171,12 +173,13 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  // If --files is not used
-  // pattern is required
-  const auto regexp_used = program.is_used("-e");
+  // If -f,--files,--regexp is NOT used,
+  // then, a pattern argument is required
+  const auto pattern_file_provided = program.is_used("-f");
   const auto files_used = program.get<bool>("--files");
+  const auto regexp_used = program.is_used("-e");
 
-  if (files_used || regexp_used) {
+  if (pattern_file_provided || files_used || regexp_used) {
     // Treat everything in patterns_and_paths
     // as a list of paths
     //
