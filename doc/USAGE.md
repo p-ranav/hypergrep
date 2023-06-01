@@ -70,6 +70,8 @@ Multiple independent patterns can be provided in two ways:
 ![multiple_patterns](images/multiple_patterns.png)
 
 ### Locating the Match
+  
+In addition to line numbers, the byte offset or the column number can be printed for each matching line.
 
 Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
 
