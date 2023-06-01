@@ -67,7 +67,7 @@ Multiple independent patterns can be provided in two ways:
 
 1. Use `-e` to provide multiple patterns, one after another, in the same command
 
-![05_GettingStarted_eregexp](https://github.com/p-ranav/hypergrep/assets/8450091/31073c84-d600-4bf9-8276-b9a1b3f532d5)
+![multiple_patterns](images/multiple_patterns.png)
 
 ### Locating the Match
 
