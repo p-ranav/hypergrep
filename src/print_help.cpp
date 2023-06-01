@@ -28,90 +28,28 @@ void print_description_line(std::string_view line) {
   fmt::print("        {}\n", line);
 }
 
-void print_synopsis_command(bool is_stdout) {
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "    {}", NAME);
-  } else {
-    fmt::print("    {}", NAME);
-  }
-  fmt::print(" [");
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "OPTIONS");
-  } else {
-    fmt::print("OPTIONS");
-  }
-  fmt::print("] ");
+void print_synopsis_1() {
+  fmt::print("    hg [OPTIONS] PATTERN [PATH ...]\n");
 }
 
-void print_synopsis_1(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "PATTERN [PATH ...]");
-  } else {
-    fmt::print("PATTERN [PATH ...]");
-  }
-  fmt::print("\n");
+void print_synopsis_2() {
+  fmt::print("    hg [OPTIONS] -e PATTERN ... [PATH ...]\n");
 }
 
-/*
-  rg [OPTIONS] -e PATTERN ... [PATH ...]
-  rg [OPTIONS] -f PATTERNFILE ... [PATH ...]
-*/
-
-void print_synopsis_2(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "-e PATTERN ... [PATH ...]");
-  } else {
-    fmt::print("-e PATTERN ... [PATH ...]");
-  }
-  fmt::print("\n");
+void print_synopsis_3() {
+  fmt::print("    hg [OPTIONS] -f PATTERNFILE ... [PATH ...]\n");
 }
 
-void print_synopsis_3(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "-f PATTERNFILE ... [PATH ...]");
-  } else {
-    fmt::print("-f PATTERNFILE ... [PATH ...]");
-  }
-  fmt::print("\n");
+void print_synopsis_4() {
+  fmt::print("    hg [OPTIONS] --files [PATH ...]\n");
 }
 
-void print_synopsis_4(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "--files [PATH ...]");
-  } else {
-    fmt::print("--files [PATH ...]");
-  }
-  fmt::print("\n");
+void print_synopsis_5() {
+  fmt::print("    hg [OPTIONS] --help\n");
 }
 
-void print_synopsis_5(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "--help");
-  } else {
-    fmt::print("--help");
-  }
-  fmt::print("\n");
-}
-
-void print_synopsis_6(bool is_stdout) {
-  print_synopsis_command(is_stdout);
-
-  if (is_stdout) {
-    fmt::print(fmt::emphasis::bold, "--version");
-  } else {
-    fmt::print("--version");
-  }
-  fmt::print("\n");
+void print_synopsis_6() {
+  fmt::print("    hg [OPTIONS] --version\n");
 }
 
 void print_help() {
@@ -128,35 +66,29 @@ void print_help() {
 
   // Synopsis
   print_heading(is_stdout, "SYNOPSIS");
-  print_synopsis_1(is_stdout);
-  print_synopsis_2(is_stdout);
-  print_synopsis_3(is_stdout);
-  print_synopsis_4(is_stdout);
-  print_synopsis_5(is_stdout);
-  print_synopsis_6(is_stdout);
+  print_synopsis_1();
+  print_synopsis_2();
+  print_synopsis_3();
+  print_synopsis_4();
+  print_synopsis_5();
+  print_synopsis_6();
   fmt::print("\n");
 
-  // Description
-  print_heading(is_stdout, "DESCRIPTION");
-  fmt::print(
-      "    This section provides a detailed description of your program.\n\n");
-
   // Pattern
-  print_heading(is_stdout, "PATTERN");
-  print_option_name(false, "A regular expression used for searching.\n");
+  print_heading(is_stdout, "ARGS");
+
+  print_option_name(is_stdout, "PATTERN");
+  print_description_line("A regular expression used for searching.\n");
 
   // Path
-  print_heading(is_stdout, "PATH");
-  print_option_name(
-      false,
+  print_option_name(is_stdout, "PATH");
+  print_description_line(
       "A file or directory to search. Directories are searched recursively.");
-  print_option_name(
-      false,
+  print_description_line(
       "If a git repository is detected, its git index is loaded and the");
-  print_option_name(false, "index entries are iterated using libgit2 and "
+  print_description_line("index entries are iterated using libgit2 and "
                            "searched. If a path is not");
-  print_option_name(
-      false,
+  print_description_line(
       "provided, the current working directory is recursively searched.\n");
 
   // Options
