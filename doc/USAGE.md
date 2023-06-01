@@ -73,7 +73,7 @@ Multiple independent patterns can be provided in two ways:
 
 Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
 
-![03_GettingStarted_byteoffset](https://github.com/p-ranav/hypergrep/assets/8450091/85fceb5f-1871-4521-9921-f336166eb860)
+![byte_offset](images/byte_offset.png)
   
 Use `--column` to get the 1-based column number for the first-match in any matching line.
 
