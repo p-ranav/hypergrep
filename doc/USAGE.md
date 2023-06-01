@@ -6,6 +6,9 @@
     - [Patterns in the command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
     - [Patterns in a PATTERNFILE (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
   * [List Files Without Searching (`--files` option)](#list-files-without-searching)
+  * [Filtering Files (`--filter` option)](#filtering-files)
+    - [Negating the Filter](#negating-the-filter)
+    - [Performance](#performance)
   * [Locating the Match](#locating-the-match)
     - [Byte Offset (`--byte-offset` option)](#byte-offset)
     - [Column Number (`--column` option)](#column-number)
@@ -72,6 +75,36 @@ Sometimes, it is necessary to check which files `hypergrep` chooses to search in
 ![files](images/files.png)
 
 Note in the above example that hidden files and directories are ignored by default.
+
+### Filtering Files
+
+Use `--filter` to filter the files being searched. Only files that positively match the filter pattern will be searched. 
+
+![filter](images/filter.png)
+
+NOTE that this is not a glob pattern but a Hyperscan pattern.
+
+The following pattern, `googletest/(include|src)/.*\.(cpp|hpp|c|h)$`, matches any C/C++ source file in any `googletest/include` and `googletest/src` subdirectory. 
+
+![filter_better_than_glob](images/filter_better_than_glob.png)
+
+#### Negating the Filter
+
+This sort of filtering can be negated by prefixing the filter with the `!` character, e.g.,: the pattern `!\.(cpp|hpp)$` will match any file that is NOT a C++ source file.
+
+![negate_filter](images/negate_filter.png)
+
+#### Performance
+
+This is a really fast way to pick the files you want to search. 
+
+For example, in the `/usr` directory:
+
+| Command | Number of Files | Time |
+| --- | --- | --- |
+| `find . -name "*.so" \| wc -l` | 1851	| 0.293 |	
+| `rg -g "*.so" --files \| wc -l` | 1621 | 0.082 |
+| `hg --filter '\.so$' --files \| wc -l` | 1621 | **0.043** |
 
 ### Locating the Match
 
