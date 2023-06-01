@@ -454,6 +454,15 @@ void directory_search::visit_directory_and_enqueue(
 
     // Check if the entry is a directory
     if (entry->d_type == DT_DIR) {
+
+      if (options.search_hidden_files) {
+        // Even if hidden files are going to be searched
+        // Need to skip these two
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+          continue;
+        }
+      }
+
       // Enqueue subdirectory for processing
       const auto path = std::filesystem::path{directory} / entry->d_name;
       subdirectories.enqueue(std::move(path));
