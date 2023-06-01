@@ -3,7 +3,11 @@
 - [Getting Started](#getting-started)
   * [Simple Search](#simple-search)
   * [Multiple Patterns](#multiple-patterns)
-  * [Locating the Match with `--byte-offset` and `--column`](#locating-the-match)
+    - [Patterns in te command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
+    - [Patterns in a pattern file (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
+  * [Locating the Match](#locating-the-match)
+    - [Byte Offset (`--byte-offset` option)](#byte-offset)
+    - [Column Number (`--column` option)](#column-number)
   * [Counting Matches](#counting-matches)
 - [Usage](#usage)
 - [Options](#options)
@@ -59,12 +63,16 @@ This file can be used to search multiple patterns at once using the `-f/--file` 
 ![patternfile](images/patternfile.png)
 
 ### Locating the Match
+
+#### Byte Offset
   
 In addition to line numbers, the byte offset or the column number can be printed for each matching line.
 
 Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
 
 ![byte_offset](images/byte_offset.png)
+
+#### Column Number
   
 Use `--column` to get the 1-based column number for the first-match in any matching line.
 
