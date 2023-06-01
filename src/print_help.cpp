@@ -258,17 +258,6 @@ void print_help() {
       "Print only matched parts of a matching line, with each such part on a");
   print_description_line("separate output line.\n");
 
-  // Binary as text
-  print_option_name(is_stdout, "-a, --text");
-  print_description_line(
-      "Search binary files as if they were text. When this flag is present,");
-  print_description_line(
-      "binary file detection is disabled. When a binray file is searched, its");
-  print_description_line(
-      "contents may be printed if there is a match. This may cause escape");
-  print_description_line(
-      "codes to be printed that alter the behavior of the terminal.\n");
-
   // UCP
   print_option_name(is_stdout, "--ucp");
   print_description_line(

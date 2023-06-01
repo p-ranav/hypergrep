@@ -29,7 +29,6 @@ struct search_options {
   bool print_only_matching_parts{false};
   std::optional<std::size_t> max_column_limit{};
   bool print_filenames{true};
-  bool search_binary_files{false};
   bool ignore_gitindex{false};
   bool compile_pattern_as_literal{false};
   bool ltrim_each_output_line{false};

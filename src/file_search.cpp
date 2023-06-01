@@ -56,10 +56,6 @@ void file_search::run(std::filesystem::path path,
 
   // Memory map and search file in chunks multithreaded
   mmap_and_scan(std::move(path), maybe_file_size);
-
-  if (options.is_stdout) {
-    fmt::print("\n");
-  }
 }
 
 struct chunk_result {
@@ -336,6 +332,10 @@ bool file_search::mmap_and_scan(std::string &&filename,
   }
 
   delete[] output_queues;
+
+  if (options.is_stdout && num_matching_lines > 0) {
+    fmt::print("\n");
+  }
 
   return true;
 }

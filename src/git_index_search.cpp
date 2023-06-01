@@ -167,7 +167,7 @@ bool git_index_search::process_file(const char *filename,
       return false;
     }
 
-    if (first && !options.search_binary_files) {
+    if (first) {
       first = false;
       if (starts_with_magic_bytes(buffer, bytes_read)) {
         result = false;

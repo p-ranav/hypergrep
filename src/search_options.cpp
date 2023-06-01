@@ -22,7 +22,6 @@ void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
                        hs_scratch **scratch, hs_database **file_filter_database,
                        hs_scratch **file_filter_scratch) {
 
-  options.search_binary_files = program.get<bool>("--text");
   options.count_matching_lines = program.get<bool>("-c");
   options.count_matches = program.get<bool>("--count-matches");
   options.compile_pattern_as_literal = program.get<bool>("-F");

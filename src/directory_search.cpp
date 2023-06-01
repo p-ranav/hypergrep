@@ -198,7 +198,7 @@ bool directory_search::process_file(std::string &&filename,
                                     hs_scratch_t *local_scratch, char *buffer,
                                     std::string &lines) {
 
-  if (!options.search_binary_files && is_blacklisted(filename)) {
+  if (is_blacklisted(filename)) {
     return false;
   }
 
@@ -274,7 +274,7 @@ bool directory_search::process_file(std::string &&filename,
       }
     }
 
-    if (first && !options.search_binary_files) {
+    if (first) {
       first = false;
       if (starts_with_magic_bytes(buffer, bytes_read)) {
         result = false;
