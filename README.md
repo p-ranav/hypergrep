@@ -4,10 +4,11 @@
 
 ## Highlights
 
-* Search recursively for a regex pattern using [Intel Hyperscan](https://github.com/intel/hyperscan)
-* When a git repository is detected, the repository index is searched using [libgit2](https://github.com/libgit2/libgit2)
+* Search recursively for a regex pattern using [Intel Hyperscan](https://github.com/intel/hyperscan).
+* When a git repository is detected, the repository index is searched using [libgit2](https://github.com/libgit2/libgit2).
 * Similar to `grep`, `ripgrep`, `ugrep`, `The Silver Searcher` etc.
-* C++17, Multi-threading, SIMD
+* C++17, Multi-threading, SIMD.
+* Implementation notes [here](doc/NOTES.md).
 
 ## Example Output
 
@@ -95,26 +96,6 @@ The following searches are performed on the `/usr` directory.
 | Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 114 | 4.239 | 1.827 | 0.303 | **0.167** |
 | Count the number of HEX values<br/>`hg -cw "(?:0x)?[0-9A-Fa-f]+"` | 68401 | 5.765 | 28.691 | 1.662 | **0.660** |
 | Search any C/C++ for a literal<br/>`hg --filter "\.(c\|cpp\|h\|hpp)$" test` | 7356 | n/a | 0.505 | 0.140 | **0.086** | 
-
-## How It Works
-
-`hypergrep` can search (1) a directory of files, (2) a git repository, or (3) a single file. The approach taken by `hypergrep` differs in small ways depending on what is being searched. 
-
-For any directory search, the approach is: Find files that needs to be searched. Enqueue these files onto a lock-free queue. Spawn N threads that consume from the queue, open each file, and scan for matches. Continue this until all files in the queue are searched.  
-
-![Workflow](doc/workflow.png)
-
-### Git Repository Search
-
-When a `.git` directory is detected in any folder, `hypergrep` tries to use [libgit2](https://libgit2.org/libgit2/#HEAD) to [open](https://libgit2.org/libgit2/#HEAD/group/repository/git_repository_open) the git repository. If the git repository is successfully opened, the git index file is loaded using [git_repository_index](https://libgit2.org/libgit2/#HEAD/group/repository/git_repository_index) and then [iterated](https://libgit2.org/libgit2/#HEAD/group/index/git_index_iterator_next). Candidate files are enqueued onto the queue and then subsequently searched in one of the search threads. **NOTE** that when working with git repositories, `hypergrep` chooses to search the index instead of evaluating each file against every `ignore` rule in every `.gitignore` file. Additionally, `hypergrep` searches each submodule in the active repository using [git_submodule_foreach](https://libgit2.org/libgit2/#HEAD/group/submodule/git_submodule_foreach). **NOTE** Submodules can be excluded using the  `--ignore-submodules` flag, which will further speed up any repository search.
-
-### Directory Search
-
-When searching any directory that is not in itself a git repository, `hypergrep` might still encounter a nested directory that happens to be a git repository. So, for any directory search, `hypergrep` traverses the directory tree in a multi-threaded fashion, enqueuing any subdirectories into a queue for further processing. If git repositories are encountered, instead of iterating further into those directories, `hypergrep` reads and iterates the git index. Any further recursion into those directories is arrested. For directories that are not git repositories, any candidate file that is discovered through recursive directory iteration is enqueued and searched.
-
-### Large File Search
-
-When searching single files, `hypergrep` will first memory map the file, then search it in parallel across multiple threads. Each thread covers a portion of the file and saves its local results to a thread-specific queue. A consumer thread at the end of the pipeline is responsible for dequeueing from each thread-specific queue, figuring out the line numbers, and printing each result correctly. Note that during directory search, `hypergrep` handles any large files encountered during iteration using this approach.
 
 ## Build
 
