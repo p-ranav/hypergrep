@@ -26,6 +26,8 @@ When searching single files, `hypergrep` will first memory map the file, then se
 
 ## Design Decisions
 
-1. File is searched in chunks of `64 KiB` (`65536 bytes`). If such a chunk does not have any newlines, skip this file. Example: minified JS file.
-2. Lines longer than `4096 bytes` are omitted - the number of matches in such lines is still printed. This cleans up the output and simplifies the implementation as well.
-3. If `-w/--word-regexp` is used, any `-F` argument will be discarded and the pattern will not be treated as a literal anymore (because of the `\b`pattern`\b` bookends that are added to support `-w`)
+1. Files are searched in chunks of `64 KiB` (`65536 bytes`). If such a chunk does not have any newlines, skip this file. Example: minified JS file.
+2. A file is marked as a "large" file if its size exceeds `1 MiB` (`1048576 bytes`). Large files, as described above, will be memory mapped and searched in a multi-threaded fashion. 
+3. Lines longer than `4096 bytes` are omitted - the number of matches in such lines is still printed. This cleans up the output and simplifies the implementation as well.
+4. If `-w/--word-regexp` is used, any `-F` argument will be discarded and the pattern will not be treated as a literal anymore (because of the `\b`pattern`\b` bookends that are added to support `-w`)
+5. Trimming whitespace using `--trim` will trim any `' '` (`0x20` whitespace) and any `'\t'` (`0x09` tab character) at the start of any matching line.
