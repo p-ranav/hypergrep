@@ -1,3 +1,14 @@
+## Usage
+
+```bash
+hg [OPTIONS] PATTERN [PATH ...]
+hg [OPTIONS] -e PATTERN ... [PATH ...]
+hg [OPTIONS] -f PATTERNFILE ... [PATH ...]
+hg [OPTIONS] --files [PATH ...]
+hg [OPTIONS] --help
+hg [OPTIONS] --version
+```
+
 ## Options
 
 | Name | Description | 
