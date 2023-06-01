@@ -82,7 +82,7 @@ Use `--filter` to filter the files being searched. Only files that positively ma
 
 ![filter](images/filter.png)
 
-NOTE that this is not a glob pattern but a Hyperscan pattern.
+NOTE that this is not a glob pattern but a PCRE pattern.
 
 The following pattern, `googletest/(include|src)/.*\.(cpp|hpp|c|h)$`, matches any C/C++ source file in any `googletest/include` and `googletest/src` subdirectory. 
 
