@@ -53,7 +53,7 @@ The program can be used in one of a few different ways:
 
 The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
   
-![image](https://github.com/p-ranav/hypergrep/assets/8450091/f000e3d3-f41f-4cae-9195-08d7288c231f)
+![directory_search_stdout](images/directory_search_stdout.png)
   
 The output indicates 4 matches across 2 different files.
   
