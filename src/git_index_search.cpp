@@ -219,13 +219,13 @@ bool git_index_search::process_file(const char *filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      num_matching_lines +=
-          process_fn(result_path.c_str(), buffer, search_size, ctx.matches,
-                     current_line_number, lines, options.print_filenames,
-                     options.is_stdout, options.show_line_numbers,
-                     options.show_column_numbers, options.show_byte_offset,
-                     options.print_only_matching_parts,
-                     options.max_column_limit, total_bytes_read - bytes_read);
+      num_matching_lines += process_fn(
+          result_path.c_str(), buffer, search_size, ctx.matches,
+          current_line_number, lines, options.print_filenames,
+          options.is_stdout, options.show_line_numbers,
+          options.show_column_numbers, options.show_byte_offset,
+          options.print_only_matching_parts, options.max_column_limit,
+          total_bytes_read - bytes_read, options.ltrim_each_output_line);
       num_matches += ctx.number_of_matches;
     }
 

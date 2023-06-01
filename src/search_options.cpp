@@ -63,6 +63,7 @@ void initialize_search(std::string &pattern, argparse::ArgumentParser &program,
     options.compile_pattern_as_literal = false;
   }
 
+  options.ltrim_each_output_line = program.get<bool>("--trim");
   options.use_ucp = program.get<bool>("--ucp");
   options.search_hidden_files = program.get<bool>("--hidden");
 

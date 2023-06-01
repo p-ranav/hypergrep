@@ -56,6 +56,10 @@ void file_search::run(std::filesystem::path path,
 
   // Memory map and search file in chunks multithreaded
   mmap_and_scan(std::move(path), maybe_file_size);
+
+  if (options.is_stdout) {
+    fmt::print("\n");
+  }
 }
 
 struct chunk_result {
@@ -256,7 +260,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
               options.is_stdout, options.show_line_numbers,
               options.show_column_numbers, options.show_byte_offset,
               options.print_only_matching_parts, options.max_column_limit,
-              (start - buffer));
+              (start - buffer), options.ltrim_each_output_line);
 
           if (!options.count_matching_lines && !options.count_matches &&
               !options.print_only_filenames && !lines.empty()) {
@@ -392,7 +396,7 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
                current_line_number, lines, false, options.is_stdout,
                options.show_line_numbers, options.show_column_numbers,
                options.show_byte_offset, options.print_only_matching_parts,
-               options.max_column_limit, 0);
+               options.max_column_limit, 0, options.ltrim_each_output_line);
 
     if (!options.count_matching_lines && !options.print_only_filenames &&
         result && !lines.empty()) {

@@ -28,9 +28,7 @@ void print_description_line(std::string_view line) {
   fmt::print("        {}\n", line);
 }
 
-void print_synopsis_1() {
-  fmt::print("    hg [OPTIONS] PATTERN [PATH ...]\n");
-}
+void print_synopsis_1() { fmt::print("    hg [OPTIONS] PATTERN [PATH ...]\n"); }
 
 void print_synopsis_2() {
   fmt::print("    hg [OPTIONS] -e PATTERN ... [PATH ...]\n");
@@ -40,17 +38,11 @@ void print_synopsis_3() {
   fmt::print("    hg [OPTIONS] -f PATTERNFILE ... [PATH ...]\n");
 }
 
-void print_synopsis_4() {
-  fmt::print("    hg [OPTIONS] --files [PATH ...]\n");
-}
+void print_synopsis_4() { fmt::print("    hg [OPTIONS] --files [PATH ...]\n"); }
 
-void print_synopsis_5() {
-  fmt::print("    hg [OPTIONS] --help\n");
-}
+void print_synopsis_5() { fmt::print("    hg [OPTIONS] --help\n"); }
 
-void print_synopsis_6() {
-  fmt::print("    hg [OPTIONS] --version\n");
-}
+void print_synopsis_6() { fmt::print("    hg [OPTIONS] --version\n"); }
 
 void print_help() {
   const auto is_stdout = isatty(STDOUT_FILENO) == 1;
@@ -87,7 +79,7 @@ void print_help() {
   print_description_line(
       "If a git repository is detected, its git index is loaded and the");
   print_description_line("index entries are iterated using libgit2 and "
-                           "searched. If a path is not");
+                         "searched. If a path is not");
   print_description_line(
       "provided, the current working directory is recursively searched.\n");
 

@@ -1,5 +1,6 @@
 #include <hypergrep/directory_search.hpp>
 #include <hypergrep/is_binary.hpp>
+#include <hypergrep/trim_whitespace.hpp>
 
 directory_search::directory_search(std::string &pattern,
                                    const std::filesystem::path &path,
@@ -327,13 +328,13 @@ bool directory_search::process_file(std::string &&filename,
     }
 
     if (ctx.number_of_matches > 0) {
-      num_matching_lines +=
-          process_fn(filename.data(), buffer, search_size, ctx.matches,
-                     current_line_number, lines, options.print_filenames,
-                     options.is_stdout, options.show_line_numbers,
-                     options.show_column_numbers, options.show_byte_offset,
-                     options.print_only_matching_parts,
-                     options.max_column_limit, total_bytes_read - bytes_read);
+      num_matching_lines += process_fn(
+          filename.data(), buffer, search_size, ctx.matches,
+          current_line_number, lines, options.print_filenames,
+          options.is_stdout, options.show_line_numbers,
+          options.show_column_numbers, options.show_byte_offset,
+          options.print_only_matching_parts, options.max_column_limit,
+          total_bytes_read - bytes_read, options.ltrim_each_output_line);
       num_matches += ctx.number_of_matches;
     }
 

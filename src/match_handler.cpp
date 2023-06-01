@@ -26,8 +26,8 @@ std::size_t process_matches(
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
     bool show_byte_offset, bool print_only_matching_parts,
-    const std::optional<std::size_t> &max_column_limit,
-    std::size_t byte_offset) {
+    const std::optional<std::size_t> &max_column_limit, std::size_t byte_offset,
+    bool ltrim_each_output_line) {
   std::string_view chunk(buffer, bytes_read);
 
   static bool apply_column_limit = max_column_limit.has_value();
@@ -203,7 +203,13 @@ std::size_t process_matches(
           lines += fmt::format("{}\n", chunk.substr(from, to - from));
         }
       } else {
-        lines += fmt::format("{}", chunk.substr(index, from - index));
+
+        auto prefix = chunk.substr(index, from - index);
+        if (ltrim_each_output_line) {
+          prefix = ltrim(prefix);
+        }
+
+        lines += fmt::format("{}", prefix);
         if (is_stdout) {
           lines += fmt::format(fg(fmt::color::red), "{}",
                                chunk.substr(from, to - from));
@@ -241,8 +247,8 @@ std::size_t process_matches_nocolor_nostdout(
     std::size_t &current_line_number, std::string &lines, bool print_filename,
     bool is_stdout, bool show_line_numbers, bool show_column_numbers,
     bool show_byte_offset, bool print_only_matching_parts,
-    const std::optional<std::size_t> &max_column_limit,
-    std::size_t byte_offset) {
+    const std::optional<std::size_t> &max_column_limit, std::size_t byte_offset,
+    bool ltrim_each_output_line) {
   std::string_view chunk(buffer, bytes_read);
   static bool apply_column_limit = max_column_limit.has_value();
 
@@ -341,8 +347,11 @@ std::size_t process_matches_nocolor_nostdout(
       }
     }
 
-    lines += fmt::format(
-        "{}\n", chunk.substr(start_of_line, end_of_line - start_of_line));
+    auto output_line = chunk.substr(start_of_line, end_of_line - start_of_line);
+    if (ltrim_each_output_line) {
+      output_line = ltrim(output_line);
+    }
+    lines += fmt::format("{}\n", output_line);
   }
 
   // Return the number of matching lines

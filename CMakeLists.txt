@@ -37,7 +37,8 @@ add_executable(hg
   src/main.cpp
   src/print_help.cpp
   src/search_options.cpp
-  src/size_to_bytes.cpp)
+  src/size_to_bytes.cpp
+  src/trim_whitespace.cpp)
 target_compile_features(hg PUBLIC cxx_std_17)
 target_include_directories(hg PRIVATE include)
 target_link_libraries(hg PRIVATE

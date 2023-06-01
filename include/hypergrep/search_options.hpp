@@ -32,6 +32,7 @@ struct search_options {
   bool search_binary_files{false};
   bool ignore_gitindex{false};
   bool compile_pattern_as_literal{false};
+  bool ltrim_each_output_line{false};
 };
 
 void initialize_search(std::string &pattern, argparse::ArgumentParser &program,

@@ -139,6 +139,8 @@ int main(int argc, char **argv) {
       .default_value(false)
       .implicit_value(true);
 
+  program.add_argument("--trim").default_value(false).implicit_value(true);
+
   program.add_argument("--ucp").default_value(false).implicit_value(true);
 
   program.add_argument("-w", "--word-regexp")
