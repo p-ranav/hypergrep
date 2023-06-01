@@ -186,12 +186,14 @@ bool file_search::mmap_and_scan(std::string &&filename,
 
             // Update end to stop at a newline boundary
             std::string_view chunk(start, end - start);
-            auto last_newline = chunk.find_last_of('\n', end - start);
-            if (last_newline == std::string_view::npos) {
-              // No newline found, do nothing?
-              // TODO: This could be an error scenario, check
-            } else {
-              end = start + last_newline;
+            if (end != eof) {
+              auto last_newline = chunk.find_last_of('\n', end - start);
+              if (last_newline == std::string_view::npos) {
+                // No newline found, do nothing?
+                // TODO: This could be an error scenario, check
+              } else {
+                end = start + last_newline;
+              }
             }
 
             // Perform the search

@@ -20,6 +20,8 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
   }
 }
 
+#include <iostream>
+
 std::size_t process_matches(
     const char *filename, char *buffer, std::size_t bytes_read,
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,

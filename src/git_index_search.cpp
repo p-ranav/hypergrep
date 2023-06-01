@@ -183,19 +183,27 @@ bool git_index_search::process_file(const char *filename,
       }
     }
 
-    // Find the position of the last newline in the buffer
-    // In order to catch matches between chunks, need to amend the buffer
-    // and make sure it stops at a new line boundary
-    char *last_newline = (char *)memrchr(buffer, '\n', bytes_read);
+    // Detect end of file
+    // If end of file, search entire chunk
+    // If not end of file, search for last newline 
+    const auto last_chunk = (bytes_read < FILE_CHUNK_SIZE);
     std::size_t search_size = bytes_read;
-    if (last_newline) {
-      search_size = last_newline - buffer;
-    } else {
-      // Not a single newline in the entire chunk
-      // This could be some binary file or some minified JS file
-      // Skip it
-      result = false;
-      break;
+
+    char *last_newline = buffer + bytes_read;
+    if (!last_chunk) {
+      // Find the position of the last newline in the buffer
+      // In order to catch matches between chunks, need to amend the buffer
+      // and make sure it stops at a new line boundary
+      char *last_newline = (char *)memrchr(buffer, '\n', bytes_read);
+      if (last_newline) {
+        search_size = last_newline - buffer;
+      } else {
+        // Not a single newline in the entire chunk
+        // This could be some binary file or some minified JS file
+        // Skip it
+        result = false;
+        break;
+      }
     }
 
     std::mutex match_mutex;
@@ -229,8 +237,7 @@ bool git_index_search::process_file(const char *filename,
       num_matches += ctx.number_of_matches;
     }
 
-    if (last_newline && bytes_read > search_size &&
-        bytes_read == FILE_CHUNK_SIZE) /* Not the last chunk */ {
+    if (!last_chunk) {
 
       if (static_cast<std::size_t>(last_newline - buffer) == bytes_read - 1) {
         // Chunk ends exactly at the newline
