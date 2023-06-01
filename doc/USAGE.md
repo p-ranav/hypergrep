@@ -60,6 +60,14 @@ The output indicates 4 matches across 2 different files.
 When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
   
 ![image](https://github.com/p-ranav/hypergrep/assets/8450091/89bd0e5b-7f09-4055-9f79-7a2c13e2ba95)
+  
+### Multiple Patterns
+  
+Multiple independent patterns can be provided in two ways:
+
+1. Use `-e` to provide multiple patterns, one after another, in the same command
+
+![05_GettingStarted_eregexp](https://github.com/p-ranav/hypergrep/assets/8450091/31073c84-d600-4bf9-8276-b9a1b3f532d5)
 
 ### Locating the Match
 
