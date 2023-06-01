@@ -96,9 +96,7 @@ This sort of filtering can be negated by prefixing the filter with the `!` chara
 
 #### Performance
 
-This is a really fast way to pick the files you want to search. 
-
-For example, in the `/usr` directory:
+Running in the `/usr` directory and searching for any shared library:
 
 | Command | Number of Files | Time |
 | --- | --- | --- |
