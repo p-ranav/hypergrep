@@ -5,6 +5,7 @@
   * [Multiple Patterns](#multiple-patterns)
     - [Patterns in the command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
     - [Patterns in a PATTERNFILE (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
+  * [List Files Without Searching (`--files` option)](#list-files-without-searching)
   * [Locating the Match](#locating-the-match)
     - [Byte Offset (`--byte-offset` option)](#byte-offset)
     - [Column Number (`--column` option)](#column-number)
@@ -63,6 +64,14 @@ fmt::print\("{}"
 This file can be used to search multiple patterns at once using the `-f/--file` option:
 
 ![patternfile](images/patternfile.png)
+
+### List Files Without Searching
+
+Sometimes, it is necessary to check which files `hypergrep` chooses to search in any directory. Use `--files` to print a list of all files that `hypergrep` will consider.
+
+![files](images/files.png)
+
+Note in the above example that hidden files and directories are ignored by default.
 
 ### Locating the Match
 
