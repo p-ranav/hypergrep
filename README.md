@@ -12,10 +12,6 @@
 * Implementation notes [here](doc/NOTES.md).
 * Not cross-platform. Tested in Linux. 
 
-## Example Output
-
-![00_ExampleOutput](https://github.com/p-ranav/hypergrep/assets/8450091/b73a3fe1-40e3-407d-913f-e7ba98340aec)
-
 ## Performance
 
 The following tests compare the performance of `hypergrep` against:
