@@ -8,7 +8,7 @@
 
 Below is a diagram that illustrates the workflow used by `hypergrep`.
 
-![Workflow](doc/workflow.png)
+![Workflow](workflow.png)
 
 ### Git Repository Search
 
