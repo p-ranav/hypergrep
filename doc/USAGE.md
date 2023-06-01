@@ -3,12 +3,14 @@
 - [Getting Started](#getting-started)
   * [Simple Search](#simple-search)
   * [Multiple Patterns](#multiple-patterns)
-    - [Patterns in te command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
-    - [Patterns in a pattern file (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
+    - [Patterns in the command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
+    - [Patterns in a PATTERNFILE (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
   * [Locating the Match](#locating-the-match)
     - [Byte Offset (`--byte-offset` option)](#byte-offset)
     - [Column Number (`--column` option)](#column-number)
   * [Counting Matches](#counting-matches)
+    - [Count Matching Lines (`-c/--count` option)](#count-matching-lines)
+    - [Count Matches (`--count-matches` option)](#count-matches)
 - [Usage](#usage)
 - [Options](#options)
 
@@ -80,7 +82,17 @@ Use `--column` to get the 1-based column number for the first-match in any match
 
 ### Counting Matches
 
+#### Count Matching Lines
 
+Use `-c/--count` to count the number of matching lines in each file. Note that multiple matches per line still counts as 1 matching line.
+
+![count](images/count_matching_lines.png)
+
+#### Count Matches
+
+Use `--count-matches` to count the number of matches in each file. If there are multiple matches per line, these are individually counted.
+
+![count_matches](images/count_matches.png)
 
 ## Usage
 
