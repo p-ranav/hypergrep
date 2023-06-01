@@ -38,3 +38,25 @@ hg [OPTIONS] --version
 | `--ucp` | Use unicode properties, rather than the default ASCII interpretations, for character mnemonics like `\w` and `\s` as well as the POSIX character classes. |
 | `-v, --version` | Display the version information. |
 | `-w, --word-regexp` | Only show matches surrounded by word boundaries. This is equivalent to putting `\b` before and after the the search pattern. |
+  
+## Getting Started
+
+The implementation of `hypergrep` is based on `grep` and `ripgrep`. 
+
+The program can be used in one of a few different ways:
+
+1. Single pattern, searching a single path (if no path is provided, the current directory is searched).
+1. Single pattern, searching multiple paths.
+2. Multiple patterns provided via `-e` option, searching multiple paths.
+3. Multiple patterns provided via a pattern file, searching multiple paths.
+4. No patterns, just interested in what files _will_ be searched (using `--files`)
+
+The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
+  
+![image](https://github.com/p-ranav/hypergrep/assets/8450091/fdd1b97d-b108-4d26-8eb7-b0afb6fd817a)
+
+The output indicates 4 matches across 2 different files.
+  
+When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
+  
+![image](https://github.com/p-ranav/hypergrep/assets/8450091/4c0f55ed-c7de-42bb-a3ca-95def5ac154e)
