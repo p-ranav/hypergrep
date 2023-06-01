@@ -1,3 +1,56 @@
+## Table of Contents
+
+- [Getting Started](#getting-started)
+  * [Simple Search](#simple-search)
+  * [Multiple Patterns](#multiple-patterns)
+  * [Locating the Match with `--byte-offset` and `--column`](#locating-the-match)
+- [Usage](#usage)
+- [Options](#options)
+
+## Getting Started
+
+The implementation of `hypergrep` is based on `grep` and `ripgrep`. 
+
+The program can be used in one of a few different ways:
+
+1. Single pattern, searching a single path (if no path is provided, the current directory is searched).
+1. Single pattern, searching multiple paths.
+2. Multiple patterns provided via `-e` option, searching multiple paths.
+3. Multiple patterns provided via a pattern file, searching multiple paths.
+4. No patterns, just interested in what files _will_ be searched (using `--files`)
+
+### Simple Search
+
+The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
+  
+![directory_search_stdout](images/directory_search_stdout.png)
+  
+The output indicates 4 matches across 2 different files.
+  
+When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
+  
+![directory_search_pipe](images/directory_search_pipe.png)
+  
+### Multiple Patterns
+  
+Multiple independent patterns can be provided in two ways:
+
+1. Use `-e` to provide multiple patterns, one after another, in the same command
+
+![multiple_patterns](images/multiple_patterns.png)
+
+### Locating the Match
+  
+In addition to line numbers, the byte offset or the column number can be printed for each matching line.
+
+Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
+
+![byte_offset](images/byte_offset.png)
+  
+Use `--column` to get the 1-based column number for the first-match in any matching line.
+
+![column](images/column.png)
+
 ## Usage
 
 ```bash
@@ -38,45 +91,3 @@ hg [OPTIONS] --version
 | `--ucp` | Use unicode properties, rather than the default ASCII interpretations, for character mnemonics like `\w` and `\s` as well as the POSIX character classes. |
 | `-v, --version` | Display the version information. |
 | `-w, --word-regexp` | Only show matches surrounded by word boundaries. This is equivalent to putting `\b` before and after the the search pattern. |
-  
-## Getting Started
-
-The implementation of `hypergrep` is based on `grep` and `ripgrep`. 
-
-The program can be used in one of a few different ways:
-
-1. Single pattern, searching a single path (if no path is provided, the current directory is searched).
-1. Single pattern, searching multiple paths.
-2. Multiple patterns provided via `-e` option, searching multiple paths.
-3. Multiple patterns provided via a pattern file, searching multiple paths.
-4. No patterns, just interested in what files _will_ be searched (using `--files`)
-
-The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
-  
-![directory_search_stdout](images/directory_search_stdout.png)
-  
-The output indicates 4 matches across 2 different files.
-  
-When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
-  
-![directory_search_pipe](images/directory_search_pipe.png)
-  
-### Multiple Patterns
-  
-Multiple independent patterns can be provided in two ways:
-
-1. Use `-e` to provide multiple patterns, one after another, in the same command
-
-![multiple_patterns](images/multiple_patterns.png)
-
-### Locating the Match
-  
-In addition to line numbers, the byte offset or the column number can be printed for each matching line.
-
-Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
-
-![byte_offset](images/byte_offset.png)
-  
-Use `--column` to get the 1-based column number for the first-match in any matching line.
-
-![column](images/column.png)
