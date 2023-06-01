@@ -1,5 +1,7 @@
 `hypergrep` is a line-oriented search tool that will recursively search paths for regex pattern matches. Using the input pattern(s), an Intel Hyperscan pattern database is compiled for the search. If manual filtering is used, a secondary pattern database is compiled for filtering out unwanted paths. Once ready, each input path is searched in a multi-threaded SIMD-vectorized manner. 
 
+## Workflow
+
 `hypergrep` is designed to handle three specific use-cases:
 
 1. A directory of files
@@ -21,3 +23,9 @@ When searching any directory that is not in itself a git repository, `hypergrep`
 ### Large File Search
 
 When searching single files, `hypergrep` will first memory map the file, then search it in parallel across multiple threads. Each thread covers a portion of the file and saves its local results to a thread-specific queue. A consumer thread at the end of the pipeline is responsible for dequeueing from each thread-specific queue, figuring out the line numbers, and printing each result correctly. Note that during directory search, `hypergrep` handles any large files encountered during iteration using this approach.
+
+## Design Decisions
+
+1. File is searched in chunks of `64 KiB` (`65536 bytes`). If such a chunk does not have any newlines, skip this file. Example: minified JS file.
+2. Lines longer than `4096 bytes` are omitted - the number of matches in such lines is still printed. This cleans up the output and simplifies the implementation as well.
+3. If `-w/--word-regexp` is used, any `-F` argument will be discarded and the pattern will not be treated as a literal anymore (because of the `\b`pattern`\b` bookends that are added to support `-w`)
