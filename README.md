@@ -9,6 +9,7 @@
 * Similar to `grep`, `ripgrep`, `ugrep`, `The Silver Searcher` etc.
 * C++17, Multi-threading, SIMD.
 * Implementation notes [here](doc/NOTES.md).
+* Not cross-platform. Tested in Linux. 
 
 ## Example Output
 
