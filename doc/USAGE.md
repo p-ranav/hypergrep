@@ -4,6 +4,7 @@
   * [Simple Search](#simple-search)
   * [Multiple Patterns](#multiple-patterns)
   * [Locating the Match with `--byte-offset` and `--column`](#locating-the-match)
+  * [Counting Matches](#counting-matches)
 - [Usage](#usage)
 - [Options](#options)
 
@@ -33,11 +34,29 @@ When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the outp
   
 ### Multiple Patterns
   
-Multiple independent patterns can be provided in two ways:
+Multiple independent patterns can be provided in two ways: 
 
-1. Use `-e` to provide multiple patterns, one after another, in the same command
+1. Using `-e/--regexp` and providing each pattern in the command line
+2. Using `-f/--gile` and providing a pattern file, which contains multiple patterns, one per line. 
+
+#### Patterns in the command line with `-e/--regexp` option
+
+Use `-e` to provide multiple patterns, one after another, in the same command
 
 ![multiple_patterns](images/multiple_patterns.png)
+
+#### Patterns in a pattern file with `-f/--file` option
+
+Consider the pattern file `list_of_patterns.txt` with two lines:
+
+```txt
+hs_scan
+fmt::print\("{}"
+```
+
+This file can be used to search multiple patterns at once using the `-f/--file` option:
+
+![patternfile](images/patternfile.png)
 
 ### Locating the Match
   
@@ -50,6 +69,10 @@ Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in th
 Use `--column` to get the 1-based column number for the first-match in any matching line.
 
 ![column](images/column.png)
+
+### Counting Matches
+
+
 
 ## Usage
 
