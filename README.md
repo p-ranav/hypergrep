@@ -14,9 +14,7 @@
 
 ## Example Output
 
-<p>
-  <img src="doc/example_output.png"/>
-</p>
+![00_ExampleOutput](https://github.com/p-ranav/hypergrep/assets/8450091/b73a3fe1-40e3-407d-913f-e7ba98340aec)
 
 ## Performance
 
