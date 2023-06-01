@@ -77,4 +77,4 @@ Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in th
   
 Use `--column` to get the 1-based column number for the first-match in any matching line.
 
-![04_GettingStarted_column](https://github.com/p-ranav/hypergrep/assets/8450091/c5b75b5e-8dec-4b91-9a41-59c295a670b3)
+![column](images/column.png)
