@@ -1,14 +1,15 @@
-## Table of Contents
+# Table of Contents
 
 - [Getting Started](#getting-started)
   * [Simple Search](#simple-search)
   * [Multiple Patterns](#multiple-patterns)
     - [Patterns in the command line (`-e/--regexp` option)](#patterns-in-the-command-line-with--e--regexp-option)
     - [Patterns in a PATTERNFILE (`-f/--file` option)](#patterns-in-a-pattern-file-with--f--file-option)
-  * [List Files Without Searching (`--files` option)](#list-files-without-searching)
-  * [Filtering Files (`--filter` option)](#filtering-files)
+  * [Which Files?](#which-files)
+    - [List Files Without Searching (`--files` option)](#list-files-without-searching)
+    - [Filtering Files (`--filter` option)](#filtering-files)
     - [Negating the Filter](#negating-the-filter)
-    - [Performance](#performance)
+    - [Filter Performance](#filter-performance)
   * [Locating the Match](#locating-the-match)
     - [Byte Offset (`--byte-offset` option)](#byte-offset)
     - [Column Number (`--column` option)](#column-number)
@@ -18,7 +19,7 @@
 - [Usage](#usage)
 - [Options](#options)
 
-## Getting Started
+# Getting Started
 
 The implementation of `hypergrep` is based on `grep` and `ripgrep`. 
 
@@ -30,7 +31,7 @@ The program can be used in one of a few different ways:
 3. Multiple patterns provided via a pattern file, searching multiple paths.
 4. No patterns, just interested in what files _will_ be searched (using `--files`)
 
-### Simple Search
+## Simple Search
 
 The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
   
@@ -42,20 +43,20 @@ When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the outp
   
 ![directory_search_pipe](images/directory_search_pipe.png)
   
-### Multiple Patterns
+## Multiple Patterns
   
 Multiple independent patterns can be provided in two ways: 
 
 1. Using `-e/--regexp` and providing each pattern in the command line
 2. Using `-f/--gile` and providing a pattern file, which contains multiple patterns, one per line. 
 
-#### Patterns in the command line with `-e/--regexp` option
+### Patterns in the command line with `-e/--regexp` option
 
 Use `-e` to provide multiple patterns, one after another, in the same command
 
 ![multiple_patterns](images/multiple_patterns.png)
 
-#### Patterns in a pattern file with `-f/--file` option
+### Patterns in a pattern file with `-f/--file` option
 
 Consider the pattern file `list_of_patterns.txt` with two lines:
 
@@ -67,6 +68,8 @@ fmt::print\("{}"
 This file can be used to search multiple patterns at once using the `-f/--file` option:
 
 ![patternfile](images/patternfile.png)
+
+## Which Files?
 
 ### List Files Without Searching
 
@@ -88,13 +91,13 @@ The following pattern, `googletest/(include|src)/.*\.(cpp|hpp|c|h)$`, matches an
 
 ![filter_better_than_glob](images/filter_better_than_glob.png)
 
-#### Negating the Filter
+### Negating the Filter
 
 This sort of filtering can be negated by prefixing the filter with the `!` character, e.g.,: the pattern `!\.(cpp|hpp)$` will match any file that is NOT a C++ source file.
 
 ![negate_filter](images/negate_filter.png)
 
-#### Performance
+### Filter Performance
 
 Running in the `/usr` directory and searching for any shared library:
 
@@ -104,7 +107,7 @@ Running in the `/usr` directory and searching for any shared library:
 | `rg -g "*.so" --files \| wc -l` | 1621 | 0.082 |
 | `hg --filter '\.so$' --files \| wc -l` | 1621 | **0.043** |
 
-### Locating the Match
+## Locating the Match
 
 #### Byte Offset
   
@@ -114,27 +117,27 @@ Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in th
 
 ![byte_offset](images/byte_offset.png)
 
-#### Column Number
+### Column Number
   
 Use `--column` to get the 1-based column number for the first-match in any matching line.
 
 ![column](images/column.png)
 
-### Counting Matches
+## Counting Matches
 
-#### Count Matching Lines
+### Count Matching Lines
 
 Use `-c/--count` to count the number of matching lines in each file. Note that multiple matches per line still counts as 1 matching line.
 
 ![count](images/count_matching_lines.png)
 
-#### Count Matches
+### Count Matches
 
 Use `--count-matches` to count the number of matches in each file. If there are multiple matches per line, these are individually counted.
 
 ![count_matches](images/count_matches.png)
 
-## Usage
+# Usage
 
 ```bash
 hg [OPTIONS] PATTERN [PATH ...]
@@ -145,7 +148,7 @@ hg [OPTIONS] --help
 hg [OPTIONS] --version
 ```
 
-## Options
+# Options
 
 | Name | Description | 
 | --- | --- |
