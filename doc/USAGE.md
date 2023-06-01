@@ -53,10 +53,10 @@ The program can be used in one of a few different ways:
 
 The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
   
-![image](https://github.com/p-ranav/hypergrep/assets/8450091/fdd1b97d-b108-4d26-8eb7-b0afb6fd817a)
-
+![image](https://github.com/p-ranav/hypergrep/assets/8450091/f000e3d3-f41f-4cae-9195-08d7288c231f)
+  
 The output indicates 4 matches across 2 different files.
   
 When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
   
-![image](https://github.com/p-ranav/hypergrep/assets/8450091/4c0f55ed-c7de-42bb-a3ca-95def5ac154e)
+![image](https://github.com/p-ranav/hypergrep/assets/8450091/89bd0e5b-7f09-4055-9f79-7a2c13e2ba95)
