@@ -119,7 +119,9 @@ Use `-F/--fixed-strings` to specify that the regex pattern is a pure literal. No
 
 ### Ignore Case
 
-TODO
+`hypergrep` search can be performed case-insensitively using the `-i/--ignore-case` option. Here's an example search for both the upper-case (`Δ`) and lower-case (`δ`) version of the greek letter delta.
+
+![case_insensitive_delta](images/case_insensitive_delta.png)
 
 ### Limit Output Line Length
 
