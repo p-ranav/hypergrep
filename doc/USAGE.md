@@ -2,6 +2,7 @@
 
 - [Getting Started](#getting-started)
   * [Simple Search](#simple-search)
+  * [Searching Multiple Paths](#searching-multiple-paths)
   * [Multiple Patterns](#multiple-patterns)
     - [Patterns in the command line (`-e/--regexp`)](#patterns-in-the-command-line-with--e--regexp-option)
     - [Patterns in a PATTERNFILE (`-f/--file`)](#patterns-in-a-pattern-file-with--f--file-option)
@@ -51,6 +52,12 @@ The output indicates 4 matches across 2 different files.
 When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
   
 ![directory_search_pipe](images/directory_search_pipe.png)
+
+## Searching Multiple Paths
+
+To search multiple paths for a pattern match, simply provide the paths one after another, e.g.,
+
+![multiple_paths](images/multiple_paths.png)
   
 ## Multiple Patterns
   
