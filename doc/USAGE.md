@@ -15,6 +15,7 @@
     - [Ignore Case (`-i/--ignore-case`)](#ignore-case)
     - [Limit Output Line Length (`--max-columns`)](#limit-output-line-length)
     - [Print Only Matching Parts](#print-only-matching-parts)
+    - [Trim Whitespace](#trim-whitespace)
   * [Which Files?](#which-files)
     - [List Files Without Searching (`--files`)](#list-files-without-searching)
     - [List Files With Matches (`-l/--files-with-matches`)](#list-files-with-matches)
