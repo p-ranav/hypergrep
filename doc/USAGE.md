@@ -15,7 +15,7 @@
     - [Ignore Case (`-i/--ignore-case`)](#ignore-case)
     - [Limit Output Line Length (`--max-columns`)](#limit-output-line-length)
     - [Print Only Matching Parts (`-o/--only-matching`)](#print-only-matching-parts)
-    - [Trim Whitespace](#trim-whitespace)
+    - [Trim Whitespace (`--trim`)](#trim-whitespace)
   * [Which Files?](#which-files)
     - [List Files Without Searching (`--files`)](#list-files-without-searching)
     - [List Files With Matches (`-l/--files-with-matches`)](#list-files-with-matches)
@@ -142,6 +142,12 @@ Sometimes, a user does not care about the entire line but only the matching part
 This example searches for any `cout` statement that ends in a `std::endl`.
 
 ![print_only_matching_parts](images/print_only_matching_parts.png)
+
+### Trim Whitespace
+
+Use `--trim` to trim whitespace (`' '`, `\t`) that prefixes any matching line. 
+
+![trim_whitespace](images/trim_whitespace.png)
 
 ## Which Files?
 
