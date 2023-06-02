@@ -1,7 +1,6 @@
 #pragma once
 #include <atomic>
 #include <hs/hs.h>
-#include <mutex>
 #include <vector>
 
 struct file_context {
