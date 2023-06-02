@@ -109,7 +109,13 @@ Use `--count-matches` to count the number of matches in each file. If there are 
 
 ### Fixed Strings
 
-TODO
+Pure literal is a special case of regular expression. A character sequence is regarded as a pure literal if and only if each character is read and interpreted independently. No syntax association happens between any adjacent characters.
+
+For example, given an expression written as `/bc?/`. We could say it is a regular expression, with the meaning that character `b` followed by nothing or by one character `c`. On the other view, we could also say it is a pure literal expression, with the meaning that this is a character sequence of `3-byte` length, containing characters `b`, `c` and `?`. In regular case, the question mark character `?` has a particular syntax role called `0-1` quantifier, which has a syntax association with the character ahead of it. Similar characters exist in regular grammar like `[`, `]`, `(`, `)`, `{`, `}`, `-`, `*`, `+`, `\`, `|`, `/`, `:`, `^`, `.`, `$`. While in pure literal case, all these meta characters lost extra meanings expect for that they are just common ASCII codes.
+
+Use `-F/--fixed-strings` to specify that the regex pattern is a pure literal. Note in the following example that the special characters in the pattern are not escaped - they are considered as is.
+
+![fixed_strings](images/fixed_strings.png)
 
 ### Ignore Case
 
