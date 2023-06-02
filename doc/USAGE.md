@@ -137,7 +137,11 @@ If some of the matching lines are too long for you, you can hide them with `--ma
 
 ### Print Only Matching Parts
 
-TODO
+Sometimes, a user does not care about the entire line but only the matching parts. Here's an example, using `-o/--only-matching` to only print the matching parts of the line, instead of the entire line. 
+
+This example searches for any `cout` statement that ends in a `std::endl`.
+
+![print_only_matching_parts](images/print_only_matching_parts.png)
 
 ## Which Files?
 
