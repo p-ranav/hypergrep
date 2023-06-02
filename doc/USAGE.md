@@ -125,7 +125,13 @@ Use `-F/--fixed-strings` to specify that the regex pattern is a pure literal. No
 
 ### Ignore Case
 
-`hypergrep` search can be performed case-insensitively using the `-i/--ignore-case` option. Here's an example search for both the upper-case (`Δ`) and lower-case (`δ`) version of the greek letter delta.
+`hypergrep` search can be performed case-insensitively using the `-i/--ignore-case` option. 
+
+Here's an example case-insensitive search for the literal `test`:
+
+![ignore_case_ascii](images/ignore_case_ascii.png)
+
+Here's an example search for both the upper-case (`Δ`) and lower-case (`δ`) version of the greek letter delta.
 
 ![case_insensitive_delta](images/case_insensitive_delta.png)
 
