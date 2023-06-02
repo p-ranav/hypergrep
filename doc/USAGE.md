@@ -79,6 +79,54 @@ This file can be used to search multiple patterns at once using the `-f/--file` 
 
 ![patternfile](images/patternfile.png)
 
+## Search Options
+
+### Byte Offset
+  
+In addition to line numbers, the byte offset or the column number can be printed for each matching line.
+
+Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
+
+![byte_offset](images/byte_offset.png)
+
+### Column Number
+  
+Use `--column` to get the 1-based column number for the first-match in any matching line.
+
+![column](images/column.png)
+
+### Count Matching Lines
+
+Use `-c/--count` to count the number of matching lines in each file. Note that multiple matches per line still counts as 1 matching line.
+
+![count](images/count_matching_lines.png)
+
+### Count Matches
+
+Use `--count-matches` to count the number of matches in each file. If there are multiple matches per line, these are individually counted.
+
+![count_matches](images/count_matches.png)
+
+### Fixed Strings
+
+TODO
+
+### Ignore Case
+
+TODO
+
+### Limit Output Line Length
+
+TODO
+
+### Show/Hide Line Number
+
+TODO
+
+### Print Only Matching Parts
+
+TODO
+
 ## Which Files?
 
 ### List Files Without Searching
@@ -88,6 +136,10 @@ Sometimes, it is necessary to check which files `hypergrep` chooses to search in
 ![files](images/files.png)
 
 Note in the above example that hidden files and directories are ignored by default.
+
+### List Files With Matches
+
+TODO
 
 ### Filtering Files
 
@@ -117,35 +169,25 @@ Running in the `/usr` directory and searching for any shared library:
 | `rg -g "*.so" --files \| wc -l` | 1621 | 0.082 |
 | `hg --filter '\.so$' --files \| wc -l` | 1621 | **0.043** |
 
-## Locating the Match
+### Hidden Files
 
-#### Byte Offset
-  
-In addition to line numbers, the byte offset or the column number can be printed for each matching line.
+TODO
 
-Use `-b/--byte-offset` to get the 0-based byte offset of the matching line in the file. 
+### Limiting File Size
 
-![byte_offset](images/byte_offset.png)
+TODO
 
-### Column Number
-  
-Use `--column` to get the 1-based column number for the first-match in any matching line.
+## Git Repositories
 
-![column](images/column.png)
+TODO
 
-## Counting Matches
+### Ignore Submodules
 
-### Count Matching Lines
+TODO
 
-Use `-c/--count` to count the number of matching lines in each file. Note that multiple matches per line still counts as 1 matching line.
+### Ignore Git Index
 
-![count](images/count_matching_lines.png)
-
-### Count Matches
-
-Use `--count-matches` to count the number of matches in each file. If there are multiple matches per line, these are individually counted.
-
-![count_matches](images/count_matches.png)
+TODO
 
 # Usage
 
