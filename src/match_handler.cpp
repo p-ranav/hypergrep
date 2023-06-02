@@ -7,11 +7,7 @@ int on_match(unsigned int id, unsigned long long from, unsigned long long to,
              unsigned int flags, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
-
-  {
-    std::lock_guard<std::mutex> lock{fctx->match_mutex};
-    fctx->matches.push_back(std::make_pair(from, to));
-  }
+  fctx->matches.push_back(std::make_pair(from, to));
 
   if (fctx->option_print_only_filenames) {
     return HS_SCAN_TERMINATED;

@@ -197,12 +197,10 @@ bool file_search::mmap_and_scan(std::string &&filename,
             }
 
             // Perform the search
-            std::mutex match_mutex;
             std::vector<std::pair<unsigned long long, unsigned long long>>
                 matches{};
             std::atomic<size_t> number_of_matches = 0;
-            file_context ctx{number_of_matches, matches, match_mutex,
-                             options.print_only_filenames};
+            file_context ctx{number_of_matches, matches, options.print_only_filenames};
 
             if (hs_scan(database, start, end - start, 0, local_scratch,
                         on_match, (void *)(&ctx)) != HS_SUCCESS) {
@@ -371,11 +369,9 @@ bool file_search::scan_line(std::string &line, std::size_t &current_line_number,
 
   // Perform the search
   bool result{false};
-  std::mutex match_mutex;
   std::vector<std::pair<unsigned long long, unsigned long long>> matches{};
   std::atomic<size_t> number_of_matches = 0;
-  file_context ctx{number_of_matches, matches, match_mutex,
-                   options.print_only_filenames};
+  file_context ctx{number_of_matches, matches, options.print_only_filenames};
 
   if (hs_scan(database, line.data(), line.size(), 0, local_scratch, on_match,
               (void *)(&ctx)) != HS_SUCCESS) {
