@@ -64,7 +64,7 @@ To search multiple paths for a pattern match, simply provide the paths one after
 Multiple independent patterns can be provided in two ways: 
 
 1. Using `-e/--regexp` and providing each pattern in the command line
-2. Using `-f/--gile` and providing a pattern file, which contains multiple patterns, one per line. 
+2. Using `-f/--file` and providing a pattern file, which contains multiple patterns, one per line. 
 
 ### Patterns in the command line with `-e/--regexp` option
 
