@@ -16,6 +16,7 @@
     - [Limit Output Line Length (`--max-columns`)](#limit-output-line-length)
     - [Print Only Matching Parts (`-o/--only-matching`)](#print-only-matching-parts)
     - [Trim Whitespace (`--trim`)](#trim-whitespace)
+    - [Word Boundary (`-w/--word-regexp`)](#word-boundary)
   * [Which Files?](#which-files)
     - [List Files Without Searching (`--files`)](#list-files-without-searching)
     - [List Files With Matches (`-l/--files-with-matches`)](#list-files-with-matches)
@@ -146,6 +147,26 @@ This example searches for any `cout` statement that ends in a `std::endl`.
 Use `--trim` to trim whitespace (`' '`, `\t`) that prefixes any matching line. 
 
 ![trim_whitespace](images/trim_whitespace.png)
+
+### Word Boundary
+
+In regex, simply adding `\b` allows you to perform a “whole words only” search using a regular expression in the form of `\bword\b`. A "word character" is a character that can be used to form words.
+
+Use `-w/--word-regexp` as a short-hand for this purpose. "Whole words only!"
+
+There are three different positions that qualify as word boundaries:
+
+1. Before the first character in the string, if the first character is a word character.
+2. After the last character in the string, if the last character is a word character.
+3. Between two characters in the string, where one is a word character and the other is not a word character.
+
+![word_boundary](images/word_boundary.png)
+
+NOTE `\B` is the negated version of `\b`. `\B` matches at every position where `\b` does not. Effectively, `\B` matches at any position between two word characters as well as at any position between two non-word characters. 
+
+In the following example, any occurrence of `test` that isn't surrounded by word characters will be matched. Note that in the final matching line, there are two occurrences of `test` but only one matches.
+
+![word_boundary_negate](images/word_boundary_negate.png)
 
 ## Which Files?
 
