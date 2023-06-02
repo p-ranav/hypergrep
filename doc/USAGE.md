@@ -180,7 +180,9 @@ TODO
 
 ### Limiting File Size
 
-TODO
+If you want to filter out files over a certain size, you can use `--max-filesize` to provide a file size specification. The input accepts suffixes of form `K`, `M` or `G`. If no suffix is provided the input is treated as bytes e.g.,
+
+![max_file_size](images/max_file_size.png)
 
 ## Git Repositories
 
