@@ -31,9 +31,7 @@
 
 # Getting Started
 
-The implementation of `hypergrep` is based on `grep` and `ripgrep`. 
-
-The program can be used in one of a few different ways:
+The program can be used in a few different ways:
 
 1. Single pattern, searching a single path (if no path is provided, the current directory is searched).
 1. Single pattern, searching multiple paths.
