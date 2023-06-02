@@ -20,7 +20,6 @@
     - [List Files With Matches (`-l/--files-with-matches` option)](#list-files-with-matches)
     - [Filtering Files (`--filter` option)](#filtering-files)
     - [Negating the Filter](#negating-the-filter)
-    - [Filter Performance](#filter-performance)
     - [Hidden Files](#hidden-files)
     - [Limiting File Size (`--max-filesize`)](#limiting-file-size)
   * [Git Repositories](#git-repositories)
@@ -161,21 +160,19 @@ The following pattern, `googletest/(include|src)/.*\.(cpp|hpp|c|h)$`, matches an
 
 ![filter_better_than_glob](images/filter_better_than_glob.png)
 
-### Negating the Filter
-
-This sort of filtering can be negated by prefixing the filter with the `!` character, e.g.,: the pattern `!\.(cpp|hpp)$` will match any file that is NOT a C++ source file.
-
-![negate_filter](images/negate_filter.png)
-
-### Filter Performance
-
-Running in the `/usr` directory and searching for any shared library:
+Running in the `/usr` directory and searching for any shared library, here's the performance:
 
 | Command | Number of Files | Time |
 | --- | --- | --- |
 | `find . -name "*.so" \| wc -l` | 1851	| 0.293 |	
 | `rg -g "*.so" --files \| wc -l` | 1621 | 0.082 |
 | `hg --filter '\.so$' --files \| wc -l` | 1621 | **0.043** |
+
+### Negating the Filter
+
+This sort of filtering can be negated by prefixing the filter with the `!` character, e.g.,: the pattern `!\.(cpp|hpp)$` will match any file that is NOT a C++ source file.
+
+![negate_filter](images/negate_filter.png)
 
 ### Hidden Files
 
