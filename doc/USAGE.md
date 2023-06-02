@@ -241,7 +241,18 @@ If you want to filter out files over a certain size, you can use `--max-filesize
 
 ## Git Repositories
 
-TODO
+`hypergrep` treats git repositories, i.e., directories with a `.git/` subdirectory, differently to other ordinary directories. When `hypergrep` encounters a git repository, instead of traversing the directory tree, the program reads the git index file of the repository (at `.git/index`) and iterates the index entries using [libgit2](https://libgit2.org/libgit2/).
+
+NOTE in the following example:
+
+1. `ls` command shows all the files and directories in the current path
+   - Note the `build/` folder 
+2. `git ls-files` shows all the files in the git index and the working tree
+3. `hg --files` output is very similar to `git ls-files` except that hidden files are ignored. 
+
+`hypergrep` prefers this approach of iterating the git index rather than loading the `.gitignore` file and checking every single file and subdirectory against a potentially long list of ignore rules.
+
+![git_repository_index](images/git_repository_index.png)
 
 ### Ignore Submodules
 
