@@ -235,7 +235,11 @@ You can include hidden files and directories in the search using the `--hidden` 
 
 ### Limiting File Size
 
-If you want to filter out files over a certain size, you can use `--max-filesize` to provide a file size specification. The input accepts suffixes of form `K`, `M` or `G`. If no suffix is provided the input is treated as bytes e.g., the following search filters out any files over 30 bytes in size.
+If you want to filter out files over a certain size, you can use `--max-filesize` to provide a file size specification. The input accepts suffixes of form `K`, `M` or `G`. 
+
+![max_filesize_files](images/max_filesize_files.png)
+
+If no suffix is provided the input is treated as bytes e.g., the following search filters out any files over 30 bytes in size.
 
 ![max_file_size](images/max_file_size.png)
 
