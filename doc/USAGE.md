@@ -176,7 +176,11 @@ This sort of filtering can be negated by prefixing the filter with the `!` chara
 
 ### Hidden Files
 
-TODO
+By default, hidden files and directories are skipped. A file or directory is considered hidden if its base name starts with a dot character (`'.'`).
+
+You can include hidden files and directories in the search using the `--hidden` option. 
+
+![hidden](images/hidden.png)
 
 ### Limiting File Size
 
