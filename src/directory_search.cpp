@@ -478,6 +478,22 @@ void directory_search::visit_directory_and_enqueue(
           queue.enqueue(ptok, std::move(path));
           ++num_files_enqueued;
         } else {
+
+          // If --max-filesize is used, perform a stat
+          // and check if the file size is under the limit
+          static const bool max_file_size_provided = options.max_file_size.has_value();
+          static const std::size_t max_file_size =
+              max_file_size_provided ? options.max_file_size.value() : 0;
+
+          if (max_file_size_provided) {
+
+            const auto file_size = std::filesystem::file_size(path);
+            if (file_size > max_file_size) {
+              // skip this file
+              continue;
+            }
+          }
+
           if (options.is_stdout) {
             fmt::print(fg(fmt::color::steel_blue), "{}\n", path.c_str());
           } else {

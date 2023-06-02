@@ -397,6 +397,28 @@ bool git_index_search::visit_git_index(const std::filesystem::path &dir,
           queue.enqueue(ptok, entry->path);
           ++num_files_enqueued;
         } else {
+
+          // If --max-filesize is used, perform a stat
+          // and check if the file size is under the limit
+          static const bool max_file_size_provided = options.max_file_size.has_value();
+          static const std::size_t max_file_size =
+              max_file_size_provided ? options.max_file_size.value() : 0;
+
+          if (max_file_size_provided) {
+
+            // NOTE: Possible optimization here is to use entry->file_size
+            // instead of making a stat call
+            //
+            // Making the stat call is the more accurate approach since
+            // these files could have unstaged changes on disk.
+
+            const auto file_size = std::filesystem::file_size(entry->path);
+            if (file_size > max_file_size) {
+              // skip this file
+              continue;
+            }
+          }
+
           if (options.is_stdout) {
             fmt::print(fg(fmt::color::steel_blue), "./{}\n", entry->path);
           } else {
