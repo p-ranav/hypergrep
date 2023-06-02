@@ -41,6 +41,8 @@ The program can be used in a few different ways:
 3. Multiple patterns provided via a pattern file, searching multiple paths.
 4. No patterns, just interested in what files _will_ be searched (using `--files`)
 
+A list of supported regex constructs can be found [here](https://intel.github.io/hyperscan/dev-reference/compilation.html#supported-constructs).
+
 ## Simple Search
 
 The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
