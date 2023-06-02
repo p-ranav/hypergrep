@@ -146,7 +146,9 @@ Note in the above example that hidden files and directories are ignored by defau
 
 ### List Files With Matches
 
-TODO
+If you only care about which files have the matches, and not necessarily what the matches are, use `-l/--files-with-matches` to get a list of all the files with matches.
+
+![files_with_matches](images/files_with_matches.png)
 
 ### Filtering Files
 
