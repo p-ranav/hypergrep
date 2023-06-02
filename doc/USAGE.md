@@ -14,7 +14,6 @@
     - [Fixed Strings (`--fixed-strings`)](#fixed-strings)
     - [Ignore Case (`-i/--ignore-case`)](#ignore-case)
     - [Limit Output Line Length (`--max-columns`)](#limit-output-line-length)
-    - [Show/Hide Line Number](#showhide-line-number)
     - [Print Only Matching Parts](#print-only-matching-parts)
   * [Which Files?](#which-files)
     - [List Files Without Searching (`--files`)](#list-files-without-searching)
@@ -131,11 +130,9 @@ Use `-F/--fixed-strings` to specify that the regex pattern is a pure literal. No
 
 ### Limit Output Line Length
 
-TODO
+If some of the matching lines are too long for you, you can hide them with `--max-columns` and set the maximum line length for any matching line (in bytes). Lines longer than this limit will not be printed. Instead, a "Omitted line" message is printed along with the number of matches on each of these lines.
 
-### Show/Hide Line Number
-
-TODO
+![max_columns](images/max_columns.png)
 
 ### Print Only Matching Parts
 
