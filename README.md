@@ -65,7 +65,7 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 | :---| ---:| ---:| ---:| ---:| ---:|
 | Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 2.807 | 0.316 | 0.198 | **0.140** |
 | Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 2.904 | 0.435 | 0.203 | **0.141** |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 538 | 3.080 | 1.452 | 0.198 | **0.143** |
+| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 536 | 3.080 | 1.452 | 0.198 | **0.143** |
 | Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.410 | 0.407 | **0.146** |
 | Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 3.762 | 0.484 | 0.386 | **0.146** |
 
@@ -75,10 +75,10 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59009 | 1.148 | 0.954 | 0.184 | **0.090** |
-| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127855 | 1.169 | 1.238 | 0.186 | **0.095** |
-| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012263 | 3.131 | 2.598 | 0.673 | **0.482** |
-| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 857 | 0.828 | 0.174 | 0.072 | **0.047** |
+| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59026 | 1.148 | 0.954 | 0.184 | **0.090** |
+| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127858 | 1.169 | 1.238 | 0.186 | **0.095** |
+| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012372 | 3.131 | 2.598 | 0.673 | **0.482** |
+| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 839 | 0.828 | 0.174 | 0.072 | **0.047** |
 
 ### Directory Search: `/usr`
 
@@ -86,12 +86,12 @@ The following searches are performed on the `/usr` directory.
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13683 | 4.597 | 2.894 | 0.358 | **0.176** |
-| Any IPv4 IP address<br/>`hg -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12641 | 4.727 | 2.340 | 0.380 | **0.177** |
-| Any E-mail address<br/>`hg -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47507 | 5.477 | 37.209 | 0.542 | **0.254** |
-| Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 114 | 4.239 | 1.827 | 0.303 | **0.167** |
-| Count the number of HEX values<br/>`hg -cw "(?:0x)?[0-9A-Fa-f]+"` | 68401 | 5.765 | 28.691 | 1.662 | **0.660** |
-| Search any C/C++ for a literal<br/>`hg --filter "\.(c\|cpp\|h\|hpp)$" test` | 7356 | n/a | 0.505 | 0.140 | **0.086** | 
+| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13682 | 4.597 | 2.894 | 0.358 | **0.176** |
+| Any IPv4 IP address<br/>`hg -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12643 | 4.727 | 2.340 | 0.380 | **0.177** |
+| Any E-mail address<br/>`hg -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47509 | 5.477 | 37.209 | 0.542 | **0.254** |
+| Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 116 | 4.239 | 1.827 | 0.303 | **0.167** |
+| Count the number of HEX values<br/>`hg -cw "(?:0x)?[0-9A-Fa-f]+"` | 68042 | 5.765 | 28.691 | 1.662 | **0.660** |
+| Search any C/C++ for a literal<br/>`hg --filter "\.(c\|cpp\|h\|hpp)$" test` | 7355 | n/a | 0.505 | 0.140 | **0.086** | 
 
 ## Build
 
