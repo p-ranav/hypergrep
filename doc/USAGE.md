@@ -26,8 +26,6 @@
     - [Hidden Files (`--hidden`)](#hidden-files)
     - [Limiting File Size (`--max-filesize`)](#limiting-file-size)
   * [Git Repositories](#git-repositories)
-    - [Ignore Submodules](#ignore-submodules) 
-    - [Ignore Git Index](#ignore-git-index)
 - [Usage](#usage)
 - [Options](#options)
 
@@ -258,13 +256,9 @@ NOTE in the following example:
 
 ![git_repository_index](images/git_repository_index.png)
 
-### Ignore Submodules
+NOTE By default, `hypergrep` will recursively search any git submodules that are found. This can be excluded using `--ignore-submodules`.
 
-TODO
-
-### Ignore Git Index
-
-TODO
+NOTE If you don't like that `hypergrep` treats git repositories differently, and you'd rather it search the directory as an ordinary directory, use `--ignore-gitindex` and override this behavior.
 
 # Usage
 
