@@ -17,6 +17,7 @@
     - [Print Only Matching Parts (`-o/--only-matching`)](#print-only-matching-parts)
     - [Trim Whitespace (`--trim`)](#trim-whitespace)
     - [Word Boundary (`-w/--word-regexp`)](#word-boundary)
+  * [Unicode](#unicode)
   * [Which Files?](#which-files)
     - [List Files Without Searching (`--files`)](#list-files-without-searching)
     - [List Files With Matches (`-l/--files-with-matches`)](#list-files-with-matches)
@@ -167,6 +168,18 @@ NOTE `\B` is the negated version of `\b`. `\B` matches at every position where `
 In the following example, any occurrence of `test` that isn't surrounded by word characters will be matched. Note that in the final matching line, there are two occurrences of `test` but only one matches.
 
 ![word_boundary_negate](images/word_boundary_negate.png)
+
+## Unicode
+
+`hypergrep` regex engine is compiled with UTF8 support, i.e., patterns are treated as a sequence of UTF-8 characters. 
+
+Unicode character properties, such as `\p{L}`, `\P{Sc}`, `\p{Greek}` etc., are supported.
+
+Here's an example search for a range of emojis:
+
+![unicode_emoji](images/unicode_emoji.png)
+
+NOTE: You can specify the `--ucp` flag use Unicode properties, rather than the default ASCII interpretations, for character mnemonics like `\w` and `\s` as well as the POSIX character classes.
 
 ## Which Files?
 
