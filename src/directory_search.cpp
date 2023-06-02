@@ -294,7 +294,7 @@ bool directory_search::process_file(std::string &&filename,
 
     // Detect end of file
     // If end of file, search entire chunk
-    // If not end of file, search for last newline 
+    // If not end of file, search for last newline
     const auto last_chunk = (bytes_read < FILE_CHUNK_SIZE);
     std::size_t search_size = bytes_read;
 
@@ -458,7 +458,8 @@ void directory_search::visit_directory_and_enqueue(
       if (options.search_hidden_files) {
         // Even if hidden files are going to be searched
         // Need to skip these two
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
           continue;
         }
       }
@@ -481,7 +482,8 @@ void directory_search::visit_directory_and_enqueue(
 
           // If --max-filesize is used, perform a stat
           // and check if the file size is under the limit
-          static const bool max_file_size_provided = options.max_file_size.has_value();
+          static const bool max_file_size_provided =
+              options.max_file_size.has_value();
           static const std::size_t max_file_size =
               max_file_size_provided ? options.max_file_size.value() : 0;
 
