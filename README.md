@@ -106,10 +106,27 @@ cd vcpkg
 
 ### Build `hypergrep` using `cmake` and `vcpkg`
 
+#### Clone the repository
+
 ```
 git clone https://github.com/p-ranav/hypergrep
 cd hypergrep
+```
 
+#### If `cmake` is older than `3.19`
+
+```
+mkdir build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=<path_to_vcpkg>/scripts/buildsystems/vcpkg.cmake ..
+make
+```
+
+#### If `cmake` is newer than `3.19`
+
+Use the `release` preset:
+
+```
 export VCPKG_ROOT=<path_to_vcpkg>
 cmake -B build -S . --preset release
 cmake --build build
