@@ -109,8 +109,8 @@ cd vcpkg
 ```
 git clone https://github.com/p-ranav/hypergrep
 cd hypergrep
-mkdir build
-cd build
-cmake -DCMAKE_TOOLCHAIN_FILE=<path_to_vcpkg>/scripts/buildsystems/vcpkg.cmake ..
-make
+
+export VCPKG_ROOT=<path_to_vcpkg>
+cmake -B build -S . --preset release
+cmake --build build
 ```
