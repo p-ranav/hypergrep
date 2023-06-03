@@ -18,7 +18,7 @@ find_package(unofficial-git2 CONFIG REQUIRED)
 find_package(argparse CONFIG REQUIRED)
 
 find_path(HYPERSCAN_INCLUDE_DIR hs/hs.h)
-find_library(HYPERSCAN_LIBRARY hs)
+find_library(HYPERSCAN_LIBRARY hs PATH_SUFFIXES lib RELEASE)
 
 message(STATUS ${HYPERSCAN_INCLUDE_DIR})
 message(STATUS ${HYPERSCAN_LIBRARY})
@@ -44,7 +44,7 @@ target_include_directories(hg PRIVATE include)
 target_link_libraries(hg PRIVATE
   argparse::argparse
   unofficial::concurrentqueue::concurrentqueue
-  unofficial::git2::git2
+  unofficial::git2::libgit2package
   fmt::fmt
   ${HYPERSCAN_LIBRARY}
   )

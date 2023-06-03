@@ -33,7 +33,7 @@ The following tests compare the performance of `hypergrep` against:
 
 ### Vcpkg Installed Libraries
 
-[vcpkg](https://github.com/microsoft/vcpkg) commit: [2718aa52](https://github.com/microsoft/vcpkg/commit/2718aa52a31977b792af7e9c2f83eaf4ddcd932d)
+[vcpkg](https://github.com/microsoft/vcpkg) commit: [662dbb5](https://github.com/microsoft/vcpkg/commit/662dbb50e63af15baa2909b7eac5b1b87e86a0aa)
 
 | Library | Version | 
 |:---|:---|
@@ -41,7 +41,7 @@ The following tests compare the performance of `hypergrep` against:
 | **concurrentqueue** | 1.0.3 |
 | **fmt** | 10.0.0 |
 | **hyperscan** | 5.4.2 |
-| **libgit2** | 1.4.2 |
+| **libgit2** | 1.6.4 |
 
 ### Single Large File Search: `OpenSubtitles.raw.en.txt`
 
