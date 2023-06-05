@@ -46,9 +46,7 @@ A list of supported regex constructs can be found [here](https://intel.github.io
 The simplest of these is searching the current working directory for a single pattern. The following example searches the current directory for the literal pattern `mmap`.
   
 ![directory_search_stdout](images/directory_search_stdout.png)
-  
-The output indicates 4 matches across 2 different files.
-  
+    
 When piping `hypergrep` output to another program, e.g., `wc` or `cat`, the output changes to a different format where each line represents a line of output. 
   
 ![directory_search_pipe](images/directory_search_pipe.png)
