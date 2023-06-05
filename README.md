@@ -86,7 +86,7 @@ The following searches are performed on the `/usr` directory.
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13682 | 4.597 | 2.894 | 0.358 | **0.171* |
+| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13682 | 4.597 | 2.894 | 0.358 | **0.171** |
 | Any IPv4 IP address<br/>`hg -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12643 | 4.727 | 2.340 | 0.380 | **0.166** |
 | Any E-mail address<br/>`hg -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47509 | 5.477 | 37.209 | 0.542 | **0.220** |
 | Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 116 | 4.239 | 1.827 | 0.303 | **0.163** |
