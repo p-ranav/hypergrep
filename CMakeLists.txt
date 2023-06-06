@@ -48,3 +48,6 @@ target_link_libraries(hg PRIVATE
   fmt::fmt
   ${HYPERSCAN_LIBRARY}
   )
+
+install(TARGETS hg
+DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)
