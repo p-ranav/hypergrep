@@ -12,6 +12,10 @@
 * Implementation notes [here](doc/NOTES.md).
 * Not cross-platform. Tested in Linux. 
 
+<p align="center">
+  <img src="doc/images/ignore_case_ascii.png"/>
+</p>
+
 ## Performance
 
 The following tests compare the performance of `hypergrep` against:
