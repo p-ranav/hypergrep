@@ -6,7 +6,7 @@ project(hypergrep VERSION 0.1.1
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-march=native -O3 -Wall -Wpedantic)
+add_compile_options(-march=x86-64 -mtune=generic -O3 -Wall -Wpedantic)
 
 # ———————————————————————————
 # find 3rd party dependencies
