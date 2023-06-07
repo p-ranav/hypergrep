@@ -28,6 +28,7 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 add_executable(hg
   src/compiler.cpp
+  src/cpu_features.cpp  
   src/is_binary.cpp
   src/directory_search.cpp
   src/file_filter.cpp

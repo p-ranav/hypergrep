@@ -1,5 +1,18 @@
 #include <hypergrep/compiler.hpp>
+#include <hypergrep/cpu_features.hpp>
 #include <hypergrep/search_options.hpp>
+
+unsigned int get_cpu_features_flag() {
+  if (has_avx512vbmi_support()) {
+    return HS_CPU_FEATURES_AVX512VBMI;
+  } else if (has_avx512_support()) {
+    return HS_CPU_FEATURES_AVX512;
+  } else if (has_avx2_support()) {
+    return HS_CPU_FEATURES_AVX2;
+  } else {
+    return 0;
+  }
+}
 
 void compile_hs_database(hs_database **database, hs_scratch **scratch,
                          search_options &options,
@@ -7,6 +20,8 @@ void compile_hs_database(hs_database **database, hs_scratch **scratch,
 
   hs_error_t error_code;
   hs_compile_error_t *compile_error = NULL;
+
+  static const auto cpu_features_flag = get_cpu_features_flag();
 
   if (pattern_list.size() == 1) {
     const auto &pattern = pattern_list[0];
@@ -18,7 +33,8 @@ void compile_hs_database(hs_database **database, hs_scratch **scratch,
               (options.is_stdout || options.print_only_matching_parts ||
                        options.show_column_numbers || options.show_byte_offset
                    ? HS_FLAG_SOM_LEFTMOST
-                   : 0),
+                   : 0) |
+              cpu_features_flag,
           pattern.size(), HS_MODE_BLOCK, NULL, database, &compile_error);
     } else {
       error_code = hs_compile(
@@ -28,7 +44,8 @@ void compile_hs_database(hs_database **database, hs_scratch **scratch,
               (options.is_stdout || options.print_only_matching_parts ||
                        options.show_column_numbers || options.show_byte_offset
                    ? HS_FLAG_SOM_LEFTMOST
-                   : 0),
+                   : 0) |
+              cpu_features_flag,
           HS_MODE_BLOCK, NULL, database, &compile_error);
     }
   } else {
@@ -51,7 +68,8 @@ void compile_hs_database(hs_database **database, hs_scratch **scratch,
         (options.is_stdout || options.print_only_matching_parts ||
                  options.show_column_numbers || options.show_byte_offset
              ? HS_FLAG_SOM_LEFTMOST
-             : 0);
+             : 0) |
+        cpu_features_flag;
     std::vector<unsigned int> flags;
     flags.reserve(pattern_list.size());
     for (std::size_t i = 0; i < pattern_list.size(); ++i) {
@@ -70,12 +88,14 @@ void compile_hs_database(hs_database **database, hs_scratch **scratch,
           hs_compile_lit_multi(pattern_list_c.data(), flags.data(),
                                NULL, // list of IDs - NULL means all zero
                                lens.data(), pattern_list.size(), HS_MODE_BLOCK,
-                               NULL, database, &compile_error);
+                               NULL, database, &compile_error) |
+          cpu_features_flag;
     } else {
       error_code = hs_compile_multi(pattern_list_c.data(), flags.data(),
                                     NULL, // list of IDs - NULL means all zero
                                     pattern_list.size(), HS_MODE_BLOCK, NULL,
-                                    database, &compile_error);
+                                    database, &compile_error) |
+                   cpu_features_flag;
     }
   }
 
