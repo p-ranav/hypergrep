@@ -135,3 +135,7 @@ export VCPKG_ROOT=<path_to_vcpkg>
 cmake -B build -S . --preset release
 cmake --build build
 ```
+
+#### Binary Portability
+
+To build the binary for x86_64 portability, invoke cmake with `-DBUILD_PORTABLE=on` option. This will use `-march=x86-64 -mtune=generic` and `-static-libgcc -static-libstdc++`, and link the C++ standard library and GCC runtime statically into the binary, reducing dependencies on the target system.

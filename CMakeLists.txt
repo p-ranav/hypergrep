@@ -6,8 +6,18 @@ project(hypergrep VERSION 0.1.1
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-march=x86-64 -mtune=generic -O3 -Wall -Wextra -Wpedantic)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+
+# Define the CMAKE variable and set its default value to OFF
+option(BUILD_PORTABLE "Build portable binary" OFF)
+
+if (BUILD_PORTABLE)
+  message(STATUS "Building for x86-64 architecture")
+  add_compile_options(-march=x86-64 -mtune=generic -O3 -Wall -Wextra -Wpedantic)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+else()
+  message(STATUS "Building for native architecture")
+  add_compile_options(-march=native -O3 -Wall -Wextra -Wpedantic)
+endif()
 
 # ———————————————————————————
 # find 3rd party dependencies
