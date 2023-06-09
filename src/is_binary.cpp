@@ -59,8 +59,7 @@ bool is_pdf(const char *buffer) {
   return (strncmp(buffer, pdf_magic.data(), pdf_magic.size()) == 0);
 }
 
-bool starts_with_magic_bytes(const char *buffer,
-                             const std::size_t &bytes_read) {
+bool starts_with_magic_bytes(const char *buffer, const std::size_t &) {
   return is_elf_header(buffer) || is_archive_header(buffer);
 }
 

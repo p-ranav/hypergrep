@@ -6,7 +6,8 @@ project(hypergrep VERSION 0.1.1
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
-add_compile_options(-march=native -O3 -Wall -Wpedantic)
+add_compile_options(-march=x86-64 -mtune=generic -O3 -Wall -Wextra -Wpedantic)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
 
 # ———————————————————————————
 # find 3rd party dependencies
@@ -28,6 +29,7 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 add_executable(hg
   src/compiler.cpp
+  src/cpu_features.cpp  
   src/is_binary.cpp
   src/directory_search.cpp
   src/file_filter.cpp
