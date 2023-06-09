@@ -1,7 +1,7 @@
 #pragma once
 #include <string_view>
 
-constexpr static inline std::string_view NAME = "hg";
+constexpr static inline std::string_view NAME = "hgrep";
 constexpr static inline std::string_view DESCRIPTION =
     "Recursively search directories for a regex pattern";
 constexpr static inline std::string_view VERSION = "0.1.1";

@@ -53,13 +53,13 @@ The following tests compare the performance of `hypergrep` against:
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Count number of times Holmes did something<br/>`hg -c 'Holmes did \w'` | 27 | n/a | 1.820 | 1.022 | **0.696**  |
-| Literal with Regex Suffix<br/>`hg -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | n/a | 1.812 | 1.509 | **0.803** |
-| Simple Literal<br/>`hg -nw 'Sherlock Holmes' en.txt` | 7653 | 15.764 | 1.888 | 1.524 | **0.658** |
-| Simple Literal (case insensitive)<br/>`hg -inw 'Sherlock Holmes' en.txt` | 7871 | 15.599 | 6.945 | 2.162 | **0.650** |
-| Alternation of Literals<br/>`hg -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | n/a | 6.886 | 1.836 | **0.689** |
-| Alternation of Literals (case insensitive)<br/>`hg -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.940 | **0.770** |
-| Words surrounding a literal string<br/>`hg -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.523 | **0.638** |
+| Count number of times Holmes did something<br/>`hgrep -c 'Holmes did \w'` | 27 | n/a | 1.820 | 1.022 | **0.696**  |
+| Literal with Regex Suffix<br/>`hgrep -nw 'Sherlock [A-Z]\w+' en.txt` | 7882 | n/a | 1.812 | 1.509 | **0.803** |
+| Simple Literal<br/>`hgrep -nw 'Sherlock Holmes' en.txt` | 7653 | 15.764 | 1.888 | 1.524 | **0.658** |
+| Simple Literal (case insensitive)<br/>`hgrep -inw 'Sherlock Holmes' en.txt` | 7871 | 15.599 | 6.945 | 2.162 | **0.650** |
+| Alternation of Literals<br/>`hgrep -n 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10078 | n/a | 6.886 | 1.836 | **0.689** |
+| Alternation of Literals (case insensitive)<br/>`hgrep -in 'Sherlock Holmes\|John Watson\|Irene Adler\|Inspector Lestrade\|Professor Moriarty' en.txt` | 10333 | n/a | 7.029 | 3.940 | **0.770** |
+| Words surrounding a literal string<br/>`hgrep -n '\w+[\x20]+Holmes[\x20]+\w+' en.txt` | 5020 | n/a | 6m 11s | 1.523 | **0.638** |
 
 ### Git Repository Search: `torvalds/linux`
 
@@ -67,11 +67,11 @@ The following searches are performed on the entire [Linux kernel source tree](ht
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Simple Literal<br/>`hg -nw 'PM_RESUME'` | 9 | 2.807 | 0.316 | 0.147 | 0.140 |
-| Simple Literal (case insensitive)<br/>`hg -niw 'PM_RESUME'` | 39 | 2.904 | 0.435 | 0.149 | 0.141 |
-| Regex with Literal Suffix<br/>`hg -nw '[A-Z]+_SUSPEND'` | 536 | 3.080 | 1.452 | 0.148 | 0.143 |
-| Alternation of four literals<br/>`hg -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.410 | 0.153 | 0.146 |
-| Unicode Greek<br/>`hg -n '\p{Greek}'` | 111 | 3.762 | 0.484 | 0.345 | **0.146** |
+| Simple Literal<br/>`hgrep -nw 'PM_RESUME'` | 9 | 2.807 | 0.316 | 0.147 | 0.140 |
+| Simple Literal (case insensitive)<br/>`hgrep -niw 'PM_RESUME'` | 39 | 2.904 | 0.435 | 0.149 | 0.141 |
+| Regex with Literal Suffix<br/>`hgrep -nw '[A-Z]+_SUSPEND'` | 536 | 3.080 | 1.452 | 0.148 | 0.143 |
+| Alternation of four literals<br/>`hgrep -nw '(ERR_SYS\|PME_TURN_OFF\|LINK_REQ_RST\|CFG_BME_EVT)'` | 16 | 3.085 | 0.410 | 0.153 | 0.146 |
+| Unicode Greek<br/>`hgrep -n '\p{Greek}'` | 111 | 3.762 | 0.484 | 0.345 | **0.146** |
 
 ### Git Repository Search: `apple/swift`
 
@@ -79,10 +79,10 @@ The following searches are performed on the entire [Apple Swift source tree](htt
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hg -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59026 | 1.148 | 0.954 | 0.154 | **0.090** |
-| Words starting with alphabetic characters followed by at least 2 digits<br/>`hg -nw '[A-Za-z]+\d{2,}'` | 127858 | 1.169 | 1.238 | 0.156 | **0.095** |
-| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hg -nw '[A-Z][a-zA-Z0-9_]*'` | 2012372 | 3.131 | 2.598 | 0.550 | **0.482** |
-| Guard let statement followed by valid identifier<br/>`hg -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 839 | 0.828 | 0.174 | 0.054 | 0.047 |
+| Function/Struct/Enum declaration followed by a valid identifier and opening parenthesis<br/>`hgrep -n '(func\|struct\|enum)\s+[A-Za-z_][A-Za-z0-9_]*\s*\('` | 59026 | 1.148 | 0.954 | 0.154 | **0.090** |
+| Words starting with alphabetic characters followed by at least 2 digits<br/>`hgrep -nw '[A-Za-z]+\d{2,}'` | 127858 | 1.169 | 1.238 | 0.156 | **0.095** |
+| Workd starting with Uppercase letter, followed by alpha-numeric chars and/or underscores <br/>`hgrep -nw '[A-Z][a-zA-Z0-9_]*'` | 2012372 | 3.131 | 2.598 | 0.550 | **0.482** |
+| Guard let statement followed by valid identifier<br/>`hgrep -n 'guard\s+let\s+[a-zA-Z_][a-zA-Z0-9_]*\s*=\s*\w+'` | 839 | 0.828 | 0.174 | 0.054 | 0.047 |
 
 ### Directory Search: `/usr`
 
@@ -90,12 +90,12 @@ The following searches are performed on the `/usr` directory.
 
 | Regex | Line Count | ag | ugrep | ripgrep | hypergrep |
 | :---| ---:| ---:| ---:| ---:| ---:|
-| Any HTTPS or FTP URL<br/>`hg "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13682 | 4.597 | 2.894 | 0.305 | **0.171** |
-| Any IPv4 IP address<br/>`hg -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12643 | 4.727 | 2.340 | 0.324 | **0.166** |
-| Any E-mail address<br/>`hg -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47509 | 5.477 | 37.209 | 0.494 | **0.220** |
-| Any valid date `MM/DD/YYYY`<br/>`hg "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 116 | 4.239 | 1.827 | 0.251 | **0.163** |
-| Count the number of HEX values<br/>`hg -cw "(?:0x)?[0-9A-Fa-f]+"` | 68042 | 5.765 | 28.691 | 1.439 | **0.611** |
-| Search any C/C++ for a literal<br/>`hg --filter "\.(c\|cpp\|h\|hpp)$" test` | 7355 | n/a | 0.505 | 0.118 | **0.079** | 
+| Any HTTPS or FTP URL<br/>`hgrep "(https?\|ftp)://[^\s/$.?#].[^\s]*"` | 13682 | 4.597 | 2.894 | 0.305 | **0.171** |
+| Any IPv4 IP address<br/>`hgrep -w "(?:\d{1,3}\.){3}\d{1,3}"` | 12643 | 4.727 | 2.340 | 0.324 | **0.166** |
+| Any E-mail address<br/>`hgrep -w "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"` | 47509 | 5.477 | 37.209 | 0.494 | **0.220** |
+| Any valid date `MM/DD/YYYY`<br/>`hgrep "(0[1-9]\|1[0-2])/(0[1-9]\|[12]\d\|3[01])/(19\|20)\d{2}"` | 116 | 4.239 | 1.827 | 0.251 | **0.163** |
+| Count the number of HEX values<br/>`hgrep -cw "(?:0x)?[0-9A-Fa-f]+"` | 68042 | 5.765 | 28.691 | 1.439 | **0.611** |
+| Search any C/C++ for a literal<br/>`hgrep --filter "\.(c\|cpp\|h\|hpp)$" test` | 7355 | n/a | 0.505 | 0.118 | **0.079** | 
 
 ## Build
 

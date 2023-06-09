@@ -37,7 +37,7 @@ message(STATUS ${HYPERSCAN_LIBRARY})
 # —————————————————————————————
 # create target for main binary
 # —————————————————————————————
-add_executable(hg
+add_executable(hgrep
   src/compiler.cpp
   src/cpu_features.cpp  
   src/is_binary.cpp
@@ -51,9 +51,9 @@ add_executable(hg
   src/search_options.cpp
   src/size_to_bytes.cpp
   src/trim_whitespace.cpp)
-target_compile_features(hg PUBLIC cxx_std_17)
-target_include_directories(hg PRIVATE include)
-target_link_libraries(hg PRIVATE
+target_compile_features(hgrep PUBLIC cxx_std_17)
+target_include_directories(hgrep PRIVATE include)
+target_link_libraries(hgrep PRIVATE
   argparse::argparse
   unofficial::concurrentqueue::concurrentqueue
   unofficial::git2::libgit2package
@@ -61,5 +61,5 @@ target_link_libraries(hg PRIVATE
   ${HYPERSCAN_LIBRARY}
   )
 
-install(TARGETS hg
+install(TARGETS hgrep
 DESTINATION ${CMAKE_INSTALL_PREFIX}/bin)

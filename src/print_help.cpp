@@ -28,21 +28,21 @@ void print_description_line(std::string_view line) {
   fmt::print("        {}\n", line);
 }
 
-void print_synopsis_1() { fmt::print("    hg [OPTIONS] PATTERN [PATH ...]\n"); }
+void print_synopsis_1() { fmt::print("    hgrep [OPTIONS] PATTERN [PATH ...]\n"); }
 
 void print_synopsis_2() {
-  fmt::print("    hg [OPTIONS] -e PATTERN ... [PATH ...]\n");
+  fmt::print("    hgrep [OPTIONS] -e PATTERN ... [PATH ...]\n");
 }
 
 void print_synopsis_3() {
-  fmt::print("    hg [OPTIONS] -f PATTERNFILE ... [PATH ...]\n");
+  fmt::print("    hgrep [OPTIONS] -f PATTERNFILE ... [PATH ...]\n");
 }
 
-void print_synopsis_4() { fmt::print("    hg [OPTIONS] --files [PATH ...]\n"); }
+void print_synopsis_4() { fmt::print("    hgrep [OPTIONS] --files [PATH ...]\n"); }
 
-void print_synopsis_5() { fmt::print("    hg [OPTIONS] --help\n"); }
+void print_synopsis_5() { fmt::print("    hgrep [OPTIONS] --help\n"); }
 
-void print_synopsis_6() { fmt::print("    hg [OPTIONS] --version\n"); }
+void print_synopsis_6() { fmt::print("    hgrep [OPTIONS] --version\n"); }
 
 void print_help() {
   const auto is_stdout = isatty(STDOUT_FILENO) == 1;
@@ -122,7 +122,7 @@ void print_help() {
       "where all patterns given are searched. Lines matching at least one");
   print_description_line("of the provided patterns are printed, e.g.,\n");
   print_option_name(is_stdout,
-                    "        hg -e 'myFunctionCall' -e 'myErrorCallback'\n");
+                    "        hgrep -e 'myFunctionCall' -e 'myErrorCallback'\n");
   print_description_line(
       "will search for any occurrence of either of the patterns.\n");
 
@@ -145,12 +145,12 @@ void print_help() {
   print_option_name(is_stdout, "--filter", "<FILTER_PATTERN>");
   print_description_line("Filter paths based on a regex pattern, e.g.,\n");
   print_option_name(
-      is_stdout, "        hg --filter '(include|src)/.*\\.(c|cpp|h|hpp)$'\n");
+      is_stdout, "        hgrep --filter '(include|src)/.*\\.(c|cpp|h|hpp)$'\n");
   print_description_line(
       "will search C/C++ files in the any */include/* and */src/* paths.\n");
   print_description_line(
       "A filter can be negated by prefixing the pattern with !, e.g.,\n");
-  print_option_name(is_stdout, "        hg --filter '!\\.html$'\n");
+  print_option_name(is_stdout, "        hgrep --filter '!\\.html$'\n");
   print_description_line("will search any files that are not HTML files.\n");
 
   // Fixed Strings
@@ -237,7 +237,7 @@ void print_help() {
   print_description_line(
       "form K, M or G. If no suffix is provided the input is treated as bytes");
   print_description_line("e.g.,\n");
-  print_option_name(is_stdout, "        hg --max-filesize 50K\n");
+  print_option_name(is_stdout, "        hgrep --max-filesize 50K\n");
   print_description_line("will search any files under 50KB in size.\n");
 
   // Line Number
