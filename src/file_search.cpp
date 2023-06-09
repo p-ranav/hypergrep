@@ -200,7 +200,8 @@ bool file_search::mmap_and_scan(std::string &&filename,
             std::vector<std::pair<unsigned long long, unsigned long long>>
                 matches{};
             std::atomic<size_t> number_of_matches = 0;
-            file_context ctx{number_of_matches, matches, options.print_only_filenames};
+            file_context ctx{number_of_matches, matches,
+                             options.print_only_filenames};
 
             if (hs_scan(database, start, end - start, 0, local_scratch,
                         on_match, (void *)(&ctx)) != HS_SUCCESS) {
