@@ -3,8 +3,8 @@
 #include <unordered_map>
 #include <vector>
 
-int on_match(unsigned int id, unsigned long long from, unsigned long long to,
-             unsigned int flags, void *ctx) {
+int on_match(unsigned int, unsigned long long from, unsigned long long to,
+             unsigned int, void *ctx) {
   file_context *fctx = (file_context *)(ctx);
   fctx->number_of_matches += 1;
   fctx->matches.push_back(std::make_pair(from, to));
@@ -241,9 +241,9 @@ std::size_t process_matches_nocolor_nostdout(
     const char *filename, char *buffer, std::size_t bytes_read,
     std::vector<std::pair<unsigned long long, unsigned long long>> &matches,
     std::size_t &current_line_number, std::string &lines, bool print_filename,
-    bool is_stdout, bool show_line_numbers, bool show_column_numbers,
-    bool show_byte_offset, bool print_only_matching_parts,
-    const std::optional<std::size_t> &max_column_limit, std::size_t byte_offset,
+    bool, bool show_line_numbers, bool,
+    bool, bool,
+    const std::optional<std::size_t> &max_column_limit, std::size_t,
     bool ltrim_each_output_line) {
   std::string_view chunk(buffer, bytes_read);
   static bool apply_column_limit = max_column_limit.has_value();

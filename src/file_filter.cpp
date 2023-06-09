@@ -30,8 +30,8 @@ bool construct_file_filtering_hs_database(hs_database **file_filter_database,
   return true;
 }
 
-int on_file_filter_match(unsigned int id, unsigned long long from,
-                         unsigned long long to, unsigned int flags, void *ctx) {
+int on_file_filter_match(unsigned int, unsigned long long,
+                         unsigned long long, unsigned int, void *ctx) {
   filter_context *fctx = (filter_context *)(ctx);
   fctx->result = true;
   return HS_SUCCESS;

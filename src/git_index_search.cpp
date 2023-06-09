@@ -333,7 +333,7 @@ bool git_index_search::search_submodules(const char *dir,
 
   if (git_submodule_foreach(
           this_repo,
-          [](git_submodule *sm, const char *name, void *payload) -> int {
+          [](git_submodule *, const char *name, void *payload) -> int {
             context *ctx = (context *)(payload);
             auto self = ctx->ptr;
             auto dir = ctx->dir;
@@ -355,7 +355,7 @@ bool git_index_search::search_submodules(const char *dir,
   }
 }
 
-bool git_index_search::visit_git_index(const std::filesystem::path &dir,
+bool git_index_search::visit_git_index(const std::filesystem::path &,
                                        git_index *index) {
   git_index_iterator *iter{nullptr};
   if (git_index_iterator_new(&iter, index) == 0) {
