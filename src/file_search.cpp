@@ -69,6 +69,7 @@ bool file_search::mmap_and_scan(std::string &&filename,
                                 std::optional<std::size_t> maybe_file_size) {
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
+    std::cerr << filename << ": " << std::strerror(errno) << " (os error " << errno << ")\n";
     return false;
   }
 

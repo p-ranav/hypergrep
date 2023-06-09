@@ -204,6 +204,7 @@ bool directory_search::process_file(std::string &&filename,
 
   int fd = open(filename.data(), O_RDONLY, 0);
   if (fd == -1) {
+    std::cerr << filename << ": " << std::strerror(errno) << " (os error " << errno << ")\n";
     return false;
   }
   bool result{false};
@@ -430,7 +431,6 @@ void directory_search::visit_directory_and_enqueue(
     hs_scratch *local_file_filter_scratch) {
   DIR *dir = opendir(directory.c_str());
   if (dir == NULL) {
-    std::cerr << "Failed to open '" << directory << "'\n";
     return;
   }
 

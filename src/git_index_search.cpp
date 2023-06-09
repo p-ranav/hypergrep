@@ -124,6 +124,7 @@ bool git_index_search::process_file(const char *filename,
                                     std::string &lines) {
   int fd = open(filename, O_RDONLY, 0);
   if (fd == -1) {
+    std::cerr << filename << ": " << std::strerror(errno) << " (os error " << errno << ")\n";
     return false;
   }
   bool result{false};

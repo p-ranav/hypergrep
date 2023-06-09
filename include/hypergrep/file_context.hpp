@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <cerrno>
 #include <hs/hs.h>
 #include <vector>
 
