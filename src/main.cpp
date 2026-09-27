@@ -5,8 +5,8 @@
 #include <hypergrep/print_help.hpp>
 
 void perform_search(std::string &pattern, std::string_view path,
-                    argparse::ArgumentParser &program) {
-  if (!isatty(fileno(stdin))) {
+                    argparse::ArgumentParser &program, bool path_explicitly_provided) {
+  if (!path_explicitly_provided && !isatty(fileno(stdin))) {
     // Program was called from a pipe
 
     file_search s(pattern, program);
@@ -185,10 +185,10 @@ int main(int argc, char **argv) {
     auto empty_pattern = std::string{};
     auto paths = program.get<std::vector<std::string>>("patterns_and_paths");
     if (paths.empty()) {
-      perform_search(empty_pattern, ".", program);
+      perform_search(empty_pattern, ".", program, /* path_explicitly_provided */ false);
     } else {
       for (const auto &path : paths) {
-        perform_search(empty_pattern, path, program);
+        perform_search(empty_pattern, path, program, /* path_explicitly_provided */ true);
       }
     }
   } else {
@@ -214,10 +214,10 @@ int main(int argc, char **argv) {
     if (size == 1) {
       // Path not provided
       // Default to current directory
-      perform_search(pattern, ".", program);
+      perform_search(pattern, ".", program, /* path_explicitly_provided */ false);
     } else {
       for (std::size_t i = 1; i < patterns_and_paths.size(); ++i) {
-        perform_search(pattern, patterns_and_paths[i], program);
+        perform_search(pattern, patterns_and_paths[i], program, /* path_explicitly_provided */ true);
       }
     }
   }
